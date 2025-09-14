@@ -81,57 +81,21 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Mock analytics data
-    const mockData: AnalyticsData = {
-      rfpMetrics: {
-        total: 45,
-        published: 32,
-        inEvaluation: 8,
-        awarded: 28,
-        avgCycleTime: 45
-      },
-      vendorMetrics: {
-        total: 156,
-        active: 142,
-        avgResponseRate: 78,
-        topPerformers: [
-          { name: "Tech Solutions Inc", winRate: 85, avgScore: 4.2 },
-          { name: "Global IT Services", winRate: 72, avgScore: 3.9 },
-          { name: "Digital Dynamics", winRate: 68, avgScore: 4.1 },
-          { name: "Creative Agency Pro", winRate: 65, avgScore: 3.8 }
-        ]
-      },
-      financialMetrics: {
-        totalBudget: 12500000,
-        totalAwarded: 11200000,
-        savings: 1300000,
-        avgAwardValue: 400000
-      },
-      timelineMetrics: {
-        avgCreationToPublish: 7,
-        avgPublishToAward: 28,
-        avgEvaluationTime: 14
-      },
-      monthlyData: [
-        { month: "Jun", rfps: 3, awards: 2, budget: 800000 },
-        { month: "Jul", rfps: 5, awards: 3, budget: 1200000 },
-        { month: "Aug", rfps: 4, awards: 4, budget: 950000 },
-        { month: "Sep", rfps: 6, awards: 5, budget: 1500000 },
-        { month: "Oct", rfps: 8, awards: 6, budget: 1800000 },
-        { month: "Nov", rfps: 7, awards: 4, budget: 1400000 }
-      ],
-      categoryData: [
-        { category: "IT Services", count: 18, value: 5200000 },
-        { category: "Marketing", count: 12, value: 2800000 },
-        { category: "Construction", count: 8, value: 3200000 },
-        { category: "Consulting", count: 7, value: 1800000 }
-      ]
+    const fetchAnalyticsData = async () => {
+      try {
+        const response = await fetch('/api/analytics?type=full')
+        if (response.ok) {
+          const data = await response.json()
+          setData(data)
+        }
+      } catch (error) {
+        console.error('Error fetching analytics data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
 
-    setTimeout(() => {
-      setData(mockData)
-      setLoading(false)
-    }, 1000)
+    fetchAnalyticsData()
   }, [])
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']

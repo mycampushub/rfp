@@ -28,6 +28,8 @@ model Tenant {
   files       File[]
   activityLog ActivityLog[]
   webhooks    WebhookEndpoint[]
+  approvalWorkflows ApprovalWorkflow[]
+  securityAlerts SecurityAlert[]
   
   @@map("tenants")
 }
@@ -50,6 +52,7 @@ model User {
   scores      Score[]
   approvals   Approval[]
   activityLogs ActivityLog[] @relation("UserActivityLogs")
+  approvalRequests ApprovalRequest[]
 
   @@map("users")
   @@unique([tenantId, email])
@@ -115,6 +118,7 @@ model RFP {
   submissions     Submission[]
   approvals       Approval[]
   activityLogs    ActivityLog[] @relation("RFPActivityLogs")
+  approvalProcesses ApprovalProcess[]
 
   @@map("rfps")
 }
@@ -426,4 +430,82 @@ model WebhookEndpoint {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("webhook_endpoints")
+}
+
+model SecurityAlert {
+  id          String   @id @default(cuid())
+  tenantId    String
+  type        String
+  message     String
+  severity    String   @default("medium") // low, medium, high, critical
+  status      String   @default("active") // active, resolved, dismissed
+  metadata    Json?
+  resolution  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("security_alerts")
+}
+
+model ApprovalWorkflow {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  stages      Json     // Array of stage objects stored as JSON
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  processes   ApprovalProcess[]
+
+  @@map("approval_workflows")
+}
+
+model ApprovalProcess {
+  id          String   @id @default(cuid())
+  rfpId       String
+  workflowId  String
+  requestedBy String
+  status      String   @default("in_progress") // in_progress, completed, rejected
+  currentStage Int     @default(0)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+
+  // Relationships
+  rfp         RFP               @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  workflow    ApprovalWorkflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  requests    ApprovalRequest[]
+
+  @@map("approval_processes")
+}
+
+model ApprovalRequest {
+  id          String   @id @default(cuid())
+  processId   String
+  stageId     String
+  stageName   String
+  approverRole String
+  slaHours    Int
+  status      String   @default("waiting") // waiting, pending, approved, rejected
+  approverId  String?
+  dueAt       DateTime
+  decidedAt   DateTime?
+  comments    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  process     ApprovalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  approver    User?           @relation(fields: [approverId], references: [id])
+
+  @@map("approval_requests")
 }
