@@ -7,13 +7,16 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/", "/auth/signin", "/api/health", "/submit"]
+  const publicRoutes = ["/", "/auth/signin", "/auth/signup", "/api/health", "/submit"]
   const isPublicRoute = publicRoutes.some(route => 
     pathname === route || pathname.startsWith(route + "/")
   )
 
-  // If accessing a public route, allow through
-  if (isPublicRoute) {
+  // NextAuth API routes should always be accessible
+  const isAuthRoute = pathname.startsWith("/api/auth/")
+
+  // If accessing a public route or auth route, allow through
+  if (isPublicRoute || isAuthRoute) {
     return NextResponse.next()
   }
 

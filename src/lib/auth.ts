@@ -13,17 +13,17 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        tenantId: { label: "Tenant ID", type: "text" }
+        businessId: { label: "Business ID", type: "text" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password || !credentials?.tenantId) {
+        if (!credentials?.email || !credentials?.password || !credentials?.businessId) {
           return null
         }
 
         const user = await db.user.findFirst({
           where: {
             email: credentials.email,
-            tenantId: credentials.tenantId,
+            tenantId: credentials.businessId, // Still using tenantId in database for now
             isActive: true
           }
         })
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          tenantId: user.tenantId,
+          tenantId: user.tenantId, // Still using tenantId in database
           roleIds: user.roleIds,
         }
       }

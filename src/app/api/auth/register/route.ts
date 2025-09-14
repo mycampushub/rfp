@@ -12,6 +12,7 @@ const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters")
     .regex(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and number"),
   company: z.string().min(1, "Company name is required"),
+  businessId: z.string().min(1, "Business ID is required"),
   phone: z.string().min(1, "Phone number is required"),
   agreeToTerms: z.boolean().refine(val => val === true, "You must agree to the terms and conditions"),
   agreeToPrivacy: z.boolean().refine(val => val === true, "You must agree to the privacy policy")
@@ -42,17 +43,18 @@ export async function POST(request: NextRequest) {
     // Hash the password
     const hashedPassword = await bcrypt.hash(validatedData.password, 12)
 
-    // Create or get tenant
+    // Create or get tenant using the provided businessId
     let tenant = await db.tenant.findFirst({
       where: {
-        name: validatedData.company
+        id: validatedData.businessId
       }
     })
 
     if (!tenant) {
-      // Create new tenant
+      // Create new tenant with the provided businessId as the ID
       tenant = await db.tenant.create({
         data: {
+          id: validatedData.businessId,
           name: validatedData.company,
           plan: "standard", // Default plan
           region: "US", // Default region

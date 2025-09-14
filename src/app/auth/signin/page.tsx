@@ -15,7 +15,7 @@ import { toast } from "sonner"
 function SignInContent() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [tenantId, setTenantId] = useState("")
+  const [businessId, setBusinessId] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
@@ -37,7 +37,7 @@ function SignInContent() {
       const result = await signIn("credentials", {
         email,
         password,
-        tenantId,
+        businessId,
         redirect: false,
       })
 
@@ -90,14 +90,14 @@ function SignInContent() {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="tenantId">Tenant ID</Label>
+                <Label htmlFor="businessId">Business ID</Label>
                 <Input
-                  id="tenantId"
+                  id="businessId"
                   type="text"
-                  value={tenantId}
-                  onChange={(e) => setTenantId(e.target.value)}
+                  value={businessId}
+                  onChange={(e) => setBusinessId(e.target.value)}
                   required
-                  placeholder="Enter your tenant ID"
+                  placeholder="Enter your business ID"
                 />
               </div>
               
