@@ -31,7 +31,8 @@ import {
   X,
   Link,
   FileCheck,
-  AlertTriangle
+  AlertTriangle,
+  Edit
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -463,8 +464,12 @@ export default function SubmissionPage() {
       timestamp: new Date().toISOString(),
       rfpId: params.id
     }
-    const crypto = require("crypto")
-    return crypto.createHash("sha256").update(JSON.stringify(submissionData)).digest("hex")
+    const encoder = new TextEncoder()
+    const data = encoder.encode(JSON.stringify(submissionData))
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    return hashHex
   }
 
   const handleDataIntegration = async (integrationId: string, questionId?: string) => {

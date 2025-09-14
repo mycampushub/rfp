@@ -16,7 +16,11 @@ import {
   BarChart3,
   LogOut,
   Bell,
-  Calendar
+  Calendar,
+  Store,
+  Search,
+  User,
+  TrendingUp
 } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 
@@ -35,6 +39,33 @@ const navItems = [
     title: "Vendors",
     href: "/vendors",
     icon: Users,
+  },
+  {
+    title: "Marketplace",
+    href: "/marketplace",
+    icon: Store,
+    children: [
+      {
+        title: "Browse RFPs",
+        href: "/marketplace/rfps",
+        icon: Search,
+      },
+      {
+        title: "Vendor Directory",
+        href: "/marketplace/vendors",
+        icon: Users,
+      },
+      {
+        title: "My Activity",
+        href: "/marketplace/my-activity",
+        icon: User,
+      },
+      {
+        title: "Analytics",
+        href: "/marketplace/analytics",
+        icon: TrendingUp,
+      },
+    ],
   },
   {
     title: "Q&A",
@@ -96,6 +127,45 @@ export function Sidebar({ className }: SidebarProps) {
           <div className="space-y-1">
             {navItems.map((item) => {
               const isActive = pathname === item.href
+              
+              if (item.children) {
+                const isChildActive = item.children.some(child => pathname === child.href)
+                return (
+                  <div key={item.href} className="space-y-1">
+                    <Button
+                      variant={isChildActive ? "secondary" : "ghost"}
+                      className="w-full justify-start"
+                      asChild
+                    >
+                      <Link href={item.href}>
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {item.title}
+                      </Link>
+                    </Button>
+                    {isChildActive && (
+                      <div className="ml-4 space-y-1">
+                        {item.children.map((child) => {
+                          const childIsActive = pathname === child.href
+                          return (
+                            <Button
+                              key={child.href}
+                              variant={childIsActive ? "secondary" : "ghost"}
+                              className="w-full justify-start text-sm"
+                              asChild
+                            >
+                              <Link href={child.href}>
+                                <child.icon className="mr-2 h-3 w-3" />
+                                {child.title}
+                              </Link>
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              
               return (
                 <Button
                   key={item.href}

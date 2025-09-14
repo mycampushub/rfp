@@ -18,6 +18,11 @@ model Tenant {
   plan        String   @default("standard") // standard, enterprise, custom
   settings    Json?
   branding    Json?
+  marketplaceSettings Json?
+  subscriptionTier String @default("basic") // basic, professional, enterprise
+  subscriptionStatus String @default("active") // active, cancelled, suspended
+  subscriptionEndsAt DateTime?
+  billingInfo Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -30,6 +35,9 @@ model Tenant {
   webhooks    WebhookEndpoint[]
   approvalWorkflows ApprovalWorkflow[]
   securityAlerts SecurityAlert[]
+  publicRfps  PublicRFP[]
+  transactions Transaction[]
+  usageMetrics UsageMetrics[]
   
   @@map("tenants")
 }
@@ -53,6 +61,12 @@ model User {
   approvals   Approval[]
   activityLogs ActivityLog[] @relation("UserActivityLogs")
   approvalRequests ApprovalRequest[]
+  vendorProfile VendorProfile?
+  bidMessages BidMessage[]
+  reviews     Review[]
+  savedSearches SavedSearch[]
+  notifications Notification[]
+  answeredQnA  PublicQnA[] @relation("UserPublicQnA")
 
   @@map("users")
   @@unique([tenantId, email])
@@ -103,6 +117,8 @@ model RFP {
   publishAt       DateTime?
   closeAt         DateTime?
   settings        Json?
+  isPublic        Boolean  @default(false)
+  marketplaceId   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -119,6 +135,7 @@ model RFP {
   approvals       Approval[]
   activityLogs    ActivityLog[] @relation("RFPActivityLogs")
   approvalProcesses ApprovalProcess[]
+  publicRfp       PublicRFP?
 
   @@map("rfps")
 }
@@ -508,4 +525,283 @@ model ApprovalRequest {
   approver    User?           @relation(fields: [approverId], references: [id])
 
   @@map("approval_requests")
+}
+
+// Marketplace Models
+model Marketplace {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  settings    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // Relationships
+  publicRfps  PublicRFP[]
+  categories  Category[]
+  reviews     Review[]
+  
+  @@map("marketplaces")
+}
+
+model PublicRFP {
+  id              String   @id @default(cuid())
+  marketplaceId   String
+  tenantId        String   // Original RFP creator
+  rfpId           String   @unique // Link to original RFP - one-to-one relationship
+  visibility      String   @default("public") // public, private, restricted
+  status          String   @default("active") // active, closed, awarded, cancelled
+  featured        Boolean  @default(false)
+  viewCount       Int      @default(0)
+  bidCount        Int      @default(0)
+  expiresAt       DateTime?
+  publishedAt     DateTime @default(now())
+  metadata        Json?    // Additional public metadata
+  
+  // Relationships
+  marketplace     Marketplace @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rfp             RFP         @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  bids            Bid[]
+  publicQnA       PublicQnA[]
+  categories      PublicRFPCategory[]
+  reviews         Review[]
+  
+  @@map("public_rfps")
+}
+
+model Category {
+  id            String   @id @default(cuid())
+  marketplaceId String
+  name          String
+  description   String?
+  icon          String?
+  color         String?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  // Relationships
+  marketplace   Marketplace       @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+  publicRfps    PublicRFPCategory[]
+  
+  @@unique([marketplaceId, name])
+  @@map("categories")
+}
+
+model PublicRFPCategory {
+  id          String   @id @default(cuid())
+  publicRfpId String
+  categoryId  String
+  
+  // Relationships
+  publicRfp   PublicRFP @relation(fields: [publicRfpId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@unique([publicRfpId, categoryId])
+  @@map("public_rfp_categories")
+}
+
+model VendorProfile {
+  id              String   @id @default(cuid())
+  userId          String   // Link to User table
+  businessName    String
+  description     String?
+  website         String?
+  logo            String?
+  coverImage      String?
+  phone           String?
+  email           String?
+  address         Json?
+  specialties     Json?    // Array of specialties
+  certifications  Json?    // Array of certifications
+  portfolio       Json?    // Portfolio items
+  isVerified      Boolean  @default(false)
+  verificationLevel String @default("basic") // basic, enhanced, premium
+  rating          Float    @default(0)
+  reviewCount     Int      @default(0)
+  projectCount    Int      @default(0)
+  isActive        Boolean  @default(true)
+  settings        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Relationships
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bids            Bid[]
+  reviews         Review[]
+  publicQnA       PublicQnA[]
+  vendorSpecialties VendorSpecialty[]
+  
+  @@unique([userId])
+  @@map("vendor_profiles")
+}
+
+model VendorSpecialty {
+  id              String   @id @default(cuid())
+  vendorProfileId String
+  specialty       String
+  level           String   @default("expert") // beginner, intermediate, expert, master
+  yearsExperience Int?
+  projects        Int      @default(0)
+  isActive        Boolean  @default(true)
+  
+  // Relationships
+  vendorProfile   VendorProfile @relation(fields: [vendorProfileId], references: [id], onDelete: Cascade)
+  
+  @@unique([vendorProfileId, specialty])
+  @@map("vendor_specialties")
+}
+
+model Bid {
+  id              String   @id @default(cuid())
+  publicRfpId     String
+  vendorProfileId String
+  amount          Float?
+  currency        String   @default("USD")
+  duration        String?  // e.g., "3 months", "6 weeks"
+  proposal        String?  // Proposal summary
+  attachments     Json?    // Array of file references
+  status          String   @default("draft") // draft, submitted, reviewed, accepted, rejected, withdrawn
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  decisionAt      DateTime?
+  notes           String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Relationships
+  publicRfp       PublicRFP      @relation(fields: [publicRfpId], references: [id], onDelete: Cascade)
+  vendorProfile   VendorProfile  @relation(fields: [vendorProfileId], references: [id], onDelete: Cascade)
+  messages        BidMessage[]
+  reviews         Review[]
+  
+  @@unique([publicRfpId, vendorProfileId])
+  @@map("bids")
+}
+
+model BidMessage {
+  id          String   @id @default(cuid())
+  bidId       String
+  senderId    String   // User ID
+  message     String
+  attachments Json?    // Array of file references
+  isPublic    Boolean  @default(false) // Visible to all marketplace participants
+  createdAt   DateTime @default(now())
+  // Relationships
+  bid         Bid       @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  
+  @@map("bid_messages")
+}
+
+model PublicQnA {
+  id           String   @id @default(cuid())
+  publicRfpId  String
+  vendorProfileId String? // Optional, can be anonymous
+  question     String
+  answer       String?
+  answerBy     String?  // User ID who answered
+  isPublic     Boolean  @default(true)
+  status       String   @default("pending") // pending, answered, closed
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  // Relationships
+  publicRfp    PublicRFP      @relation(fields: [publicRfpId], references: [id], onDelete: Cascade)
+  vendorProfile VendorProfile? @relation(fields: [vendorProfileId], references: [id], onDelete: Cascade)
+  answerer     User?          @relation("UserPublicQnA", fields: [answerBy], references: [id])
+  
+  @@map("public_qna")
+}
+
+model Review {
+  id              String   @id @default(cuid())
+  vendorProfileId String
+  reviewerId      String   // User ID who left review
+  publicRfpId     String?  // Optional, if related to specific project
+  bidId           String?  // Optional, if related to specific bid
+  marketplaceId   String?  // Optional, if related to marketplace
+  rating          Float    // 1-5 stars
+  title           String?
+  comment         String?
+  response        String?  // Vendor's response to review
+  status          String   @default("published") // published, flagged, removed
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // Relationships
+  vendorProfile   VendorProfile @relation(fields: [vendorProfileId], references: [id], onDelete: Cascade)
+  reviewer        User          @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  publicRfp       PublicRFP?    @relation(fields: [publicRfpId], references: [id], onDelete: Cascade)
+  bid             Bid?           @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  marketplace     Marketplace?  @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+  
+  @@map("reviews")
+}
+
+model SavedSearch {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  query       Json     // Search criteria
+  frequency   String   @default("daily") // daily, weekly, monthly
+  isActive    Boolean  @default(true)
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  // Relationships
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+  
+  @@map("saved_searches")
+}
+
+model Notification {
+  id            String   @id @default(cuid())
+  userId        String
+  savedSearchId String?
+  type          String   // new_rfp, bid_accepted, question_answered, etc.
+  title         String
+  message       String
+  data          Json?    // Additional notification data
+  isRead        Boolean  @default(false)
+  isDismissed   Boolean  @default(false)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  // Relationships
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  savedSearch   SavedSearch? @relation(fields: [savedSearchId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  tenantId      String
+  type          String   // subscription_fee, transaction_fee, success_fee
+  amount        Float
+  currency      String   @default("USD")
+  status        String   @default("pending") // pending, completed, failed, refunded
+  description   String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  // Relationships
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@map("transactions")
+}
+
+model UsageMetrics {
+  id            String   @id @default(cuid())
+  tenantId      String
+  metricType    String   // rfp_views, bid_submissions, vendor_searches, etc.
+  count         Int      @default(1)
+  date          DateTime @default(now())
+  metadata      Json?
+  
+  // Relationships
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  @@unique([tenantId, metricType, date])
+  @@map("usage_metrics")
 }

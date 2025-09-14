@@ -298,9 +298,13 @@ function generateDeviceFingerprint(request: NextRequest) {
 
 async function generateDocumentHash(submission: any) {
   // Generate a hash of the submission data
-  const crypto = require("crypto")
+  const encoder = new TextEncoder()
   const submissionString = JSON.stringify(submission)
-  return crypto.createHash("sha256").update(submissionString).digest("hex")
+  const data = encoder.encode(submissionString)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashHex
 }
 
 async function verifySignatureIntegrity(signature: any) {
