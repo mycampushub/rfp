@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -15,7 +15,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { MainLayout } from "@/components/layout/main-layout"
+import { TeamAssignment } from "@/components/rfp/team-assignment"
+import { SectionQuestionBuilder } from "@/components/rfp/section-question-builder"
+import { ScoringRubricBuilder } from "@/components/rfp/scoring-rubric-builder"
+import { VendorInvitation } from "@/components/rfp/vendor-invitation"
 import { toast } from "sonner"
+import { FileText, Users, Shield, TrendingUp } from "lucide-react"
 
 const rfpFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -30,9 +35,51 @@ const rfpFormSchema = z.object({
     evaluationStart: z.string().optional(),
     awardTarget: z.string().optional(),
   }).optional(),
+  terms: z.object({
+    ndaRequired: z.boolean().default(false),
+    paymentTerms: z.string().optional(),
+    deliveryTerms: z.string().optional(),
+    specialConditions: z.string().optional(),
+  }).optional(),
 })
 
 type RFPFormData = z.infer<typeof rfpFormSchema>
+
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: "owner" | "editor" | "evaluator" | "approver" | "viewer"
+  avatar?: string
+}
+
+interface Section {
+  id: string
+  title: string
+  description?: string
+  isRequired: boolean
+  order: number
+  questions: any[]
+}
+
+interface RubricCriterion {
+  id: string
+  label: string
+  weight: number
+  scaleMin: number
+  scaleMax: number
+  guidance?: string
+  sectionId?: string
+}
+
+interface Invitation {
+  id: string
+  vendorId?: string
+  email: string
+  status: "pending" | "accepted" | "declined" | "expired"
+  expiresAt?: string
+  token: string
+}
 
 const steps = [
   { id: 1, title: "Basics", description: "Basic RFP information" },
@@ -50,6 +97,12 @@ export default function CreateRFP() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
 
+  // State for wizard steps
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [sections, setSections] = useState<Section[]>([])
+  const [criteria, setCriteria] = useState<RubricCriterion[]>([])
+  const [invitations, setInvitations] = useState<Invitation[]>([])
+
   const {
     register,
     handleSubmit,
@@ -61,6 +114,9 @@ export default function CreateRFP() {
     resolver: zodResolver(rfpFormSchema),
     defaultValues: {
       confidentiality: "internal",
+      terms: {
+        ndaRequired: false,
+      },
     },
   })
 
@@ -82,6 +138,18 @@ export default function CreateRFP() {
         return ["title", "category", "budget", "confidentiality", "description"]
       case 2:
         return ["timeline.qnaStart", "timeline.qnaEnd", "timeline.submissionDeadline"]
+      case 3:
+        return [] // Team assignment is handled separately
+      case 4:
+        return [] // Section builder is handled separately
+      case 5:
+        return [] // Scoring rubric is handled separately
+      case 6:
+        return [] // Vendor invitation is handled separately
+      case 7:
+        return ["terms.ndaRequired", "terms.paymentTerms", "terms.deliveryTerms"]
+      case 8:
+        return [] // Review step doesn't need validation
       default:
         return []
     }
@@ -90,12 +158,43 @@ export default function CreateRFP() {
   const onSubmit = async (data: RFPFormData) => {
     setIsSubmitting(true)
     try {
-      // TODO: Implement actual RFP creation logic
-      console.log("Creating RFP:", data)
+      // Validate required steps
+      if (teamMembers.length === 0) {
+        toast.error("Please assign at least one team member")
+        return
+      }
+
+      if (sections.length === 0) {
+        toast.error("Please add at least one section with questions")
+        return
+      }
+
+      if (criteria.length === 0) {
+        toast.error("Please add at least one scoring criterion")
+        return
+      }
+
+      // Prepare complete RFP data
+      const rfpData = {
+        ...data,
+        teamMembers,
+        sections,
+        criteria,
+        invitations,
+        budget: data.budget ? parseFloat(data.budget.replace(/[^0-9.-]+/g, "")) : undefined,
+      }
+
+      // TODO: Implement actual RFP creation API call
+      console.log("Creating RFP with complete data:", rfpData)
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
       toast.success("RFP created successfully!")
       router.push("/rfps")
     } catch (error) {
       toast.error("Failed to create RFP")
+      console.error("RFP creation error:", error)
     } finally {
       setIsSubmitting(false)
     }
@@ -219,56 +318,80 @@ export default function CreateRFP() {
 
       case 3:
         return (
-          <div className="space-y-4">
-            <Alert>
-              <AlertDescription>
-                Team member assignment will be implemented in a future update. For now, you can assign team members after creating the RFP.
-              </AlertDescription>
-            </Alert>
-          </div>
+          <TeamAssignment
+            teamMembers={teamMembers}
+            onTeamMembersChange={setTeamMembers}
+          />
         )
 
       case 4:
         return (
-          <div className="space-y-4">
-            <Alert>
-              <AlertDescription>
-                Section and question builder will be implemented in a future update. For now, you can add sections and questions after creating the RFP.
-              </AlertDescription>
-            </Alert>
-          </div>
+          <SectionQuestionBuilder
+            sections={sections}
+            onSectionsChange={setSections}
+          />
         )
 
       case 5:
         return (
-          <div className="space-y-4">
-            <Alert>
-              <AlertDescription>
-                Scoring rubric configuration will be implemented in a future update. For now, you can set up scoring criteria after creating the RFP.
-              </AlertDescription>
-            </Alert>
-          </div>
+          <ScoringRubricBuilder
+            criteria={criteria}
+            sections={sections}
+            onCriteriaChange={setCriteria}
+          />
         )
 
       case 6:
         return (
-          <div className="space-y-4">
-            <Alert>
-              <AlertDescription>
-                Vendor invitation will be implemented in a future update. For now, you can invite vendors after creating the RFP.
-              </AlertDescription>
-            </Alert>
-          </div>
+          <VendorInvitation
+            invitations={invitations}
+            onInvitationsChange={setInvitations}
+            rfpDeadline={watch("timeline.submissionDeadline")}
+          />
         )
 
       case 7:
         return (
           <div className="space-y-4">
-            <Alert>
-              <AlertDescription>
-                Legal terms and conditions configuration will be implemented in a future update. For now, you can add terms after creating the RFP.
-              </AlertDescription>
-            </Alert>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="ndaRequired"
+                {...register("terms.ndaRequired")}
+                onChange={(e) => setValue("terms.ndaRequired", e.target.checked)}
+              />
+              <Label htmlFor="ndaRequired">NDA Required</Label>
+            </div>
+
+            <div>
+              <Label htmlFor="paymentTerms">Payment Terms</Label>
+              <Textarea
+                id="paymentTerms"
+                {...register("terms.paymentTerms")}
+                placeholder="e.g., Net 30 days, 50% upfront, 50% on completion"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="deliveryTerms">Delivery Terms</Label>
+              <Textarea
+                id="deliveryTerms"
+                {...register("terms.deliveryTerms")}
+                placeholder="e.g., Delivery within 90 days of contract signing"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="specialConditions">Special Conditions</Label>
+              <Textarea
+                id="specialConditions"
+                {...register("terms.specialConditions")}
+                placeholder="Any special conditions or requirements"
+                rows={3}
+              />
+            </div>
           </div>
         )
 
@@ -277,27 +400,142 @@ export default function CreateRFP() {
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold">Review Your RFP</h3>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-6">
+                {/* Basic Information */}
                 <div>
-                  <Label className="text-sm font-medium">Title</Label>
-                  <p className="text-sm text-gray-600">{watch("title")}</p>
+                  <h4 className="font-medium mb-3">Basic Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Title</Label>
+                      <p className="text-sm text-gray-600">{watch("title")}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Category</Label>
+                      <p className="text-sm text-gray-600">{watch("category") || "Not specified"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Budget</Label>
+                      <p className="text-sm text-gray-600">{watch("budget") || "Not specified"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Confidentiality</Label>
+                      <Badge variant="outline">{watch("confidentiality")}</Badge>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">Category</Label>
-                  <p className="text-sm text-gray-600">{watch("category") || "Not specified"}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Budget</Label>
-                  <p className="text-sm text-gray-600">{watch("budget") || "Not specified"}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Confidentiality</Label>
-                  <Badge variant="outline">{watch("confidentiality")}</Badge>
-                </div>
+
+                {/* Timeline */}
                 {watch("timeline.submissionDeadline") && (
                   <div>
-                    <Label className="text-sm font-medium">Submission Deadline</Label>
-                    <p className="text-sm text-gray-600">{watch("timeline.submissionDeadline")}</p>
+                    <h4 className="font-medium mb-3">Timeline</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Q&A Start</Label>
+                        <p className="text-sm text-gray-600">{watch("timeline.qnaStart") || "Not set"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Q&A End</Label>
+                        <p className="text-sm text-gray-600">{watch("timeline.qnaEnd") || "Not set"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Submission Deadline</Label>
+                        <p className="text-sm text-gray-600">{watch("timeline.submissionDeadline")}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Evaluation Start</Label>
+                        <p className="text-sm text-gray-600">{watch("timeline.evaluationStart") || "Not set"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Team Members */}
+                <div>
+                  <h4 className="font-medium mb-3">Team Members ({teamMembers.length})</h4>
+                  <div className="space-y-2">
+                    {teamMembers.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <span className="font-medium">{member.name}</span>
+                          <span className="text-sm text-gray-600 ml-2">({member.email})</span>
+                        </div>
+                        <Badge variant="outline">{member.role}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sections */}
+                <div>
+                  <h4 className="font-medium mb-3">Sections ({sections.length})</h4>
+                  <div className="space-y-2">
+                    {sections.map((section) => (
+                      <div key={section.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <span className="font-medium">{section.title}</span>
+                          <span className="text-sm text-gray-600 ml-2">
+                            ({section.questions.length} questions)
+                          </span>
+                        </div>
+                        {section.isRequired && <Badge variant="destructive">Required</Badge>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Scoring Criteria */}
+                <div>
+                  <h4 className="font-medium mb-3">Scoring Criteria ({criteria.length})</h4>
+                  <div className="space-y-2">
+                    {criteria.map((criterion) => (
+                      <div key={criterion.id} className="flex items-center justify-between p-2 border rounded">
+                        <div>
+                          <span className="font-medium">{criterion.label}</span>
+                          <span className="text-sm text-gray-600 ml-2">
+                            ({criterion.scaleMin}-{criterion.scaleMax} scale)
+                          </span>
+                        </div>
+                        <Badge variant="outline">{criterion.weight}%</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Vendor Invitations */}
+                <div>
+                  <h4 className="font-medium mb-3">Vendor Invitations ({invitations.length})</h4>
+                  <div className="space-y-2">
+                    {invitations.map((invitation) => (
+                      <div key={invitation.id} className="flex items-center justify-between p-2 border rounded">
+                        <span className="font-medium">{invitation.email}</span>
+                        <Badge variant="outline">{invitation.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Terms */}
+                {watch("terms.ndaRequired") && (
+                  <div>
+                    <h4 className="font-medium mb-3">Terms & Conditions</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-sm font-medium">NDA Required</Label>
+                        <Badge variant="destructive" className="ml-2">Yes</Badge>
+                      </div>
+                      {watch("terms.paymentTerms") && (
+                        <div>
+                          <Label className="text-sm font-medium">Payment Terms</Label>
+                          <p className="text-sm text-gray-600">{watch("terms.paymentTerms")}</p>
+                        </div>
+                      )}
+                      {watch("terms.deliveryTerms") && (
+                        <div>
+                          <Label className="text-sm font-medium">Delivery Terms</Label>
+                          <p className="text-sm text-gray-600">{watch("terms.deliveryTerms")}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
