@@ -62,6 +62,11 @@ const navItems = [
     icon: MessageSquare,
   },
   {
+    title: "Announcements",
+    href: "/announcements",
+    icon: Bell,
+  },
+  {
     title: "Calendar",
     href: "/calendar",
     icon: Calendar,

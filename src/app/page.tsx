@@ -58,12 +58,14 @@ export default function Home() {
           </p>
           <div className="flex justify-center space-x-4">
             <Button size="lg" asChild>
-              <Link href="/auth/signin">
+              <Link href="/auth/signup">
                 Get Started
               </Link>
             </Button>
-            <Button variant="outline" size="lg">
-              Learn More
+            <Button variant="outline" size="lg" asChild>
+              <Link href="/auth/signin">
+                Sign In
+              </Link>
             </Button>
           </div>
         </div>
@@ -120,7 +122,7 @@ export default function Home() {
             Join thousands of organizations using our platform to manage their RFP processes efficiently.
           </p>
           <Button size="lg" asChild>
-            <Link href="/auth/signin">
+            <Link href="/auth/signup">
               Start Your Free Trial
             </Link>
           </Button>
