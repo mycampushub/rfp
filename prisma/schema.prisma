@@ -1,0 +1,429 @@
+// This is your Prisma schema file for RFP Software
+// Multi-tenant enterprise-grade platform for Request for Proposal management
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Core Entities
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  region      String?
+  plan        String   @default("standard") // standard, enterprise, custom
+  settings    Json?
+  branding    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  users       User[]
+  vendors     Vendor[]
+  rfps        RFP[]
+  files       File[]
+  activityLog ActivityLog[]
+  webhooks    WebhookEndpoint[]
+  
+  @@map("tenants")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  tenantId    String
+  email       String
+  name        String?
+  roleIds     Json?    // Array of role IDs stored as JSON
+  ssoId       String?
+  mfaEnabled  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rfpTeams    RFP_Team[]
+  scores      Score[]
+  approvals   Approval[]
+  activityLogs ActivityLog[] @relation("UserActivityLogs")
+
+  @@map("users")
+  @@unique([tenantId, email])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  permissions Json?    // Array of permission strings stored as JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+  @@unique([tenantId, name])
+}
+
+model Vendor {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  contactInfo     Json?
+  categories      Json?    // Array of categories stored as JSON
+  certifications  Json?    // Array of certifications stored as JSON
+  diversityAttrs  Json?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relationships
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitations     Invitation[]
+  submissions     Submission[]
+  qna             QnA[]
+  acknowledgments Acknowledgment[]
+
+  @@map("vendors")
+}
+
+model RFP {
+  id              String   @id @default(cuid())
+  tenantId        String
+  title           String
+  status          String   @default("draft") // draft, published, closed, awarded, archived
+  category        String?
+  budget          Float?
+  confidentiality String   @default("internal") // internal, confidential, restricted
+  publishAt       DateTime?
+  closeAt         DateTime?
+  settings        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relationships
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  timeline        RFP_Timeline?
+  teams           RFP_Team[]
+  sections        Section[]
+  rubricCriteria  RubricCriterion[]
+  invitations     Invitation[]
+  qna             QnA[]
+  addenda         Addendum[]
+  submissions     Submission[]
+  approvals       Approval[]
+  activityLogs    ActivityLog[] @relation("RFPActivityLogs")
+
+  @@map("rfps")
+}
+
+model RFP_Timeline {
+  id                    String   @id @default(cuid())
+  rfpId                 String   @unique
+  qnaStart              DateTime?
+  qnaEnd                DateTime?
+  submissionDeadline    DateTime?
+  evaluationStart       DateTime?
+  awardTarget           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relationships
+  rfp                   RFP      @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+
+  @@map("rfp_timelines")
+}
+
+model RFP_Team {
+  id        String   @id @default(cuid())
+  rfpId     String
+  userId    String
+  role      String   // owner, editor, evaluator, approver, viewer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  rfp       RFP      @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([rfpId, userId])
+  @@map("rfp_teams")
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  rfpId       String
+  order       Int
+  title       String
+  description String?
+  isRequired  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  rfp         RFP        @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  rubricCriteria RubricCriterion[]
+
+  @@map("sections")
+  @@unique([rfpId, order])
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  sectionId   String
+  type        String   // text, number, multiple_choice, checkbox, file, date
+  prompt      String
+  required    Boolean  @default(false)
+  constraints Json?
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  section     Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  answers     Answer[]
+
+  @@map("questions")
+  @@unique([sectionId, order])
+}
+
+model RubricCriterion {
+  id          String   @id @default(cuid())
+  rfpId       String?
+  sectionId   String?
+  label       String
+  weight      Float    @default(1.0)
+  scaleMin    Int      @default(1)
+  scaleMax    Int      @default(5)
+  guidance    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  rfp         RFP?     @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  section     Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  scores      Score[]
+  consensus   ConsensusScore[]
+
+  @@map("rubric_criteria")
+}
+
+model Invitation {
+  id          String   @id @default(cuid())
+  rfpId       String
+  vendorId    String?
+  email       String
+  token       String   @unique
+  expiresAt   DateTime?
+  status      String   @default("pending") // pending, accepted, declined, expired
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  rfp         RFP      @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  vendor      Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+model QnA {
+  id           String   @id @default(cuid())
+  rfpId        String
+  vendorId     String?
+  questionText String
+  answerText   String?
+  isPublic     Boolean  @default(true)
+  status       String   @default("pending") // pending, answered, published
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  rfp          RFP     @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  vendor       Vendor? @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@map("qna")
+}
+
+model Addendum {
+  id            String   @id @default(cuid())
+  rfpId         String
+  title         String
+  note          String?
+  attachments   Json?    // Array of file IDs stored as JSON
+  requiresAck   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  rfp           RFP            @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  acknowledgments Acknowledgment[]
+
+  @@map("addenda")
+}
+
+model Acknowledgment {
+  id          String   @id @default(cuid())
+  addendumId  String
+  vendorId    String
+  timestamp   DateTime @default(now())
+
+  // Relationships
+  addendum    Addendum @relation(fields: [addendumId], references: [id], onDelete: Cascade)
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([addendumId, vendorId])
+  @@map("acknowledgments")
+}
+
+model Submission {
+  id            String   @id @default(cuid())
+  rfpId         String
+  vendorId      String
+  version       Int      @default(1)
+  submittedAt   DateTime?
+  status        String   @default("draft") // draft, submitted, reviewed, awarded, rejected
+  checksum      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  rfp           RFP      @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  vendor        Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  answers       Answer[]
+  scores        Score[]
+  consensus     ConsensusScore[]
+
+  @@unique([rfpId, vendorId, version])
+  @@map("submissions")
+}
+
+model Answer {
+  id           String   @id @default(cuid())
+  submissionId String
+  questionId   String
+  valueText    String?
+  valueNumber  Float?
+  valueOption  String?
+  fileRef      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, questionId])
+  @@map("answers")
+}
+
+model Score {
+  id           String   @id @default(cuid())
+  submissionId String
+  criterionId  String
+  evaluatorId  String
+  scoreValue   Float
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  submission   Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  criterion    RubricCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  evaluator    User           @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, criterionId, evaluatorId])
+  @@map("scores")
+}
+
+model ConsensusScore {
+  id           String   @id @default(cuid())
+  submissionId String
+  criterionId  String
+  scoreValue   Float
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  submission   Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  criterion    RubricCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, criterionId])
+  @@map("consensus_scores")
+}
+
+model Approval {
+  id          String   @id @default(cuid())
+  rfpId       String
+  stage       String   // draft, legal_review, budget, publish, evaluation_complete, award, contract
+  approverId  String
+  status      String   @default("pending") // pending, approved, rejected
+  decidedAt   DateTime?
+  comments    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  rfp         RFP   @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  approver    User  @relation(fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@map("approvals")
+}
+
+model File {
+  id          String   @id @default(cuid())
+  tenantId    String
+  path        String
+  sha256      String?
+  size        Int?
+  mime        String?
+  version     Int      @default(1)
+  retention   String?  // retention policy
+  legalHold   Boolean  @default(false)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("files")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  actor       String   // User ID or "system"
+  action      String
+  targetType  String
+  targetId    String
+  timestamp   DateTime @default(now())
+  ip          String?
+  metadata    Json?
+
+  // Relationships
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?    @relation("UserActivityLogs", fields: [actor], references: [id])
+  rfp         RFP?     @relation("RFPActivityLogs", fields: [targetId], references: [id])
+
+  @@map("activity_logs")
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  tenantId  String
+  url       String
+  events    Json?    // Array of event types stored as JSON
+  secret    String?
+  status    String   @default("active") // active, inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("webhook_endpoints")
+}
