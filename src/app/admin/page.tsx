@@ -36,7 +36,25 @@ import {
   FileText,
   Lock,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Store,
+  BarChart3,
+  Globe,
+  TrendingUp,
+  DollarSign,
+  Zap,
+  MessageSquare,
+  Calendar,
+  MapPin,
+  Star,
+  Award,
+  Target,
+  Clock,
+  Filter,
+  Download,
+  Upload,
+  RefreshCw,
+  Search
 } from "lucide-react"
 
 interface User {
@@ -124,6 +142,73 @@ interface ComplianceReport {
   score: number
 }
 
+interface MarketplaceStats {
+  totalVendors: number
+  activeRFPs: number
+  totalValue: number
+  successRate: number
+  categories: string[]
+  topVendors: Array<{
+    id: string
+    name: string
+    rating: number
+    projects: number
+  }>
+}
+
+interface VendorAnalytics {
+  id: string
+  vendorName: string
+  totalBids: number
+  successfulBids: number
+  successRate: number
+  averageResponseTime: number
+  totalValue: number
+  rating: number
+  categories: string[]
+  joinDate: string
+  lastActive: string
+}
+
+interface NotificationTemplate {
+  id: string
+  name: string
+  type: "email" | "sms" | "push" | "in_app"
+  category: string
+  subject: string
+  content: string
+  variables: string[]
+  isActive: boolean
+  createdAt: string
+  lastUsed: string
+}
+
+interface SystemHealth {
+  status: "healthy" | "warning" | "critical"
+  uptime: number
+  responseTime: number
+  activeUsers: number
+  databaseSize: number
+  storageUsed: number
+  lastBackup: string
+  errors: Array<{
+    timestamp: string
+    service: string
+    message: string
+    severity: "low" | "medium" | "high" | "critical"
+  }>
+}
+
+interface Integration {
+  id: string
+  name: string
+  type: "api" | "webhook" | "oauth" | "saml"
+  status: "active" | "inactive" | "error"
+  lastSync: string
+  usage: number
+  description: string
+}
+
 export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -132,8 +217,13 @@ export default function AdminPage() {
   const [complianceFrameworks, setComplianceFrameworks] = useState<ComplianceFramework[]>([])
   const [complianceControls, setComplianceControls] = useState<ComplianceControl[]>([])
   const [complianceReports, setComplianceReports] = useState<ComplianceReport[]>([])
+  const [marketplaceStats, setMarketplaceStats] = useState<MarketplaceStats | null>(null)
+  const [vendorAnalytics, setVendorAnalytics] = useState<VendorAnalytics[]>([])
+  const [notificationTemplates, setNotificationTemplates] = useState<NotificationTemplate[]>([])
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null)
+  const [integrations, setIntegrations] = useState<Integration[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("users")
+  const [activeTab, setActiveTab] = useState("dashboard")
 
   // Mock data
   const mockUsers: User[] = [
@@ -379,6 +469,148 @@ export default function AdminPage() {
     }
   ]
 
+  const mockMarketplaceStats: MarketplaceStats = {
+    totalVendors: 15847,
+    activeRFPs: 156,
+    totalValue: 12500000,
+    successRate: 78,
+    categories: ["IT Services", "Software Development", "Marketing", "Construction", "Consulting"],
+    topVendors: [
+      { id: "1", name: "Tech Solutions Inc", rating: 4.9, projects: 127 },
+      { id: "2", name: "Marketing Masters", rating: 4.8, projects: 89 },
+      { id: "3", name: "BuildRight Construction", rating: 4.7, projects: 156 }
+    ]
+  }
+
+  const mockVendorAnalytics: VendorAnalytics[] = [
+    {
+      id: "1",
+      vendorName: "Tech Solutions Inc",
+      totalBids: 45,
+      successfulBids: 35,
+      successRate: 78,
+      averageResponseTime: 2.3,
+      totalValue: 2500000,
+      rating: 4.9,
+      categories: ["IT Services", "Software Development"],
+      joinDate: "2020-01-15",
+      lastActive: "2024-12-10"
+    },
+    {
+      id: "2",
+      vendorName: "Marketing Masters",
+      totalBids: 32,
+      successfulBids: 25,
+      successRate: 78,
+      averageResponseTime: 1.8,
+      totalValue: 1200000,
+      rating: 4.8,
+      categories: ["Marketing", "Digital Strategy"],
+      joinDate: "2021-03-20",
+      lastActive: "2024-12-09"
+    },
+    {
+      id: "3",
+      vendorName: "BuildRight Construction",
+      totalBids: 28,
+      successfulBids: 22,
+      successRate: 79,
+      averageResponseTime: 3.1,
+      totalValue: 3500000,
+      rating: 4.7,
+      categories: ["Construction", "Renovation"],
+      joinDate: "2019-07-10",
+      lastActive: "2024-12-08"
+    }
+  ]
+
+  const mockNotificationTemplates: NotificationTemplate[] = [
+    {
+      id: "1",
+      name: "New RFP Notification",
+      type: "email",
+      category: "Marketplace",
+      subject: "New RFP Opportunity: {{rfpTitle}}",
+      content: "A new RFP matching your expertise has been posted. Budget: {{budget}}, Deadline: {{deadline}}",
+      variables: ["rfpTitle", "budget", "deadline"],
+      isActive: true,
+      createdAt: "2024-01-15T10:00:00Z",
+      lastUsed: "2024-12-10T09:30:00Z"
+    },
+    {
+      id: "2",
+      name: "Bid Accepted",
+      type: "email",
+      category: "Bidding",
+      subject: "Congratulations! Your bid has been accepted",
+      content: "Your bid for {{rfpTitle}} has been accepted. Please contact {{contactEmail}} for next steps.",
+      variables: ["rfpTitle", "contactEmail"],
+      isActive: true,
+      createdAt: "2024-01-15T10:00:00Z",
+      lastUsed: "2024-12-08T14:20:00Z"
+    },
+    {
+      id: "3",
+      name: "System Maintenance",
+      type: "in_app",
+      category: "System",
+      subject: "Scheduled Maintenance",
+      content: "System maintenance scheduled for {{maintenanceTime}}. Expected downtime: {{duration}}",
+      variables: ["maintenanceTime", "duration"],
+      isActive: true,
+      createdAt: "2024-01-15T10:00:00Z",
+      lastUsed: "2024-12-05T18:00:00Z"
+    }
+  ]
+
+  const mockSystemHealth: SystemHealth = {
+    status: "healthy",
+    uptime: 99.9,
+    responseTime: 145,
+    activeUsers: 1247,
+    databaseSize: 2.5,
+    storageUsed: 75,
+    lastBackup: "2024-12-10T02:00:00Z",
+    errors: [
+      {
+        timestamp: "2024-12-10T08:15:00Z",
+        service: "API Gateway",
+        message: "High response time detected",
+        severity: "medium"
+      }
+    ]
+  }
+
+  const mockIntegrations: Integration[] = [
+    {
+      id: "1",
+      name: "Salesforce CRM",
+      type: "api",
+      status: "active",
+      lastSync: "2024-12-10T09:30:00Z",
+      usage: 15420,
+      description: "Sync RFP data with Salesforce CRM"
+    },
+    {
+      id: "2",
+      name: "Slack Notifications",
+      type: "webhook",
+      status: "active",
+      lastSync: "2024-12-10T08:45:00Z",
+      usage: 8750,
+      description: "Send notifications to Slack channels"
+    },
+    {
+      id: "3",
+      name: "Microsoft SSO",
+      type: "saml",
+      status: "active",
+      lastSync: "2024-12-10T07:00:00Z",
+      usage: 3200,
+      description: "Single Sign-On integration"
+    }
+  ]
+
   useEffect(() => {
     setTimeout(() => {
       setUsers(mockUsers)
@@ -388,6 +620,11 @@ export default function AdminPage() {
       setComplianceFrameworks(mockComplianceFrameworks)
       setComplianceControls(mockComplianceControls)
       setComplianceReports(mockComplianceReports)
+      setMarketplaceStats(mockMarketplaceStats)
+      setVendorAnalytics(mockVendorAnalytics)
+      setNotificationTemplates(mockNotificationTemplates)
+      setSystemHealth(mockSystemHealth)
+      setIntegrations(mockIntegrations)
       setLoading(false)
     }, 1000)
   }, [])
@@ -446,6 +683,47 @@ export default function AdminPage() {
     }
   }
 
+  const getHealthStatusColor = (status: string) => {
+    switch (status) {
+      case "healthy":
+        return "bg-green-100 text-green-800"
+      case "warning":
+        return "bg-yellow-100 text-yellow-800"
+      case "critical":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getIntegrationStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800"
+      case "inactive":
+        return "bg-gray-100 text-gray-800"
+      case "error":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getNotificationTypeColor = (type: string) => {
+    switch (type) {
+      case "email":
+        return "bg-blue-100 text-blue-800"
+      case "sms":
+        return "bg-green-100 text-green-800"
+      case "push":
+        return "bg-purple-100 text-purple-800"
+      case "in_app":
+        return "bg-orange-100 text-orange-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
   if (loading) {
     return (
       <MainLayout title="Admin Panel">
@@ -460,15 +738,27 @@ export default function AdminPage() {
     <MainLayout title="Admin Panel">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold">Administration Panel</h1>
-          <p className="text-muted-foreground">
-            Manage users, roles, tenants, and system settings
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">Administration Panel</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage users, marketplace, analytics, and system settings
+            </p>
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh Data
+            </Button>
+            <Button>
+              <Settings className="mr-2 h-4 w-4" />
+              System Settings
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        {/* Enhanced Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -483,37 +773,37 @@ export default function AdminPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tenants</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Marketplace Vendors</CardTitle>
+              <Store className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{tenants.length}</div>
+              <div className="text-2xl font-bold">{marketplaceStats?.totalVendors.toLocaleString() || '0'}</div>
               <p className="text-xs text-muted-foreground">
-                {tenants.filter(t => t.status === "active").length} active
+                {marketplaceStats?.successRate || 0}% success rate
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Roles</CardTitle>
-              <Shield className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Active RFPs</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{roles.length}</div>
+              <div className="text-2xl font-bold">{marketplaceStats?.activeRFPs || '0'}</div>
               <p className="text-xs text-muted-foreground">
-                Custom permission sets
+                ${((marketplaceStats?.totalValue || 0) / 1000000).toFixed(1)}M total value
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">System Activity</CardTitle>
+              <CardTitle className="text-sm font-medium">System Health</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{auditLogs.length}</div>
+              <div className="text-2xl font-bold">{systemHealth?.uptime || 0}%</div>
               <p className="text-xs text-muted-foreground">
-                Recent audit logs
+                {systemHealth?.activeUsers || 0} active users
               </p>
             </CardContent>
           </Card>
@@ -521,18 +811,30 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-8">
+            <TabsTrigger value="dashboard" className="flex items-center space-x-2">
+              <BarChart3 className="h-4 w-4" />
+              <span>Dashboard</span>
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center space-x-2">
               <Users className="h-4 w-4" />
               <span>Users</span>
             </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center space-x-2">
-              <Shield className="h-4 w-4" />
-              <span>Roles</span>
+            <TabsTrigger value="marketplace" className="flex items-center space-x-2">
+              <Store className="h-4 w-4" />
+              <span>Marketplace</span>
             </TabsTrigger>
-            <TabsTrigger value="tenants" className="flex items-center space-x-2">
-              <Building className="h-4 w-4" />
-              <span>Tenants</span>
+            <TabsTrigger value="analytics" className="flex items-center space-x-2">
+              <TrendingUp className="h-4 w-4" />
+              <span>Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center space-x-2">
+              <Bell className="h-4 w-4" />
+              <span>Notifications</span>
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="flex items-center space-x-2">
+              <Zap className="h-4 w-4" />
+              <span>Integrations</span>
             </TabsTrigger>
             <TabsTrigger value="compliance" className="flex items-center space-x-2">
               <FileText className="h-4 w-4" />
@@ -543,6 +845,487 @@ export default function AdminPage() {
               <span>Audit Log</span>
             </TabsTrigger>
           </TabsList>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* System Health */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Activity className="mr-2 h-5 w-5" />
+                    System Health
+                  </CardTitle>
+                  <CardDescription>
+                    Current system status and performance metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span>Status</span>
+                    <Badge className={getHealthStatusColor(systemHealth?.status || "healthy")}>
+                      {systemHealth?.status || "Unknown"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Uptime</span>
+                    <span className="font-medium">{systemHealth?.uptime || 0}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Response Time</span>
+                    <span className="font-medium">{systemHealth?.responseTime || 0}ms</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Active Users</span>
+                    <span className="font-medium">{systemHealth?.activeUsers || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Database Size</span>
+                    <span className="font-medium">{systemHealth?.databaseSize || 0}GB</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Storage Used</span>
+                    <span className="font-medium">{systemHealth?.storageUsed || 0}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Last Backup</span>
+                    <span className="font-medium">
+                      {systemHealth?.lastBackup ? new Date(systemHealth.lastBackup).toLocaleDateString() : "Never"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Activity */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Clock className="mr-2 h-5 w-5" />
+                    Recent Activity
+                  </CardTitle>
+                  <CardDescription>
+                    Latest system activities and events
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {auditLogs.slice(0, 5).map((log) => (
+                      <div key={log.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                        <div className="flex-shrink-0">
+                          <Activity className="h-4 w-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{log.action}</p>
+                          <p className="text-xs text-muted-foreground">{log.details}</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Integrations Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Zap className="mr-2 h-5 w-5" />
+                  Integration Status
+                </CardTitle>
+                <CardDescription>
+                  Status of connected third-party services
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {integrations.map((integration) => (
+                    <div key={integration.id} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">{integration.name}</h4>
+                        <Badge className={getIntegrationStatusColor(integration.status)}>
+                          {integration.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">{integration.description}</p>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>{integration.usage.toLocaleString()} calls</span>
+                        <span>{new Date(integration.lastSync).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Marketplace Tab */}
+          <TabsContent value="marketplace" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Marketplace Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Store className="mr-2 h-5 w-5" />
+                    Marketplace Overview
+                  </CardTitle>
+                  <CardDescription>
+                    Current marketplace statistics and performance
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span>Total Vendors</span>
+                    <span className="font-medium">{marketplaceStats?.totalVendors.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Active RFPs</span>
+                    <span className="font-medium">{marketplaceStats?.activeRFPs}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Total Value</span>
+                    <span className="font-medium">${((marketplaceStats?.totalValue || 0) / 1000000).toFixed(1)}M</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Success Rate</span>
+                    <span className="font-medium">{marketplaceStats?.successRate}%</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top Vendors */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Star className="mr-2 h-5 w-5" />
+                    Top Performing Vendors
+                  </CardTitle>
+                  <CardDescription>
+                    Highest-rated vendors on the platform
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {marketplaceStats?.topVendors.map((vendor) => (
+                      <div key={vendor.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <h4 className="font-medium">{vendor.name}</h4>
+                          <p className="text-sm text-muted-foreground">{vendor.projects} projects</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Star className="h-4 w-4 text-yellow-500" />
+                          <span className="font-medium">{vendor.rating}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Vendor Analytics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart3 className="mr-2 h-5 w-5" />
+                  Vendor Performance Analytics
+                </CardTitle>
+                <CardDescription>
+                  Detailed performance metrics for all vendors
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Total Bids</TableHead>
+                      <TableHead>Success Rate</TableHead>
+                      <TableHead>Avg Response Time</TableHead>
+                      <TableHead>Total Value</TableHead>
+                      <TableHead>Rating</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {vendorAnalytics.map((vendor) => (
+                      <TableRow key={vendor.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{vendor.vendorName}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {vendor.categories.join(", ")}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{vendor.totalBids}</TableCell>
+                        <TableCell>
+                          <Badge className={vendor.successRate >= 80 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
+                            {vendor.successRate}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{vendor.averageResponseTime} days</TableCell>
+                        <TableCell>${(vendor.totalValue / 1000000).toFixed(1)}M</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-4 w-4 text-yellow-500" />
+                            <span>{vendor.rating}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Platform Metrics */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="mr-2 h-5 w-5" />
+                    Platform Analytics
+                  </CardTitle>
+                  <CardDescription>
+                    Key performance indicators and growth metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-medium mb-2">User Growth</h4>
+                      <div className="text-2xl font-bold text-blue-600">+24%</div>
+                      <p className="text-sm text-muted-foreground">vs last month</p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-medium mb-2">RFP Volume</h4>
+                      <div className="text-2xl font-bold text-green-600">+18%</div>
+                      <p className="text-sm text-muted-foreground">vs last month</p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-medium mb-2">Vendor Engagement</h4>
+                      <div className="text-2xl font-bold text-purple-600">+32%</div>
+                      <p className="text-sm text-muted-foreground">vs last month</p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h4 className="font-medium mb-2">Success Rate</h4>
+                      <div className="text-2xl font-bold text-orange-600">+5%</div>
+                      <p className="text-sm text-muted-foreground">vs last month</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Category Performance */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Target className="mr-2 h-5 w-5" />
+                    Category Performance
+                  </CardTitle>
+                  <CardDescription>
+                    Success rates by category
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {marketplaceStats?.categories.map((category, index) => (
+                      <div key={category} className="flex items-center justify-between">
+                        <span className="text-sm">{category}</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full" 
+                              style={{ width: `${85 - index * 5}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium">{85 - index * 5}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Advanced Analytics */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart3 className="mr-2 h-5 w-5" />
+                  Advanced Analytics Dashboard
+                </CardTitle>
+                <CardDescription>
+                  Comprehensive analytics and reporting tools
+                </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600 mb-1">2.5M</div>
+                      <div className="text-sm text-muted-foreground">Total RFP Value</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-green-600 mb-1">15,847</div>
+                      <div className="text-sm text-muted-foreground">Active Vendors</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600 mb-1">156</div>
+                      <div className="text-sm text-muted-foreground">Active RFPs</div>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <div className="text-2xl font-bold text-orange-600 mb-1">78%</div>
+                      <div className="text-sm text-muted-foreground">Success Rate</div>
+                    </div>
+                  </div>
+                </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <Bell className="mr-2 h-5 w-5" />
+                      Notification Templates
+                    </CardTitle>
+                    <CardDescription>
+                      Manage notification templates and delivery settings
+                    </CardDescription>
+                  </div>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Template
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Used</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {notificationTemplates.map((template) => (
+                      <TableRow key={template.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{template.name}</div>
+                            <div className="text-sm text-muted-foreground">{template.subject}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getNotificationTypeColor(template.type)}>
+                            {template.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{template.category}</TableCell>
+                        <TableCell>
+                          <Badge className={template.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                            {template.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {template.lastUsed ? new Date(template.lastUsed).toLocaleDateString() : "Never"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Integrations Tab */}
+          <TabsContent value="integrations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <Zap className="mr-2 h-5 w-5" />
+                      Third-Party Integrations
+                    </CardTitle>
+                    <CardDescription>
+                      Manage connected services and API integrations
+                    </CardDescription>
+                  </div>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Integration
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {integrations.map((integration) => (
+                    <div key={integration.id} className="p-6 border rounded-lg hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium">{integration.name}</h4>
+                        <Badge className={getIntegrationStatusColor(integration.status)}>
+                          {integration.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">{integration.description}</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Type:</span>
+                          <span className="font-medium">{integration.type}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Usage:</span>
+                          <span className="font-medium">{integration.usage.toLocaleString()} calls</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Last Sync:</span>
+                          <span className="font-medium">{new Date(integration.lastSync).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2 mt-4">
+                        <Button variant="outline" size="sm" className="flex-1">
+                          <Settings className="h-4 w-4 mr-1" />
+                          Configure
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
             <Card>

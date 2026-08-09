@@ -22,7 +22,8 @@ import {
   Plus,
   X,
   Upload,
-  FileText
+  FileText,
+  DollarSign
 } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
@@ -45,16 +46,57 @@ export default function VendorRegister() {
     categories: [] as string[],
     specialties: [] as string[],
     certifications: [] as string[],
-    portfolio: [] as string[]
+    portfolio: [] as string[],
+    // Enhanced fields
+    businessType: "",
+    taxId: "",
+    insurance: "",
+    licenseNumber: "",
+    serviceAreas: [] as string[],
+    languages: [] as string[],
+    paymentMethods: [] as string[],
+    responseTime: "",
+    availability: "",
+    socialMedia: {} as Record<string, string>,
+    references: [] as string[],
+    ndaSigned: false,
+    backgroundCheck: false
   })
 
   const [newSpecialty, setNewSpecialty] = useState("")
   const [newCertification, setNewCertification] = useState("")
   const [newPortfolioItem, setNewPortfolioItem] = useState("")
+  const [newServiceArea, setNewServiceArea] = useState("")
+  const [newLanguage, setNewLanguage] = useState("")
+  const [newReference, setNewReference] = useState("")
 
   const categories = [
     "IT Services", "Marketing", "Construction", "Software Development", 
     "Consulting", "Design", "Engineering", "Legal", "Healthcare", "Other"
+  ]
+
+  const businessTypes = [
+    "Sole Proprietorship", "Partnership", "LLC", "Corporation", "Non-Profit", "Government"
+  ]
+
+  const serviceAreaOptions = [
+    "Local", "Regional", "National", "International"
+  ]
+
+  const languageOptions = [
+    "English", "Spanish", "French", "German", "Mandarin", "Japanese", "Korean", "Arabic"
+  ]
+
+  const paymentMethods = [
+    "Credit Card", "Bank Transfer", "PayPal", "Stripe", "Check", "Cash", "Cryptocurrency"
+  ]
+
+  const responseTimes = [
+    "Within 1 hour", "Within 4 hours", "Within 24 hours", "Within 48 hours", "Within 1 week"
+  ]
+
+  const availabilityOptions = [
+    "Full-time", "Part-time", "Weekends", "Evenings", "24/7", "As Needed"
   ]
 
   const handleInputChange = (field: string, value: string) => {
@@ -118,6 +160,73 @@ export default function VendorRegister() {
     setFormData(prev => ({
       ...prev,
       portfolio: prev.portfolio.filter(p => p !== item)
+    }))
+  }
+
+  const addServiceArea = () => {
+    if (newServiceArea.trim() && !formData.serviceAreas.includes(newServiceArea.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        serviceAreas: [...prev.serviceAreas, newServiceArea.trim()]
+      }))
+      setNewServiceArea("")
+    }
+  }
+
+  const removeServiceArea = (area: string) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceAreas: prev.serviceAreas.filter(a => a !== area)
+    }))
+  }
+
+  const addLanguage = () => {
+    if (newLanguage.trim() && !formData.languages.includes(newLanguage.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        languages: [...prev.languages, newLanguage.trim()]
+      }))
+      setNewLanguage("")
+    }
+  }
+
+  const removeLanguage = (language: string) => {
+    setFormData(prev => ({
+      ...prev,
+      languages: prev.languages.filter(l => l !== language)
+    }))
+  }
+
+  const togglePaymentMethod = (method: string) => {
+    setFormData(prev => ({
+      ...prev,
+      paymentMethods: prev.paymentMethods.includes(method)
+        ? prev.paymentMethods.filter(m => m !== method)
+        : [...prev.paymentMethods, method]
+    }))
+  }
+
+  const addReference = () => {
+    if (newReference.trim() && !formData.references.includes(newReference.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        references: [...prev.references, newReference.trim()]
+      }))
+      setNewReference("")
+    }
+  }
+
+  const removeReference = (reference: string) => {
+    setFormData(prev => ({
+      ...prev,
+      references: prev.references.filter(r => r !== reference)
+    }))
+  }
+
+  const handleSocialMediaChange = (platform: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      socialMedia: { ...prev.socialMedia, [platform]: value }
     }))
   }
 
@@ -473,6 +582,385 @@ export default function VendorRegister() {
                         </button>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Business Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Building className="mr-2 h-5 w-5" />
+                    Business Details
+                  </CardTitle>
+                  <CardDescription>
+                    Additional business information and verification
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="businessType">Business Type</Label>
+                      <Select value={formData.businessType} onValueChange={(value) => handleInputChange("businessType", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select business type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {businessTypes.map((type) => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="taxId">Tax ID / EIN</Label>
+                      <Input
+                        id="taxId"
+                        value={formData.taxId}
+                        onChange={(e) => handleInputChange("taxId", e.target.value)}
+                        placeholder="XX-XXXXXXX"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="insurance">Insurance Information</Label>
+                      <Input
+                        id="insurance"
+                        value={formData.insurance}
+                        onChange={(e) => handleInputChange("insurance", e.target.value)}
+                        placeholder="Insurance provider and policy number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="licenseNumber">Business License Number</Label>
+                      <Input
+                        id="licenseNumber"
+                        value={formData.licenseNumber}
+                        onChange={(e) => handleInputChange("licenseNumber", e.target.value)}
+                        placeholder="License number"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="responseTime">Average Response Time</Label>
+                      <Select value={formData.responseTime} onValueChange={(value) => handleInputChange("responseTime", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select response time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {responseTimes.map((time) => (
+                            <SelectItem key={time} value={time}>{time}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="availability">Availability</Label>
+                      <Select value={formData.availability} onValueChange={(value) => handleInputChange("availability", value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select availability" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availabilityOptions.map((option) => (
+                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Service Areas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MapPin className="mr-2 h-5 w-5" />
+                    Service Areas
+                  </CardTitle>
+                  <CardDescription>
+                    Where do you provide your services?
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {serviceAreaOptions.map((area) => (
+                      <Badge 
+                        key={area}
+                        variant={formData.serviceAreas.includes(area) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => {
+                          if (formData.serviceAreas.includes(area)) {
+                            setFormData(prev => ({
+                              ...prev,
+                              serviceAreas: prev.serviceAreas.filter(a => a !== area)
+                            }))
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              serviceAreas: [...prev.serviceAreas, area]
+                            }))
+                          }
+                        }}
+                      >
+                        {area}
+                      </Badge>
+                    ))}
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <Input
+                      value={newServiceArea}
+                      onChange={(e) => setNewServiceArea(e.target.value)}
+                      placeholder="Add custom service area (e.g., California, USA)"
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addServiceArea())}
+                    />
+                    <Button type="button" onClick={addServiceArea}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {formData.serviceAreas.map((area, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center space-x-1">
+                        <span>{area}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeServiceArea(area)}
+                          className="ml-1 hover:text-red-500"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Languages */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Globe className="mr-2 h-5 w-5" />
+                    Languages
+                  </CardTitle>
+                  <CardDescription>
+                    Languages you can communicate in
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {languageOptions.map((language) => (
+                      <Badge 
+                        key={language}
+                        variant={formData.languages.includes(language) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => {
+                          if (formData.languages.includes(language)) {
+                            setFormData(prev => ({
+                              ...prev,
+                              languages: prev.languages.filter(l => l !== language)
+                            }))
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              languages: [...prev.languages, language]
+                            }))
+                          }
+                        }}
+                      >
+                        {language}
+                      </Badge>
+                    ))}
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    <Input
+                      value={newLanguage}
+                      onChange={(e) => setNewLanguage(e.target.value)}
+                      placeholder="Add additional language"
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addLanguage())}
+                    />
+                    <Button type="button" onClick={addLanguage}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {formData.languages.map((language, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center space-x-1">
+                        <span>{language}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeLanguage(language)}
+                          className="ml-1 hover:text-red-500"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Payment Methods */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <DollarSign className="mr-2 h-5 w-5" />
+                    Payment Methods
+                  </CardTitle>
+                  <CardDescription>
+                    Select the payment methods you accept
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {paymentMethods.map((method) => (
+                      <div key={method} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={method}
+                          checked={formData.paymentMethods.includes(method)}
+                          onCheckedChange={() => togglePaymentMethod(method)}
+                        />
+                        <Label htmlFor={method} className="text-sm">
+                          {method}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Social Media */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Globe className="mr-2 h-5 w-5" />
+                    Social Media Profiles
+                  </CardTitle>
+                  <CardDescription>
+                    Add your social media profiles (optional)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="linkedin">LinkedIn</Label>
+                      <Input
+                        id="linkedin"
+                        value={formData.socialMedia.linkedin || ""}
+                        onChange={(e) => handleSocialMediaChange("linkedin", e.target.value)}
+                        placeholder="https://linkedin.com/in/yourprofile"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="twitter">Twitter</Label>
+                      <Input
+                        id="twitter"
+                        value={formData.socialMedia.twitter || ""}
+                        onChange={(e) => handleSocialMediaChange("twitter", e.target.value)}
+                        placeholder="https://twitter.com/yourprofile"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="facebook">Facebook</Label>
+                      <Input
+                        id="facebook"
+                        value={formData.socialMedia.facebook || ""}
+                        onChange={(e) => handleSocialMediaChange("facebook", e.target.value)}
+                        placeholder="https://facebook.com/yourprofile"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="instagram">Instagram</Label>
+                      <Input
+                        id="instagram"
+                        value={formData.socialMedia.instagram || ""}
+                        onChange={(e) => handleSocialMediaChange("instagram", e.target.value)}
+                        placeholder="https://instagram.com/yourprofile"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* References */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Users className="mr-2 h-5 w-5" />
+                    Client References
+                  </CardTitle>
+                  <CardDescription>
+                    Add client references or testimonials
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex space-x-2">
+                    <Input
+                      value={newReference}
+                      onChange={(e) => setNewReference(e.target.value)}
+                      placeholder="Add client reference or testimonial"
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addReference())}
+                    />
+                    <Button type="button" onClick={addReference}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {formData.references.map((reference, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                        <span className="text-sm">{reference}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeReference(reference)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Verification */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CheckCircle className="mr-2 h-5 w-5" />
+                    Verification & Compliance
+                  </CardTitle>
+                  <CardDescription>
+                    Additional verification options
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="ndaSigned"
+                      checked={formData.ndaSigned}
+                      onCheckedChange={(checked) => handleInputChange("ndaSigned", checked as boolean)}
+                    />
+                    <Label htmlFor="ndaSigned" className="text-sm">
+                      Willing to sign NDAs for confidential projects
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="backgroundCheck"
+                      checked={formData.backgroundCheck}
+                      onCheckedChange={(checked) => handleInputChange("backgroundCheck", checked as boolean)}
+                    />
+                    <Label htmlFor="backgroundCheck" className="text-sm">
+                      Consent to background checks for security-sensitive projects
+                    </Label>
                   </div>
                 </CardContent>
               </Card>
