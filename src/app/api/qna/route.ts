@@ -2,20 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
+import NotificationService from "@/lib/notification-service"
 
 const createQnASchema = z.object({
   rfpId: z.string(),
   vendorId: z.string().optional(),
   questionText: z.string(),
   isPublic: z.boolean().default(true),
-})
-
-const updateQnASchema = z.object({
-  answerText: z.string().optional(),
-  isPublic: z.boolean().optional(),
-  status: z.enum(["pending", "answered", "published"]).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -31,9 +26,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const isPublic = searchParams.get("public")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
     
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       rfp: {
         tenantId: tenantContext.tenantId,
       },
@@ -52,29 +47,42 @@ export async function GET(request: NextRequest) {
       whereClause.isPublic = isPublic === "true"
     }
 
-    const qnaItems = await db.qnA.findMany({
-      where: whereClause,
-      include: {
-        rfp: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-          },
-        },
-        vendor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    })
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(qnaItems)
+    const [qnaItems, total] = await Promise.all([
+      db.qnA.findMany({
+        where: whereClause,
+        include: {
+          rfp: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
+          },
+          vendor: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      db.qnA.count({ where: whereClause }),
+    ])
+
+    return NextResponse.json({
+      data: qnaItems,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching Q&A items:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -90,7 +98,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createQnASchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify RFP belongs to tenant
     const rfp = await db.rFP.findFirst({
@@ -131,88 +139,27 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            email: true,
           },
         },
       },
     })
 
-    // TODO: Send notification for new question
-    // This would integrate with a notification system
+    // Send notification for new question
+    await NotificationService.send({
+      userId: tenantContext.userId,
+      type: "question_asked",
+      title: "New Question",
+      message: "A new question has been asked about an RFP",
+    })
 
     return NextResponse.json(qna, { status: 201 })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error creating Q&A item:", error)
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const qnaId = searchParams.get("id")
-
-    if (!qnaId) {
-      return NextResponse.json({ error: "Q&A ID is required" }, { status: 400 })
-    }
-
-    const body = await request.json()
-    const validatedData = updateQnASchema.parse(body)
-
-    const tenantContext = getTenantContext()
-
-    // Verify Q&A belongs to tenant
-    const existingQnA = await db.qnA.findFirst({
-      where: {
-        id: qnaId,
-        rfp: {
-          tenantId: tenantContext.tenantId,
-        },
-      },
-    })
-
-    if (!existingQnA) {
-      return NextResponse.json({ error: "Q&A item not found" }, { status: 404 })
-    }
-
-    const qna = await db.qnA.update({
-      where: { id: qnaId },
-      data: validatedData,
-      include: {
-        rfp: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-          },
-        },
-        vendor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    })
-
-    // TODO: Send notification for answer
-    // This would integrate with a notification system
-
-    return NextResponse.json(qna)
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
-    }
-    console.error("Error updating Q&A item:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

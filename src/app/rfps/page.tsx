@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -32,112 +33,128 @@ import {
   Calendar,
   DollarSign,
   Users,
-  FileText
+  FileText,
+  FileSearch
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/shared/empty-state"
+import { getStatusColor } from "@/lib/status-utils"
+import { formatDate } from "@/lib/utils"
+
+interface APIRFP {
+  id: string
+  title: string
+  status: string
+  budget: number | null
+  category: string | null
+  description: string | null
+  createdAt: string
+  updatedAt: string
+  timeline?: {
+    id: string
+    qnaStart: string | null
+    qnaEnd: string | null
+    submissionDeadline: string | null
+    evaluationStart: string | null
+    awardTarget: string | null
+    evaluationEnd: string | null
+  } | null
+  _count?: {
+    submissions: number
+    invitations: number
+  }
+}
 
 interface RFP {
   id: string
   title: string
-  status: "draft" | "published" | "closed" | "awarded" | "archived"
+  status: string
   category?: string
   budget?: string
-  publishAt?: string
-  closeAt?: string
+  rawBudget: number
+  deadline?: string
   responseCount: number
   createdAt: string
 }
 
 export default function RFPsPage() {
+  useEffect(() => { document.title = 'RFPs | RFP Platform' }, [])
+  const router = useRouter()
   const [rfps, setRfps] = useState<RFP[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
 
-  // Mock data for demonstration
-  const mockRfps: RFP[] = [
-    {
-      id: "1",
-      title: "IT Managed Services 2024",
-      status: "published",
-      category: "IT Services",
-      budget: "$250,000",
-      publishAt: "2024-11-01",
-      closeAt: "2024-12-15",
-      responseCount: 8,
-      createdAt: "2024-10-15"
-    },
-    {
-      id: "2",
-      title: "Marketing Campaign Services",
-      status: "draft",
-      category: "Marketing",
-      budget: "$100,000",
-      responseCount: 0,
-      createdAt: "2024-10-20"
-    },
-    {
-      id: "3",
-      title: "Office Equipment Procurement",
-      status: "evaluation",
-      category: "Office Supplies",
-      budget: "$75,000",
-      publishAt: "2024-10-10",
-      closeAt: "2024-12-10",
-      responseCount: 12,
-      createdAt: "2024-10-01"
-    },
-    {
-      id: "4",
-      title: "Construction Services",
-      status: "closed",
-      category: "Construction",
-      budget: "$500,000",
-      publishAt: "2024-09-01",
-      closeAt: "2024-10-31",
-      responseCount: 15,
-      createdAt: "2024-08-15"
-    },
-    {
-      id: "5",
-      title: "Consulting Services",
-      status: "awarded",
-      category: "Consulting",
-      budget: "$150,000",
-      publishAt: "2024-08-15",
-      closeAt: "2024-09-30",
-      responseCount: 6,
-      createdAt: "2024-07-20"
+  const fetchRfps = useCallback(async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
+      if (searchTerm) params.set("search", searchTerm)
+
+      const res = await fetch(`/api/rfps?${params.toString()}`)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch RFPs (${res.status})`)
+      }
+      const data: APIRFP[] = await res.json()
+
+      const mapped: RFP[] = data.map((r) => ({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        category: r.category || undefined,
+        budget: r.budget != null ? `$${r.budget.toLocaleString()}` : undefined,
+        rawBudget: r.budget || 0,
+        deadline: r.timeline?.submissionDeadline || undefined,
+        responseCount: r._count?.submissions ?? 0,
+        createdAt: r.createdAt,
+      }))
+
+      setRfps(mapped)
+    } catch (error) {
+      console.error("Error fetching RFPs:", error)
+      toast.error("Failed to load RFPs")
+    } finally {
+      setLoading(false)
     }
-  ]
+  }, [statusFilter, searchTerm])
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setRfps(mockRfps)
-      setLoading(false)
-    }, 1000)
-  }, [])
+    fetchRfps()
+  }, [fetchRfps])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "published":
-        return "bg-green-100 text-green-800"
-      case "draft":
-        return "bg-gray-100 text-gray-800"
-      case "evaluation":
-        return "bg-blue-100 text-blue-800"
-      case "closed":
-        return "bg-red-100 text-red-800"
-      case "awarded":
-        return "bg-purple-100 text-purple-800"
-      case "archived":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/rfps/${id}`, { method: "DELETE" })
+      if (!res.ok) {
+        throw new Error(`Failed to delete RFP (${res.status})`)
+      }
+      setRfps((prev) => prev.filter((r) => r.id !== id))
+      toast.success("RFP deleted successfully")
+    } catch (error) {
+      console.error("Error deleting RFP:", error)
+      toast.error("Failed to delete RFP")
+    } finally {
+      setDeleteTarget(null)
     }
   }
+
+
 
   const filteredRfps = rfps.filter(rfp => {
     const matchesSearch = rfp.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -153,8 +170,46 @@ export default function RFPsPage() {
   if (loading) {
     return (
       <MainLayout title="RFPs">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading RFPs...</div>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <Skeleton className="h-8 w-64 mb-2" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-12" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <CardHeader><Skeleton className="h-6 w-24" /></CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-4">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-10 w-[180px]" />
+                <Skeleton className="h-10 w-[180px]" />
+              </div>
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-4 py-3">
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       </MainLayout>
     )
@@ -215,7 +270,7 @@ export default function RFPsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {rfps.filter(r => r.budget).length}
+                {rfps.reduce((sum, r) => sum + r.rawBudget, 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
               </div>
             </CardContent>
           </Card>
@@ -263,7 +318,7 @@ export default function RFPsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                    <SelectItem key={category} value={category!}>{category}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -280,6 +335,7 @@ export default function RFPsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -299,7 +355,7 @@ export default function RFPsPage() {
                       <div>
                         <div className="font-medium">{rfp.title}</div>
                         <div className="text-sm text-muted-foreground">
-                          Created: {new Date(rfp.createdAt).toLocaleDateString()}
+                          Created: {formatDate(rfp.createdAt)}
                         </div>
                       </div>
                     </TableCell>
@@ -312,12 +368,12 @@ export default function RFPsPage() {
                     <TableCell>{rfp.budget || "-"}</TableCell>
                     <TableCell>{rfp.responseCount}</TableCell>
                     <TableCell>
-                      {rfp.closeAt ? new Date(rfp.closeAt).toLocaleDateString() : "-"}
+                      {rfp.deadline ? formatDate(rfp.deadline) : "-"}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" aria-label="More actions">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -334,7 +390,7 @@ export default function RFPsPage() {
                               Edit
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(rfp.id) }}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -345,14 +401,35 @@ export default function RFPsPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
             
             {filteredRfps.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No RFPs found matching your filters.</p>
-              </div>
+              <EmptyState 
+                icon={FileSearch}
+                title="No RFPs found"
+                description="Try adjusting your search or filters, or create a new RFP."
+                action={{ label: "Create RFP", onClick: () => router.push('/rfps/create') }}
+              />
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the RFP and all associated data including submissions, evaluations, and invitations.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-red-600 hover:bg-red-700">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </MainLayout>
   )

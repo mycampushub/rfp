@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,43 +23,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
-  Trash2,
-  CheckCircle,
-  AlertTriangle,
-  Users,
-  Shield,
-  Key,
-  Settings,
-  UserPlus,
-  Filter,
-  RefreshCw,
-  Download,
-  Upload,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Clock,
-  Activity,
-  Star,
-  Lock,
-  Unlock,
-  UserCheck,
-  UserX,
-  UserMinus,
-  MoreVertical,
-  Copy,
-  ExternalLink,
-  Bell,
-  BellOff
-} from "lucide-react"
+import { Search, Edit, CheckCircle, Users, Shield, Key, UserPlus, Filter, Download, Upload, Mail, Phone, Activity, UserCheck, UserX, UserMinus, MoreVertical, Copy, ExternalLink } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { formatDate } from "@/lib/utils"
 
 interface VendorUser {
   id: string
@@ -105,6 +82,7 @@ interface Role {
 }
 
 export default function UserManagement() {
+  useEffect(() => { document.title = 'Vendor Users | RFP Platform' }, [])
   const [users, setUsers] = useState<VendorUser[]>([])
   const [activities, setActivities] = useState<UserActivity[]>([])
   const [roles, setRoles] = useState<Role[]>([])
@@ -125,253 +103,58 @@ export default function UserManagement() {
     title: ""
   })
 
-  // Mock roles data
-  const mockRoles: Role[] = [
-    {
-      id: "1",
-      name: "Admin",
-      description: "Full access to all vendor dashboard features",
-      permissions: ["dashboard_view", "dashboard_analytics", "profile_view", "profile_edit", "profile_manage", "team_view", "team_manage", "team_roles", "bids_view", "bids_create", "bids_manage", "connections_view", "connections_manage", "marketplace_view", "marketplace_bid", "admin_settings", "admin_audit", "admin_billing"]
-    },
-    {
-      id: "2",
-      name: "Bid Manager",
-      description: "Manage bidding activities and proposals",
-      permissions: ["dashboard_view", "dashboard_analytics", "profile_view", "profile_edit", "team_view", "bids_view", "bids_create", "bids_manage", "connections_view", "connections_manage", "marketplace_view", "marketplace_bid"]
-    },
-    {
-      id: "3",
-      name: "Team Member",
-      description: "Basic access to dashboard and team features",
-      permissions: ["dashboard_view", "profile_view", "team_view", "bids_view", "connections_view", "marketplace_view"]
-    },
-    {
-      id: "4",
-      name: "Viewer",
-      description: "Read-only access to dashboard and analytics",
-      permissions: ["dashboard_view", "dashboard_analytics", "profile_view", "team_view"]
-    }
-  ]
-
-  // Mock users data
-  const mockUsers: VendorUser[] = [
-    {
-      id: "1",
-      name: "John Smith",
-      email: "john@techsolutions.com",
-      phone: "+1-555-0123",
-      role: "1",
-      roleName: "Admin",
-      permissions: mockRoles.find(r => r.id === "1")?.permissions || [],
-      department: "Executive",
-      title: "CEO",
-      status: "active",
-      lastActive: "2024-12-10T14:30:00Z",
-      createdAt: "2024-01-15T09:00:00Z",
-      updatedAt: "2024-12-10T14:30:00Z",
-      twoFactorEnabled: true,
-      emailVerified: true,
-      loginCount: 247,
-      lastLoginAt: "2024-12-10T09:15:00Z",
-      sessionCount: 3,
-      activeSessions: 1
-    },
-    {
-      id: "2",
-      name: "Sarah Johnson",
-      email: "sarah@techsolutions.com",
-      phone: "+1-555-0456",
-      role: "2",
-      roleName: "Bid Manager",
-      permissions: mockRoles.find(r => r.id === "2")?.permissions || [],
-      department: "Operations",
-      title: "Bid Manager",
-      status: "active",
-      lastActive: "2024-12-10T16:45:00Z",
-      createdAt: "2024-02-20T10:30:00Z",
-      updatedAt: "2024-12-09T16:45:00Z",
-      twoFactorEnabled: false,
-      emailVerified: true,
-      loginCount: 156,
-      lastLoginAt: "2024-12-10T08:30:00Z",
-      sessionCount: 2,
-      activeSessions: 1
-    },
-    {
-      id: "3",
-      name: "Mike Wilson",
-      email: "mike@techsolutions.com",
-      phone: "+1-555-0789",
-      role: "2",
-      roleName: "Bid Manager",
-      permissions: mockRoles.find(r => r.id === "2")?.permissions || [],
-      department: "Operations",
-      title: "Senior Bid Manager",
-      status: "active",
-      lastActive: "2024-12-10T11:20:00Z",
-      createdAt: "2024-03-15T14:00:00Z",
-      updatedAt: "2024-12-08T11:20:00Z",
-      twoFactorEnabled: true,
-      emailVerified: true,
-      loginCount: 89,
-      lastLoginAt: "2024-12-09T15:45:00Z",
-      sessionCount: 1,
-      activeSessions: 0
-    },
-    {
-      id: "4",
-      name: "Emily Davis",
-      email: "emily@techsolutions.com",
-      phone: "+1-555-0321",
-      role: "3",
-      roleName: "Team Member",
-      permissions: mockRoles.find(r => r.id === "3")?.permissions || [],
-      department: "Sales",
-      title: "Sales Representative",
-      status: "active",
-      lastActive: "2024-12-09T13:15:00Z",
-      createdAt: "2024-04-10T09:15:00Z",
-      updatedAt: "2024-12-05T13:15:00Z",
-      twoFactorEnabled: false,
-      emailVerified: true,
-      loginCount: 67,
-      lastLoginAt: "2024-12-05T09:30:00Z",
-      sessionCount: 0,
-      activeSessions: 0
-    },
-    {
-      id: "5",
-      name: "Robert Brown",
-      email: "robert@techsolutions.com",
-      phone: "+1-555-0654",
-      role: "4",
-      roleName: "Viewer",
-      permissions: mockRoles.find(r => r.id === "4")?.permissions || [],
-      department: "Finance",
-      title: "Financial Analyst",
-      status: "inactive",
-      lastActive: "2024-12-01T10:30:00Z",
-      createdAt: "2024-05-20T11:00:00Z",
-      updatedAt: "2024-12-01T10:30:00Z",
-      twoFactorEnabled: false,
-      emailVerified: true,
-      loginCount: 23,
-      lastLoginAt: "2024-12-01T08:15:00Z",
-      sessionCount: 0,
-      activeSessions: 0
-    },
-    {
-      id: "6",
-      name: "Lisa Anderson",
-      email: "lisa@techsolutions.com",
-      phone: "+1-555-0987",
-      role: "3",
-      roleName: "Team Member",
-      permissions: mockRoles.find(r => r.id === "3")?.permissions || [],
-      department: "Marketing",
-      title: "Marketing Coordinator",
-      status: "pending",
-      lastActive: "",
-      createdAt: "2024-12-08T14:00:00Z",
-      updatedAt: "2024-12-08T14:00:00Z",
-      twoFactorEnabled: false,
-      emailVerified: false,
-      loginCount: 0,
-      sessionCount: 0,
-      activeSessions: 0
-    }
-  ]
-
-  // Mock activities data
-  const mockActivities: UserActivity[] = [
-    {
-      id: "1",
-      userId: "1",
-      userName: "John Smith",
-      action: "LOGIN",
-      details: "Successful login from Chrome browser",
-      ipAddress: "192.168.1.100",
-      location: "New York, NY",
-      device: "Chrome on Windows",
-      timestamp: "2024-12-10T09:15:00Z",
-      status: "success"
-    },
-    {
-      id: "2",
-      userId: "2",
-      userName: "Sarah Johnson",
-      action: "BID_SUBMITTED",
-      details: "Submitted bid for RFP-2024-001",
-      ipAddress: "192.168.1.101",
-      location: "Los Angeles, CA",
-      device: "Safari on macOS",
-      timestamp: "2024-12-10T10:30:00Z",
-      status: "success"
-    },
-    {
-      id: "3",
-      userId: "3",
-      userName: "Mike Wilson",
-      action: "PROFILE_UPDATED",
-      details: "Updated business profile information",
-      ipAddress: "192.168.1.102",
-      location: "Chicago, IL",
-      device: "Firefox on Linux",
-      timestamp: "2024-12-10T11:20:00Z",
-      status: "success"
-    },
-    {
-      id: "4",
-      userId: "4",
-      userName: "Emily Davis",
-      action: "LOGIN_FAILED",
-      details: "Failed login attempt - incorrect password",
-      ipAddress: "192.168.1.103",
-      location: "Houston, TX",
-      device: "Chrome on Android",
-      timestamp: "2024-12-10T12:45:00Z",
-      status: "failed"
-    },
-    {
-      id: "5",
-      userId: "1",
-      userName: "John Smith",
-      action: "USER_CREATED",
-      details: "Created new user: Lisa Anderson",
-      ipAddress: "192.168.1.100",
-      location: "New York, NY",
-      device: "Chrome on Windows",
-      timestamp: "2024-12-08T14:00:00Z",
-      status: "success"
-    }
-  ]
-
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setUsers(mockUsers)
-      setActivities(mockActivities)
-      setRoles(mockRoles)
-      setLoading(false)
-    }, 1000)
+    const fetchData = async () => {
+      try {
+        const [rolesRes, logsRes] = await Promise.all([
+          fetch('/api/roles').then(r => r.ok ? r.json() : []),
+          fetch('/api/audit-logs?limit=20').then(r => r.ok ? r.json() : []),
+        ])
+
+        const rolesData = Array.isArray(rolesRes) ? rolesRes : []
+        setRoles(rolesData.map((r) => ({
+          id: r.id,
+          name: r.name || '',
+          description: r.description || '',
+          permissions: Array.isArray(r.permissions) ? r.permissions : [],
+        })))
+        setUsers([])
+
+        const logsData = Array.isArray(logsRes) ? logsRes : []
+        setActivities(logsData.map((log) => ({
+          id: log.id,
+          userId: log.actor || '',
+          userName: log.actor || '',
+          action: log.action || '',
+          details: `${log.targetType || ''} - ${log.targetId || ''}`,
+          ipAddress: '',
+          location: '',
+          device: '',
+          timestamp: log.timestamp || '',
+          status: 'success' as const,
+        })))
+      } catch (err) { toast.error('Failed to load user management data') } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
       case "success":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       case "inactive":
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
       case "suspended":
       case "failed":
-        return "bg-red-100 text-red-800"
       case "blocked":
-        return "bg-red-100 text-red-800"
+        return "bg-red-500/15 text-red-700 dark:text-red-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -405,11 +188,30 @@ export default function UserManagement() {
 
   const departments = Array.from(new Set(users.map(u => u.department).filter(Boolean))) as string[]
 
-  const handleAddUser = () => {
-    // Handle user creation logic
-    console.log("Adding user:", newUser)
-    setShowAddUserModal(false)
-    setNewUser({ name: "", email: "", phone: "", role: "", department: "", title: "" })
+  const handleAddUser = async () => {
+    try {
+      const res = await fetch('/api/tenant/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newUser.name,
+          email: newUser.email,
+          password: 'TempPass123!',
+          role: newUser.role || undefined,
+          department: newUser.department || undefined,
+          title: newUser.title || undefined,
+          phone: newUser.phone || undefined,
+        }),
+      })
+      if (res.ok) {
+        toast.success('User added successfully')
+        setShowAddUserModal(false)
+        setNewUser({ name: "", email: "", phone: "", role: "", department: "", title: "" })
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Failed to add user')
+      }
+    } catch (err) { toast.error('Failed to add user') }
   }
 
   const handleEditUser = (user: VendorUser) => {
@@ -417,33 +219,132 @@ export default function UserManagement() {
     setShowEditUserModal(true)
   }
 
-  const handleUpdateUser = () => {
-    // Handle user update logic
-    console.log("Updating user:", selectedUser)
-    setShowEditUserModal(false)
-    setSelectedUser(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return
+    try {
+      const res = await fetch(`/api/users/${selectedUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: selectedUser.name, email: selectedUser.email, roleIds: [selectedUser.role] }),
+      })
+      if (res.ok) {
+        toast.success('User updated successfully')
+        setShowEditUserModal(false)
+        setSelectedUser(null)
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Failed to update user')
+      }
+    } catch (err) { toast.error('Failed to update user') }
   }
 
-  const handleToggleUserStatus = (userId: string, newStatus: "active" | "inactive" | "suspended") => {
+  const [statusChangeTarget, setStatusChangeTarget] = useState<{ userId: string; newStatus: "active" | "inactive" | "suspended"; userName: string } | null>(null)
+
+  const handleToggleUserStatus = async (userId: string, newStatus: "active" | "inactive" | "suspended") => {
+    const prevUsers = [...users]
     setUsers(users.map(user => 
-      user.id === userId ? { ...user, status: newStatus } : user
+      user.id === userId ? { ...user, status: newStatus as VendorUser['status'] } : user
     ))
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: newStatus === 'active' }),
+      })
+      if (res.ok) {
+        toast.success(`User ${newStatus === 'active' ? 'activated' : newStatus === 'suspended' ? 'suspended' : 'deactivated'} successfully`)
+      } else {
+        setUsers(prevUsers)
+        toast.error('Failed to update user status')
+      }
+    } catch (err) { setUsers(prevUsers)
+      toast.error('Failed to update user status') }
+    setStatusChangeTarget(null)
   }
 
-  const handleSendInvitation = (userId: string) => {
-    console.log("Sending invitation to user:", userId)
+  const handleSendInvitation = async (user: VendorUser) => {
+    try {
+      const res = await fetch('/api/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, role: 'vendor_user' }),
+      })
+      if (res.ok) {
+        toast.success('Invitation sent successfully')
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Failed to send invitation')
+      }
+    } catch (err) { toast.error('Failed to send invitation') }
   }
 
-  const handleResetPassword = (userId: string) => {
-    console.log("Resetting password for user:", userId)
+  const handleResetPassword = async (user: VendorUser) => {
+    try {
+      const res = await fetch('/api/auth/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      })
+      if (res.ok) {
+        toast.success('Password reset email sent to ' + user.email)
+      } else {
+        toast.error('Failed to send password reset email')
+      }
+    } catch {
+      toast.error('Failed to send password reset email')
+    }
   }
 
   const handleExportUsers = () => {
-    console.log("Exporting users data")
+    const headers = ['Name', 'Email', 'Phone', 'Role', 'Status', 'Department', 'Title', 'Last Active', 'Created At']
+    const rows = users.map(u => [
+      u.name, u.email, u.phone || '', u.roleName, u.status, u.department || '', u.title || '', u.lastActive, u.createdAt
+    ])
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"]`).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'users-export.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Users exported')
   }
 
   const handleImportUsers = () => {
-    console.log("Importing users data")
+    fileInputRef.current?.click()
+  }
+
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').filter(l => l.trim())
+      if (lines.length < 2) {
+        toast.error('CSV file is empty or has no data rows')
+        return
+      }
+      const results = { success: 0, failed: 0 }
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g, '').trim())
+        const name = cols[0] || ''
+        const email = cols[1] || ''
+        if (!name || !email) { results.failed++; continue }
+        try {
+          const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password: 'TempPass123!' }),
+          })
+          if (res.ok) { results.success++ } else { results.failed++ }
+        } catch (err) { results.failed++ }
+      }
+      toast.success(`Import complete: ${results.success} succeeded, ${results.failed} failed`)
+    } catch (err) { toast.error('Failed to parse CSV file') }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   if (loading) {
@@ -467,6 +368,13 @@ export default function UserManagement() {
               Manage users, roles, and access for your vendor organization
             </p>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileImport}
+          />
           <div className="flex space-x-2">
             <Button variant="outline" onClick={handleExportUsers}>
               <Download className="mr-2 h-4 w-4" />
@@ -608,6 +516,7 @@ export default function UserManagement() {
 
                 {/* Users Table */}
                 <div className="rounded-md border">
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -627,8 +536,8 @@ export default function UserManagement() {
                           <TableCell>
                             <div className="flex items-center space-x-3">
                               <div className="flex-shrink-0">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <span className="text-sm font-medium text-blue-800">
+                                <div className="w-8 h-8 rounded-full bg-sky-500/15 dark:bg-sky-500/25 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-sky-700 dark:text-sky-400">
                                     {user.name.split(' ').map(n => n[0]).join('')}
                                   </span>
                                 </div>
@@ -672,7 +581,7 @@ export default function UserManagement() {
                             <div className="text-sm">
                               {user.lastActive ? (
                                 <div>
-                                  {new Date(user.lastActive).toLocaleDateString()}
+                                  {formatDate(user.lastActive)}
                                   <div className="text-xs text-muted-foreground">
                                     {new Date(user.lastActive).toLocaleTimeString()}
                                   </div>
@@ -685,14 +594,14 @@ export default function UserManagement() {
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               {user.twoFactorEnabled && (
-                                <Shield className="h-4 w-4 text-green-600" title="2FA Enabled" />
+                                <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" title="2FA Enabled" />
                               )}
                               {user.emailVerified && (
-                                <CheckCircle className="h-4 w-4 text-blue-600" title="Email Verified" />
+                                <CheckCircle className="h-4 w-4 text-sky-600 dark:text-sky-400" title="Email Verified" />
                               )}
                               {user.activeSessions > 0 && (
                                 <div className="flex items-center">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
                                   <span className="text-xs ml-1">{user.activeSessions}</span>
                                 </div>
                               )}
@@ -701,7 +610,7 @@ export default function UserManagement() {
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" aria-label="User actions">
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -710,30 +619,32 @@ export default function UserManagement() {
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit User
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleSendInvitation(user.id)}>
+                                <DropdownMenuItem onClick={() => handleSendInvitation(user)}>
                                   <Mail className="mr-2 h-4 w-4" />
                                   Send Invitation
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleResetPassword(user.id)}>
+                                <DropdownMenuItem onClick={() => handleResetPassword(user)}>
                                   <Key className="mr-2 h-4 w-4" />
                                   Reset Password
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(user.id); toast.success('User ID copied to clipboard') }}>
                                   <Copy className="mr-2 h-4 w-4" />
                                   Copy User ID
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <ExternalLink className="mr-2 h-4 w-4" />
-                                  View Profile
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/vendor-dashboard/users/${user.id}`}>
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    View Profile
+                                  </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuContent>
                                   {user.status === "active" && (
                                     <>
-                                      <DropdownMenuItem onClick={() => handleToggleUserStatus(user.id, "inactive")}>
+                                      <DropdownMenuItem onClick={() => setStatusChangeTarget({ userId: user.id, newStatus: 'inactive', userName: user.name })}>
                                         <UserMinus className="mr-2 h-4 w-4" />
                                         Deactivate
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleToggleUserStatus(user.id, "suspended")}>
+                                      <DropdownMenuItem onClick={() => setStatusChangeTarget({ userId: user.id, newStatus: 'suspended', userName: user.name })}>
                                         <UserX className="mr-2 h-4 w-4" />
                                         Suspend
                                       </DropdownMenuItem>
@@ -759,6 +670,7 @@ export default function UserManagement() {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -778,9 +690,9 @@ export default function UserManagement() {
                     <div key={activity.id} className="flex items-start space-x-4 p-4 border rounded-lg">
                       <div className="flex-shrink-0">
                         <div className={`p-2 rounded-full ${
-                          activity.status === "success" ? "bg-green-100" : 
-                          activity.status === "failed" ? "bg-red-100" : 
-                          "bg-yellow-100"
+                          activity.status === "success" ? "bg-emerald-500/15 dark:bg-emerald-500/25" : 
+                          activity.status === "failed" ? "bg-red-500/15 dark:bg-red-500/25" : 
+                          "bg-amber-500/15 dark:bg-amber-500/25"
                         }`}>
                           {getActionIcon(activity.action)}
                         </div>
@@ -837,8 +749,8 @@ export default function UserManagement() {
                             {deptUsers.map((user) => (
                               <div key={user.id} className="flex items-center justify-between">
                                 <div className="flex items-center space-x-2">
-                                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <span className="text-xs font-medium text-blue-800">
+                                  <div className="w-6 h-6 rounded-full bg-sky-500/15 dark:bg-sky-500/25 flex items-center justify-center">
+                                    <span className="text-xs font-medium text-sky-700 dark:text-sky-400">
                                       {user.name.split(' ').map(n => n[0]).join('')}
                                     </span>
                                   </div>
@@ -869,7 +781,7 @@ export default function UserManagement() {
 
       {/* Add User Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Add New User</CardTitle>
@@ -961,7 +873,7 @@ export default function UserManagement() {
 
       {/* Edit User Modal */}
       {showEditUserModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Edit User</CardTitle>
@@ -1034,7 +946,7 @@ export default function UserManagement() {
                 
                 <div className="flex space-x-2">
                   <Button onClick={handleUpdateUser} className="flex-1">
-                    Save Changes
+                    Update User
                   </Button>
                   <Button variant="outline" onClick={() => setShowEditUserModal(false)}>
                     Cancel
@@ -1045,6 +957,25 @@ export default function UserManagement() {
           </Card>
         </div>
       )}
+
+      <AlertDialog open={!!statusChangeTarget} onOpenChange={(open) => { if (!open) setStatusChangeTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change user status?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to {statusChangeTarget?.newStatus === 'suspended' ? 'suspend' : 'deactivate'} {statusChangeTarget?.userName}? {statusChangeTarget?.newStatus === 'suspended' ? 'They will not be able to log in until unsuspended.' : 'They will lose access to the platform until reactivated.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            {statusChangeTarget && (
+              <AlertDialogAction onClick={() => handleToggleUserStatus(statusChangeTarget.userId, statusChangeTarget.newStatus)} className="bg-amber-600 hover:bg-amber-700">
+                {statusChangeTarget.newStatus === 'suspended' ? 'Suspend' : 'Deactivate'}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   )
 }

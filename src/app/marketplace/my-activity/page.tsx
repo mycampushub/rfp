@@ -5,178 +5,129 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  FileText, 
-  Users, 
-  Star, 
-  Clock, 
-  DollarSign,
-  CheckCircle,
-  AlertCircle,
-  Eye,
-  MessageSquare,
-  Calendar,
-  TrendingUp,
-  Briefcase,
-  BookmarkPlus,
-  ExternalLink
-} from "lucide-react"
+import { FileText, Clock, DollarSign, CheckCircle, AlertCircle, Eye, MessageSquare, Calendar, TrendingUp, Briefcase, BookmarkPlus, ExternalLink } from "lucide-react"
 import Link from "next/link"
+import { useState, useEffect } from "react"
+import { toast } from "sonner"
 
 export default function MyActivity() {
-  // Mock data for user's marketplace activity
-  const myBids = [
-    {
-      id: "1",
-      rfpTitle: "Enterprise Cloud Migration Services",
-      organization: "TechCorp Inc.",
-      amount: "$650,000",
-      status: "submitted",
-      submittedAt: "2024-11-20",
-      deadline: "2024-12-30",
-      views: 45,
-      messages: 3
-    },
-    {
-      id: "2",
-      rfpTitle: "Mobile App Development",
-      organization: "StartupXYZ",
-      amount: "$95,000",
-      status: "under_review",
-      submittedAt: "2024-11-18",
-      deadline: "2024-12-20",
-      views: 32,
-      messages: 1
-    },
-    {
-      id: "3",
-      rfpTitle: "Digital Marketing Campaign",
-      organization: "Global Retail Co.",
-      amount: "$150,000",
-      status: "accepted",
-      submittedAt: "2024-11-15",
-      deadline: "2024-12-25",
-      views: 67,
-      messages: 8
-    }
-  ]
+  useEffect(() => { document.title = 'My Activity | RFP Platform' }, [])
+  const [myBids, setMyBids] = useState<any[]>([])
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalBids: 0,
+    acceptedBids: 0,
+    pendingBids: 0,
+    savedRFPs: 0,
+    profileViews: 0,
+    responseRate: 0
+  })
 
-  const savedRFPs = [
-    {
-      id: "1",
-      title: "Financial Consulting Services",
-      organization: "Investment Firm",
-      budget: "$150,000 - $300,000",
-      deadline: "2025-01-10",
-      category: "Consulting",
-      savedAt: "2024-11-22",
-      newBids: 2
-    },
-    {
-      id: "2",
-      title: "Brand Identity Design",
-      organization: "Fashion Brand",
-      budget: "$25,000 - $50,000",
-      deadline: "2024-12-15",
-      category: "Design",
-      savedAt: "2024-11-20",
-      newBids: 0
-    },
-    {
-      id: "3",
-      title: "Office Building Renovation",
-      organization: "Property Management LLC",
-      budget: "$250,000 - $400,000",
-      deadline: "2025-01-15",
-      category: "Construction",
-      savedAt: "2024-11-18",
-      newBids: 5
-    }
-  ]
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [bidsRes, notifsRes] = await Promise.all([
+          fetch("/api/bids").then(r => r.json()).catch(() => []),
+          fetch("/api/notifications?unreadOnly=false").then(r => r.json()).catch(() => []),
+        ])
 
-  const notifications = [
-    {
-      id: "1",
-      type: "bid_accepted",
-      title: "Bid Accepted!",
-      message: "Congratulations! Your bid for Digital Marketing Campaign has been accepted.",
-      timestamp: "2024-11-21T10:30:00Z",
-      read: false,
-      rfpId: "2"
-    },
-    {
-      id: "2",
-      type: "new_message",
-      title: "New Message",
-      message: "You have a new message regarding your bid for Enterprise Cloud Migration Services.",
-      timestamp: "2024-11-20T14:15:00Z",
-      read: true,
-      rfpId: "1"
-    },
-    {
-      id: "3",
-      type: "rfp_reminder",
-      title: "RFP Deadline Approaching",
-      message: "The deadline for Financial Consulting Services is approaching in 5 days.",
-      timestamp: "2024-11-19T09:00:00Z",
-      read: true,
-      rfpId: "1"
-    }
-  ]
+        // Map bids
+        const bids = Array.isArray(bidsRes) ? bidsRes : []
+        setMyBids(bids.map((bid: any) => ({
+          id: bid.id,
+          rfpTitle: bid.publicRfp?.title || "Untitled RFP",
+          rfpId: bid.publicRfpId,
+          amount: bid.amount ? `$${bid.amount.toLocaleString()}` : "N/A",
+          status: bid.status || "submitted",
+          submittedAt: bid.createdAt,
+          deadline: "",
+          views: 0,
+          messages: 0,
+        })))
 
-  const stats = {
-    totalBids: 12,
-    acceptedBids: 3,
-    pendingBids: 5,
-    savedRFPs: 8,
-    profileViews: 1247,
-    responseRate: 98
-  }
+        // Map notifications
+        const notifs = Array.isArray(notifsRes) ? notifsRes : []
+        setNotifications(notifs.map((n: any) => ({
+          id: n.id,
+          type: n.type || "general",
+          title: n.title || "Notification",
+          message: n.message || n.content || "",
+          timestamp: n.createdAt,
+          read: n.isRead ?? true,
+          rfpId: n.rfpId || n.targetId || "",
+        })))
+
+        // Compute stats
+        const totalBids = bids.length
+        const acceptedBids = bids.filter((b: any) => b.status === "accepted").length
+        const pendingBids = bids.filter((b: any) => b.status === "submitted" || b.status === "pending").length
+        const unreadNotifs = notifs.filter((n: any) => !n.isRead).length
+        setStats({
+          totalBids,
+          acceptedBids,
+          pendingBids,
+          savedRFPs: 0,
+          profileViews: 0,
+          responseRate: totalBids > 0 ? Math.round((acceptedBids / totalBids) * 100) : 0,
+        })
+      } catch {
+        toast.error("Failed to load activity data")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const getStatusColor = (status: string) => {
-    const colors = {
-      "submitted": "bg-blue-100 text-blue-800",
-      "under_review": "bg-yellow-100 text-yellow-800",
-      "accepted": "bg-green-100 text-green-800",
-      "rejected": "bg-red-100 text-red-800",
-      "draft": "bg-gray-100 text-gray-800"
+    const colors: Record<string, string> = {
+      "submitted": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+      "pending": "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+      "under_review": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+      "accepted": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+      "rejected": "bg-red-500/15 text-red-700 dark:text-red-400",
+      "draft": "bg-muted text-muted-foreground"
     }
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[status] || "bg-muted text-muted-foreground"
   }
 
   const getStatusIcon = (status: string) => {
-    const icons = {
+    const icons: Record<string, typeof Clock> = {
       "submitted": Clock,
+      "pending": Clock,
       "under_review": Eye,
       "accepted": CheckCircle,
       "rejected": AlertCircle,
       "draft": FileText
     }
-    return icons[status as keyof typeof icons] || FileText
+    return icons[status] || FileText
   }
 
   const getNotificationIcon = (type: string) => {
-    const icons = {
+    const icons: Record<string, typeof MessageSquare> = {
       "bid_accepted": CheckCircle,
       "new_message": MessageSquare,
       "rfp_reminder": Clock,
-      "new_rfp": FileText
+      "new_rfp": FileText,
+      "general": FileText,
     }
-    return icons[type as keyof typeof icons] || FileText
+    return icons[type] || FileText
   }
 
   const getCategoryColor = (category: string) => {
-    const colors = {
-      "IT Services": "bg-blue-100 text-blue-800",
-      "Marketing": "bg-green-100 text-green-800",
-      "Construction": "bg-orange-100 text-orange-800",
-      "Consulting": "bg-purple-100 text-purple-800",
-      "Design": "bg-pink-100 text-pink-800"
+    const colors: Record<string, string> = {
+      "IT Services": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+      "Marketing": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+      "Construction": "bg-orange-500/15 text-orange-700 dark:text-orange-400",
+      "Consulting": "bg-violet-500/15 text-violet-700 dark:text-violet-400",
+      "Design": "bg-pink-500/15 text-pink-700 dark:text-pink-400"
     }
-    return colors[category as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[category] || "bg-muted text-muted-foreground"
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A"
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -185,6 +136,7 @@ export default function MyActivity() {
   }
 
   const formatRelativeTime = (dateString: string) => {
+    if (!dateString) return ""
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
@@ -193,6 +145,27 @@ export default function MyActivity() {
     if (diffInHours < 24) return `${diffInHours} hours ago`
     if (diffInHours < 48) return 'Yesterday'
     return `${Math.floor(diffInHours / 24)} days ago`
+  }
+
+  const unreadCount = notifications.filter(n => !n.read).length
+
+  if (loading) {
+    return (
+      <MainLayout title="My Activity">
+        <div className="space-y-6">
+          <div>
+            <div className="h-9 w-64 bg-muted rounded animate-pulse" />
+            <div className="h-5 w-80 bg-muted rounded animate-pulse mt-2" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+            {[1,2,3,4,5,6].map(i => (
+              <Card key={i}><CardContent className="p-6"><div className="h-16 bg-muted rounded animate-pulse" /></CardContent></Card>
+            ))}
+          </div>
+          <Card><CardContent className="p-6"><div className="h-48 bg-muted rounded animate-pulse" /></CardContent></Card>
+        </div>
+      </MainLayout>
+    )
   }
 
   return (
@@ -221,27 +194,27 @@ export default function MyActivity() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Accepted</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.acceptedBids}</div>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.acceptedBids}</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-600" />
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{stats.pendingBids}</div>
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.pendingBids}</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Saved RFPs</CardTitle>
-              <BookmarkPlus className="h-4 w-4 text-blue-600" />
+              <BookmarkPlus className="h-4 w-4 text-sky-600 dark:text-sky-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.savedRFPs}</div>
@@ -250,21 +223,21 @@ export default function MyActivity() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Profile Views</CardTitle>
-              <Eye className="h-4 w-4 text-purple-600" />
+              <CardTitle className="text-sm font-medium">Notifications</CardTitle>
+              <Eye className="h-4 w-4 text-violet-600 dark:text-violet-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.profileViews}</div>
+              <div className="text-2xl font-bold">{notifications.length}</div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.responseRate}%</div>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.responseRate}%</div>
             </CardContent>
           </Card>
         </div>
@@ -273,8 +246,8 @@ export default function MyActivity() {
         <Tabs defaultValue="bids" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="bids">My Bids ({myBids.length})</TabsTrigger>
-            <TabsTrigger value="saved">Saved RFPs ({savedRFPs.length})</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications ({notifications.filter(n => !n.read).length})</TabsTrigger>
+            <TabsTrigger value="saved">Saved RFPs (0)</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications ({unreadCount})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bids" className="space-y-4">
@@ -287,64 +260,62 @@ export default function MyActivity() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {myBids.map((bid) => {
-                    const StatusIcon = getStatusIcon(bid.status)
-                    return (
-                      <div key={bid.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-1">{bid.rfpTitle}</h3>
-                            <p className="text-sm text-muted-foreground mb-2">{bid.organization}</p>
-                            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                              <span className="flex items-center">
-                                <DollarSign className="mr-1 h-3 w-3" />
-                                {bid.amount}
-                              </span>
-                              <span className="flex items-center">
-                                <Calendar className="mr-1 h-3 w-3" />
-                                Submitted: {formatDate(bid.submittedAt)}
-                              </span>
-                              <span className="flex items-center">
-                                <Clock className="mr-1 h-3 w-3" />
-                                Deadline: {formatDate(bid.deadline)}
-                              </span>
+                  {myBids.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No bids yet</h3>
+                      <p className="text-muted-foreground mb-4">You haven't submitted any bids. Browse RFPs to get started.</p>
+                      <Button asChild>
+                        <Link href="/marketplace/rfps">Browse RFPs</Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    myBids.map((bid) => {
+                      const StatusIcon = getStatusIcon(bid.status)
+                      return (
+                        <div key={bid.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-1">{bid.rfpTitle}</h3>
+                              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                <span className="flex items-center">
+                                  <DollarSign className="mr-1 h-3 w-3" />
+                                  {bid.amount}
+                                </span>
+                                <span className="flex items-center">
+                                  <Calendar className="mr-1 h-3 w-3" />
+                                  Submitted: {formatDate(bid.submittedAt)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge className={getStatusColor(bid.status)}>
+                                <StatusIcon className="mr-1 h-3 w-3" />
+                                {bid.status.replace('_', ' ').toUpperCase()}
+                              </Badge>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge className={getStatusColor(bid.status)}>
-                              <StatusIcon className="mr-1 h-3 w-3" />
-                              {bid.status.replace('_', ' ').toUpperCase()}
-                            </Badge>
+                          
+                          <div className="flex items-center justify-end">
+                            <div className="flex space-x-2">
+                              {bid.rfpId && (
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link href={`/marketplace/rfps/${bid.rfpId}`}>
+                                    View RFP
+                                  </Link>
+                                </Button>
+                              )}
+                              <Button size="sm" asChild>
+                                <Link href={`/marketplace/my-activity/bids/${bid.id}`}>
+                                  View Details
+                                </Link>
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                            <span className="flex items-center">
-                              <Eye className="mr-1 h-3 w-3" />
-                              {bid.views} views
-                            </span>
-                            <span className="flex items-center">
-                              <MessageSquare className="mr-1 h-3 w-3" />
-                              {bid.messages} messages
-                            </span>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" asChild>
-                              <Link href={`/marketplace/rfps/${bid.id}`}>
-                                View RFP
-                              </Link>
-                            </Button>
-                            <Button size="sm" asChild>
-                              <Link href={`/marketplace/my-activity/bids/${bid.id}`}>
-                                View Details
-                              </Link>
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -359,59 +330,15 @@ export default function MyActivity() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {savedRFPs.map((rfp) => (
-                    <div key={rfp.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg mb-1">{rfp.title}</h3>
-                          <p className="text-sm text-muted-foreground mb-2">{rfp.organization}</p>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                            <span className="flex items-center">
-                              <DollarSign className="mr-1 h-3 w-3" />
-                              {rfp.budget}
-                            </span>
-                            <span className="flex items-center">
-                              <Clock className="mr-1 h-3 w-3" />
-                              Deadline: {formatDate(rfp.deadline)}
-                            </span>
-                            <span className="flex items-center">
-                              <BookmarkPlus className="mr-1 h-3 w-3" />
-                              Saved: {formatDate(rfp.savedAt)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getCategoryColor(rfp.category)}>
-                            {rfp.category}
-                          </Badge>
-                          {rfp.newBids > 0 && (
-                            <Badge className="bg-red-100 text-red-800">
-                              {rfp.newBids} new bids
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span>Deadline in {Math.ceil((new Date(rfp.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days</span>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/marketplace/rfps/${rfp.id}`}>
-                              View RFP
-                            </Link>
-                          </Button>
-                          <Button size="sm" asChild>
-                            <Link href={`/marketplace/rfps/${rfp.id}#bid`}>
-                              Submit Bid
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-8">
+                  <BookmarkPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No saved RFPs</h3>
+                  <p className="text-muted-foreground mb-4">
+                    You haven't saved any RFPs yet. Browse and save RFPs that interest you.
+                  </p>
+                  <Button asChild>
+                    <Link href="/marketplace/rfps">Browse RFPs</Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -427,40 +354,48 @@ export default function MyActivity() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {notifications.map((notification) => {
-                    const NotificationIcon = getNotificationIcon(notification.type)
-                    return (
-                      <div key={notification.id} className={`border rounded-lg p-4 ${!notification.read ? 'bg-blue-50 border-blue-200' : ''}`}>
-                        <div className="flex items-start space-x-3">
-                          <div className="flex-shrink-0">
-                            <NotificationIcon className={`h-5 w-5 ${!notification.read ? 'text-blue-600' : 'text-muted-foreground'}`} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <h4 className={`font-medium ${!notification.read ? 'text-blue-900' : ''}`}>
-                                {notification.title}
-                              </h4>
-                              <span className="text-xs text-muted-foreground">
-                                {formatRelativeTime(notification.timestamp)}
-                              </span>
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No notifications</h3>
+                      <p className="text-muted-foreground">You're all caught up!</p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => {
+                      const NotificationIcon = getNotificationIcon(notification.type)
+                      return (
+                        <div key={notification.id} className={`border rounded-lg p-4 ${!notification.read ? 'bg-sky-500/10 dark:bg-sky-500/20 border-sky-500/30 dark:border-sky-500/40' : ''}`}>
+                          <div className="flex items-start space-x-3">
+                            <div className="flex-shrink-0">
+                              <NotificationIcon className={`h-5 w-5 ${!notification.read ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground'}`} />
                             </div>
-                            <p className={`text-sm ${!notification.read ? 'text-blue-700' : 'text-muted-foreground'}`}>
-                              {notification.message}
-                            </p>
-                            {notification.rfpId && (
-                              <div className="mt-2">
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link href={`/marketplace/rfps/${notification.rfpId}`}>
-                                    View RFP <ExternalLink className="ml-1 h-3 w-3" />
-                                  </Link>
-                                </Button>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <h4 className={`font-medium ${!notification.read ? 'text-sky-900 dark:text-sky-100' : ''}`}>
+                                  {notification.title}
+                                </h4>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatRelativeTime(notification.timestamp)}
+                                </span>
                               </div>
-                            )}
+                              <p className={`text-sm ${!notification.read ? 'text-sky-700 dark:text-sky-400' : 'text-muted-foreground'}`}>
+                                {notification.message}
+                              </p>
+                              {notification.rfpId && (
+                                <div className="mt-2">
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link href={`/marketplace/rfps/${notification.rfpId}`}>
+                                      View RFP <ExternalLink className="ml-1 h-3 w-3" />
+                                    </Link>
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  )}
                 </div>
               </CardContent>
             </Card>

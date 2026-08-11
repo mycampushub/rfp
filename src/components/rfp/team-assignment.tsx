@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   Users, 
-  Plus, 
   Search, 
   Mail, 
   Shield, 
@@ -63,16 +62,23 @@ export function TeamAssignment({ teamMembers, onTeamMembersChange }: TeamAssignm
 
   const selectedRole = watch("role")
 
-  // Mock available users - in real app, this would come from API
+  // Fetch all tenant users from API
   useEffect(() => {
-    const mockUsers = [
-      { id: "1", name: "John Smith", email: "john.smith@company.com", avatar: "" },
-      { id: "2", name: "Sarah Johnson", email: "sarah.johnson@company.com", avatar: "" },
-      { id: "3", name: "Mike Chen", email: "mike.chen@company.com", avatar: "" },
-      { id: "4", name: "Emily Davis", email: "emily.davis@company.com", avatar: "" },
-      { id: "5", name: "Robert Wilson", email: "robert.wilson@company.com", avatar: "" },
-    ]
-    setAvailableUsers(mockUsers)
+    async function fetchUsers() {
+      try {
+        const res = await fetch('/api/tenant/users')
+        if (res.ok) {
+          const users = await res.json()
+          setAvailableUsers(users.map((u: any) => ({
+            id: u.id,
+            name: u.name || u.email,
+            email: u.email,
+            avatar: '',
+          })))
+        }
+      } catch (err) { console.error("Failed to load users:", err) }
+    }
+    fetchUsers()
   }, [])
 
   const filteredUsers = availableUsers.filter(user =>
@@ -83,17 +89,17 @@ export function TeamAssignment({ teamMembers, onTeamMembersChange }: TeamAssignm
   const getRoleColor = (role: string) => {
     switch (role) {
       case "owner":
-        return "bg-purple-100 text-purple-800"
+        return "bg-violet-500/15 text-violet-700 dark:text-violet-400"
       case "editor":
-        return "bg-blue-100 text-blue-800"
+        return "bg-sky-500/15 text-sky-700 dark:text-sky-400"
       case "evaluator":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       case "approver":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-500/15 text-orange-700 dark:text-orange-400"
       case "viewer":
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -207,7 +213,7 @@ export function TeamAssignment({ teamMembers, onTeamMembersChange }: TeamAssignm
                           <TableCell>
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={user.avatar} />
+                                <AvatarImage src={user.avatar} alt={user.name} />
                                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                               </Avatar>
                               <span className="font-medium">{user.name}</span>
@@ -234,7 +240,7 @@ export function TeamAssignment({ teamMembers, onTeamMembersChange }: TeamAssignm
                   </Table>
                 </div>
                 {errors.userId && (
-                  <p className="text-sm text-red-600">{errors.userId.message}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400">{errors.userId.message}</p>
                 )}
               </div>
 
@@ -278,7 +284,7 @@ export function TeamAssignment({ teamMembers, onTeamMembersChange }: TeamAssignm
                   </SelectContent>
                 </Select>
                 {errors.role && (
-                  <p className="text-sm text-red-600">{errors.role.message}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400">{errors.role.message}</p>
                 )}
               </div>
 
@@ -317,7 +323,7 @@ export function TeamAssignment({ teamMembers, onTeamMembersChange }: TeamAssignm
                 <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-4">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={member.avatar} />
+                      <AvatarImage src={member.avatar} alt={member.name} />
                       <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -354,7 +360,8 @@ export function TeamAssignment({ teamMembers, onTeamMembersChange }: TeamAssignm
                       variant="ghost"
                       size="sm"
                       onClick={() => removeTeamMember(member.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                      aria-label={`Remove ${member.name} from team`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

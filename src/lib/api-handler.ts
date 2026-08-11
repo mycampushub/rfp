@@ -1,0 +1,67 @@
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "./auth"
+import { Permission } from "@/types/auth"
+import { db } from "./db"
+import { type TenantContext, AuthError, PermissionError } from "./tenant-context"
+
+export type { AuthError, PermissionError, TenantContext }
+
+/**
+ * Wrap a route handler with authentication + tenant context.
+ * Returns proper 401/403/500 error responses.
+ */
+export async function withAuth(
+  request: NextRequest,
+  handler: (
+    session: Awaited<ReturnType<typeof getServerSession>>,
+    ctx: TenantContext
+  ) => Promise<NextResponse>
+): Promise<NextResponse> {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const ctx = {
+      tenantId: session.user.tenantId as string,
+      userId: session.user.id as string,
+      userEmail: session.user.email as string,
+    }
+    return await handler(session, ctx)
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+    if (error instanceof PermissionError) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
+    }
+    console.error("API Error:", error)
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+  }
+}
+
+/**
+ * Check if the current session user has a specific permission.
+ */
+export async function checkPermission(
+  session: Awaited<ReturnType<typeof getServerSession>>,
+  permission: Permission
+): Promise<boolean> {
+  if (!session?.user) return false
+  const roleIds = (session.user.roleIds || []) as string[]
+  if (roleIds.length === 0) return false
+  const roles = await db.role.findMany({ where: { id: { in: roleIds } } })
+  const userPermissions = roles.flatMap(role => role.permissions || [])
+  return userPermissions.includes(permission)
+}
+
+/**
+ * Require a specific permission — throws PermissionError if missing.
+ */
+export async function requirePermission(session: Awaited<ReturnType<typeof getServerSession>>, permission: Permission): Promise<void> {
+  const has = await checkPermission(session, permission)
+  if (!has) {
+    throw new PermissionError(`Permission denied: ${permission}`)
+  }
+}

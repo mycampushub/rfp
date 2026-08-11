@@ -9,19 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  DollarSign, 
-  Clock, 
-  FileText, 
-  Upload, 
-  Send,
-  Calendar,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  X,
-  Download
-} from "lucide-react"
+import { DollarSign, Clock, FileText, Upload, Send, AlertCircle, Plus, X } from "lucide-react"
 
 interface BidSubmissionProps {
   rfpId: string
@@ -134,8 +122,6 @@ export function BidSubmission({
     if (onSubmit) {
       onSubmit(submissionData)
     }
-    
-    console.log("Bid submitted:", submissionData)
   }
 
   const isFormValid = bidData.amount && bidData.duration && bidData.proposal && bidData.termsAccepted
@@ -225,9 +211,9 @@ export function BidSubmission({
 
               <div className="space-y-2">
                 <Label htmlFor="attachments">Attachments</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-sm text-gray-600 mb-2">
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground/80 mb-2">
                     Upload supporting documents, portfolio, or certifications
                   </p>
                   <Input
@@ -287,12 +273,12 @@ export function BidSubmission({
                 </p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-sky-500/10 dark:bg-sky-500/20 border border-sky-500/30 dark:border-sky-500/40 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-sky-600 dark:text-sky-400 mt-0.5" />
                   <div>
-                    <h4 className="font-medium text-blue-900">Proposal Tips</h4>
-                    <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                    <h4 className="font-medium text-sky-900 dark:text-sky-100">Proposal Tips</h4>
+                    <ul className="text-sm text-sky-700 dark:text-sky-400 mt-1 space-y-1">
                       <li>• Address all requirements mentioned in the RFP</li>
                       <li>• Highlight your relevant experience and past successes</li>
                       <li>• Be specific about your deliverables and timeline</li>

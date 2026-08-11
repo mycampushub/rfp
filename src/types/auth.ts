@@ -3,6 +3,8 @@ export interface User {
   email: string
   name?: string
   tenantId: string
+  /** Application-level type is string[]; DB stores as Json (Prisma reads it back as unknown,
+   *  so `as string[]` casts are required in auth callbacks). */
   roleIds: string[]
 }
 
@@ -26,12 +28,14 @@ export interface SessionUser {
   email: string
   name?: string
   tenantId: string
+  /** Stored as Json in the User model; cast via `as string[]` in session callback. */
   roleIds: string[]
 }
 
 export interface JWT {
   sub: string
   tenantId: string
+  /** Stored as Json in the User model; cast via `as string[]` in JWT callback. */
   roleIds: string[]
   iat?: number
   exp?: number

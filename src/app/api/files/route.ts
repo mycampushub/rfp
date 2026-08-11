@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { FileService } from "@/lib/file-service"
 import { z } from "zod"
 
@@ -11,7 +11,7 @@ const createFileSchema = z.object({
   mime: z.string(),
   retention: z.string().optional(),
   legalHold: z.boolean().default(false),
-  metadata: z.any().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50")
     const offset = parseInt(searchParams.get("offset") || "0")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
     
     const options: any = {
       limit,
@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching files:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -62,7 +64,15 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get("file") as File
-    const metadata = formData.get("metadata") ? JSON.parse(formData.get("metadata") as string) : {}
+    const rawMetadata = formData.get("metadata") as string
+    let metadata: Record<string, unknown> = {}
+    if (rawMetadata) {
+      try {
+        metadata = JSON.parse(rawMetadata)
+      } catch {
+        metadata = {}
+      }
+    }
     const createVersion = formData.get("createVersion") === "true"
     const parentFileId = formData.get("parentFileId") as string
 
@@ -70,7 +80,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     const fileMetadata = {
       originalName: file.name,
@@ -95,6 +105,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(fileRecord, { status: 201 })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error uploading file:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

@@ -1,146 +1,64 @@
 "use client"
 
 import { MainLayout } from "@/components/layout/main-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
-  Search, 
-  Filter, 
-  Star, 
-  Users, 
-  MapPin, 
-  CheckCircle,
-  Briefcase,
-  ArrowRight,
-  Building,
-  Award,
-  Globe,
-  Phone,
-  Mail
-} from "lucide-react"
+import { Search, Filter, Star, Users, MapPin, CheckCircle, Briefcase, Building, Globe, Phone, Mail } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { toast } from "sonner"
+import { LoadingCards } from "@/components/shared/loading-table"
 
 export default function MarketplaceVendors() {
+  useEffect(() => { document.title = 'Vendor Directory | RFP Platform' }, [])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedLocation, setSelectedLocation] = useState("all")
   const [selectedRating, setSelectedRating] = useState("all")
+  const [vendors, setVendors] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sortValue, setSortValue] = useState("rating")
+  const [currentPage, setCurrentPage] = useState(1)
 
-  // Mock data for vendors
-  const vendors = [
-    {
-      id: "1",
-      name: "TechSolutions Pro",
-      description: "Leading cloud services and software development company with 10+ years of experience delivering enterprise solutions.",
-      rating: 4.9,
-      reviews: 127,
-      projects: 156,
-      employees: "50-200",
-      founded: 2014,
-      location: "San Francisco, CA",
-      website: "https://techsolutions.example.com",
-      verified: true,
-      specialties: ["Cloud Services", "Software Development", "DevOps", "Cybersecurity"],
-      categories: ["IT Services", "Software Development"],
-      hourlyRate: "$150-200",
-      responseTime: "2 hours",
-      featured: true
-    },
-    {
-      id: "2",
-      name: "Marketing Masters",
-      description: "Full-service digital marketing agency specializing in brand strategy, content creation, and performance marketing.",
-      rating: 4.8,
-      reviews: 89,
-      projects: 203,
-      employees: "20-50",
-      founded: 2018,
-      location: "New York, NY",
-      website: "https://marketingmasters.example.com",
-      verified: true,
-      specialties: ["Digital Marketing", "Brand Strategy", "Content Marketing", "SEO/SEM"],
-      categories: ["Marketing", "Design"],
-      hourlyRate: "$100-150",
-      responseTime: "1 hour",
-      featured: true
-    },
-    {
-      id: "3",
-      name: "BuildRight Construction",
-      description: "Commercial construction company with expertise in office buildings, retail spaces, and industrial facilities.",
-      rating: 4.7,
-      reviews: 156,
-      projects: 89,
-      employees: "200-500",
-      founded: 2005,
-      location: "Chicago, IL",
-      website: "https://buildright.example.com",
-      verified: true,
-      specialties: ["Commercial Construction", "Renovation", "Project Management", "Design-Build"],
-      categories: ["Construction", "Engineering"],
-      hourlyRate: "$75-125",
-      responseTime: "4 hours",
-      featured: false
-    },
-    {
-      id: "4",
-      name: "Data Insights Consulting",
-      description: "Business intelligence and data analytics consulting firm helping companies make data-driven decisions.",
-      rating: 4.6,
-      reviews: 67,
-      projects: 94,
-      employees: "10-20",
-      founded: 2019,
-      location: "Austin, TX",
-      website: "https://datainsights.example.com",
-      verified: false,
-      specialties: ["Data Analytics", "Business Intelligence", "Machine Learning", "Visualization"],
-      categories: ["Consulting", "IT Services"],
-      hourlyRate: "$120-180",
-      responseTime: "3 hours",
-      featured: false
-    },
-    {
-      id: "5",
-      name: "Creative Studio Pro",
-      description: "Award-winning design agency specializing in brand identity, web design, and user experience design.",
-      rating: 4.8,
-      reviews: 112,
-      projects: 167,
-      employees: "15-30",
-      founded: 2016,
-      location: "Los Angeles, CA",
-      website: "https://creativestudio.example.com",
-      verified: true,
-      specialties: ["Brand Identity", "Web Design", "UI/UX Design", "Graphic Design"],
-      categories: ["Design", "Marketing"],
-      hourlyRate: "$80-120",
-      responseTime: "2 hours",
-      featured: true
-    },
-    {
-      id: "6",
-      name: "Legal Eagles LLP",
-      description: "Full-service law firm with expertise in corporate law, contracts, and regulatory compliance.",
-      rating: 4.5,
-      reviews: 78,
-      projects: 234,
-      employees: "50-100",
-      founded: 2008,
-      location: "Boston, MA",
-      website: "https://legaleagles.example.com",
-      verified: true,
-      specialties: ["Corporate Law", "Contract Review", "Compliance", "Intellectual Property"],
-      categories: ["Legal", "Consulting"],
-      hourlyRate: "$200-300",
-      responseTime: "1 hour",
-      featured: false
+  useEffect(() => {
+    async function fetchVendors() {
+      try {
+        const res = await fetch("/api/v1/vendors?limit=100")
+        if (!res.ok) throw new Error("Failed to fetch")
+        const json = await res.json()
+        setVendors((json.data || []).map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          description: v.contactInfo?.address || "",
+          rating: 0,
+          reviews: 0,
+          projects: v._count?.submissions ?? 0,
+          employees: "",
+          founded: "",
+          location: v.contactInfo?.address || "N/A",
+          website: v.contactInfo?.website || "",
+          verified: v.isActive ?? false,
+          specialties: v.categories || [],
+          categories: v.categories || [],
+          certifications: v.certifications || [],
+          hourlyRate: "",
+          responseTime: "",
+          featured: false,
+          email: v.contactInfo?.email || "",
+          phone: v.contactInfo?.phone || "",
+          createdAt: v.createdAt || "",
+        })))
+      } catch {
+        toast.error("Failed to load vendors")
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+    fetchVendors()
+  }, [])
 
   const categories = [
     "all", "IT Services", "Marketing", "Construction", "Software Development", 
@@ -160,25 +78,25 @@ export default function MarketplaceVendors() {
   ]
 
   const getCategoryColor = (category: string) => {
-    const colors = {
-      "IT Services": "bg-blue-100 text-blue-800",
-      "Marketing": "bg-green-100 text-green-800",
-      "Construction": "bg-orange-100 text-orange-800",
-      "Software Development": "bg-purple-100 text-purple-800",
-      "Consulting": "bg-indigo-100 text-indigo-800",
-      "Design": "bg-pink-100 text-pink-800",
-      "Engineering": "bg-yellow-100 text-yellow-800",
-      "Legal": "bg-red-100 text-red-800",
-      "Healthcare": "bg-teal-100 text-teal-800"
+    const colors: Record<string, string> = {
+      "IT Services": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+      "Marketing": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+      "Construction": "bg-orange-500/15 text-orange-700 dark:text-orange-400",
+      "Software Development": "bg-violet-500/15 text-violet-700 dark:text-violet-400",
+      "Consulting": "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400",
+      "Design": "bg-pink-500/15 text-pink-700 dark:text-pink-400",
+      "Engineering": "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+      "Legal": "bg-red-500/15 text-red-700 dark:text-red-400",
+      "Healthcare": "bg-teal-500/15 text-teal-700 dark:text-teal-400"
     }
-    return colors[category as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[category] || "bg-muted text-muted-foreground"
   }
 
   const filteredVendors = vendors.filter(vendor => {
     const matchesSearch = vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          vendor.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vendor.specialties.some(specialty => 
-                           specialty.toLowerCase().includes(searchTerm.toLowerCase())
+                         vendor.specialties.some((s: string) => 
+                           s.toLowerCase().includes(searchTerm.toLowerCase())
                          )
     const matchesCategory = selectedCategory === "all" || 
                             vendor.categories.includes(selectedCategory)
@@ -190,6 +108,36 @@ export default function MarketplaceVendors() {
     
     return matchesSearch && matchesCategory && matchesLocation && matchesRating
   })
+
+  const sortedVendors = [...filteredVendors].sort((a, b) => {
+    switch (sortValue) {
+      case 'rating': return (b.rating || 0) - (a.rating || 0)
+      case 'projects': return (b.projects || 0) - (a.projects || 0)
+      case 'reviews': return (b.reviews || 0) - (a.reviews || 0)
+      case 'newest': return (b.createdAt || '').localeCompare(a.createdAt || '')
+      default: return 0
+    }
+  })
+
+  const ITEMS_PER_PAGE = 12
+  const totalPages = Math.ceil(sortedVendors.length / ITEMS_PER_PAGE)
+  const paginatedVendors = sortedVendors.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
+  if (loading) {
+    return (
+      <MainLayout title="Vendor Directory">
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Vendor Directory</h1>
+              <p className="text-muted-foreground mt-1">Loading...</p>
+            </div>
+          </div>
+          <LoadingCards count={6} />
+        </div>
+      </MainLayout>
+    )
+  }
 
   return (
     <MainLayout title="Vendor Directory">
@@ -291,7 +239,7 @@ export default function MarketplaceVendors() {
           </p>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-muted-foreground">Sort by:</span>
-            <Select defaultValue="rating">
+            <Select value={sortValue} onValueChange={(v) => { setSortValue(v); setCurrentPage(1) }}>
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -307,7 +255,7 @@ export default function MarketplaceVendors() {
 
         {/* Vendor Listings */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredVendors.map((vendor) => (
+          {paginatedVendors.map((vendor) => (
             <Card key={vendor.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
                 {/* Vendor Header */}
@@ -316,13 +264,13 @@ export default function MarketplaceVendors() {
                     <div className="flex items-center space-x-2 mb-2">
                       <h3 className="text-lg font-semibold">{vendor.name}</h3>
                       {vendor.verified && (
-                        <Badge className="bg-blue-100 text-blue-800">
+                        <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-400">
                           <CheckCircle className="mr-1 h-3 w-3" />
                           Verified
                         </Badge>
                       )}
                       {vendor.featured && (
-                        <Badge className="bg-yellow-100 text-yellow-800">
+                        <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
                           <Star className="mr-1 h-3 w-3" />
                           Featured
                         </Badge>
@@ -333,10 +281,12 @@ export default function MarketplaceVendors() {
                         <MapPin className="mr-1 h-3 w-3" />
                         {vendor.location}
                       </span>
-                      <span className="flex items-center">
-                        <Users className="mr-1 h-3 w-3" />
-                        {vendor.employees}
-                      </span>
+                      {vendor.employees && (
+                        <span className="flex items-center">
+                          <Users className="mr-1 h-3 w-3" />
+                          {vendor.employees}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -345,7 +295,7 @@ export default function MarketplaceVendors() {
                 <div className="flex items-center space-x-2 mb-3">
                   <div className="flex items-center">
                     <Star className="mr-1 h-4 w-4 text-yellow-500" />
-                    <span className="font-medium">{vendor.rating}</span>
+                    <span className="font-medium">{vendor.rating || "N/A"}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
                     ({vendor.reviews} reviews)
@@ -358,12 +308,12 @@ export default function MarketplaceVendors() {
 
                 {/* Description */}
                 <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-                  {vendor.description}
+                  {vendor.description || "No description available."}
                 </p>
 
                 {/* Specialties */}
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {vendor.specialties.slice(0, 3).map((specialty, index) => (
+                  {vendor.specialties.slice(0, 3).map((specialty: string, index: number) => (
                     <Badge key={index} variant="outline" className="text-xs">
                       {specialty}
                     </Badge>
@@ -377,7 +327,7 @@ export default function MarketplaceVendors() {
 
                 {/* Categories */}
                 <div className="flex flex-wrap gap-1 mb-4">
-                  {vendor.categories.map((category, index) => (
+                  {vendor.categories.map((category: string, index: number) => (
                     <Badge key={index} className={getCategoryColor(category)}>
                       {category}
                     </Badge>
@@ -386,25 +336,38 @@ export default function MarketplaceVendors() {
 
                 {/* Quick Info */}
                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mb-4">
-                  <div className="flex items-center">
-                    <Briefcase className="mr-1 h-3 w-3" />
-                    {vendor.hourlyRate}/hr
-                  </div>
-                  <div className="flex items-center">
-                    <Phone className="mr-1 h-3 w-3" />
-                    {vendor.responseTime} response
-                  </div>
-                  <div className="flex items-center">
-                    <Building className="mr-1 h-3 w-3" />
-                    Since {vendor.founded}
-                  </div>
-                  <div className="flex items-center">
-                    <Globe className="mr-1 h-3 w-3" />
-                    <a href={vendor.website} target="_blank" rel="noopener noreferrer" 
-                       className="text-blue-600 hover:underline">
-                      Website
-                    </a>
-                  </div>
+                  {vendor.hourlyRate && (
+                    <div className="flex items-center">
+                      <Briefcase className="mr-1 h-3 w-3" />
+                      {vendor.hourlyRate}/hr
+                    </div>
+                  )}
+                  {vendor.phone && (
+                    <div className="flex items-center">
+                      <Phone className="mr-1 h-3 w-3" />
+                      {vendor.phone}
+                    </div>
+                  )}
+                  {vendor.founded && (
+                    <div className="flex items-center">
+                      <Building className="mr-1 h-3 w-3" />
+                      Since {vendor.founded}
+                    </div>
+                  )}
+                  {vendor.website ? (
+                    <div className="flex items-center">
+                      <Globe className="mr-1 h-3 w-3" />
+                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" 
+                         className="text-sky-600 dark:text-sky-400 hover:underline">
+                        Website
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <Globe className="mr-1 h-3 w-3" />
+                      <span>No website</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -414,18 +377,20 @@ export default function MarketplaceVendors() {
                       View Profile
                     </Link>
                   </Button>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/marketplace/vendors/${vendor.id}#contact`}>
-                      <Mail className="h-4 w-4" />
-                    </Link>
-                  </Button>
+                  {vendor.email && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`mailto:${vendor.email}`}>
+                        <Mail className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {filteredVendors.length === 0 && (
+        {sortedVendors.length === 0 && (
           <Card>
             <CardContent className="text-center py-12">
               <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -446,25 +411,28 @@ export default function MarketplaceVendors() {
         )}
 
         {/* Pagination */}
+        {totalPages > 1 && (
         <div className="flex justify-center">
           <div className="flex space-x-2">
-            <Button variant="outline" disabled>
+            <Button variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>
               Previous
             </Button>
-            <Button variant="outline" className="bg-primary text-primary-foreground">
-              1
-            </Button>
-            <Button variant="outline">
-              2
-            </Button>
-            <Button variant="outline">
-              3
-            </Button>
-            <Button variant="outline">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <Button
+                key={page}
+                variant="outline"
+                className={page === currentPage ? 'bg-primary text-primary-foreground' : ''}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </Button>
+            ))}
+            <Button variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>
               Next
             </Button>
           </div>
         </div>
+        )}
       </div>
     </MainLayout>
   )

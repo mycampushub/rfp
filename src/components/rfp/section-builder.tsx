@@ -12,7 +12,8 @@ import { Separator } from "@/components/ui/separator"
 import { 
   Plus, 
   Minus, 
-  GripVertical, 
+  ArrowUp, 
+  ArrowDown,
   FileText, 
   MessageSquare, 
   Hash,
@@ -20,53 +21,25 @@ import {
   File,
   X
 } from "lucide-react"
-import { DragDropContext, Droppable, Draggable, DropResult } from "@dnd-kit/core"
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
+import { type RFPQuestion, type RFPSection } from "./types"
 
-interface Question {
-  id: string
-  type: "text" | "number" | "multiple_choice" | "checkbox" | "file" | "date"
-  prompt: string
-  required: boolean
-  constraints?: any
-  order: number
-  options?: string[]
-}
-
-interface Section {
-  id: string
-  title: string
-  description?: string
-  isRequired: boolean
-  order: number
-  questions: Question[]
-}
+type Question = RFPQuestion
+type Section = RFPSection
 
 interface SectionBuilderProps {
   sections: Section[]
   onSectionsChange: (sections: Section[]) => void
 }
 
-function SortableQuestion({ question, onUpdate, onRemove }: { 
+function QuestionItem({ question, onUpdate, onRemove, onMoveUp, onMoveDown, isFirst, isLast }: { 
   question: Question; 
   onUpdate: (question: Question) => void; 
   onRemove: (id: string) => void 
+  onMoveUp: () => void
+  onMoveDown: () => void
+  isFirst: boolean
+  isLast: boolean
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: question.id })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
   const questionTypes = [
     { value: "text", label: "Text", icon: MessageSquare },
     { value: "number", label: "Number", icon: Hash },
@@ -83,14 +56,32 @@ function SortableQuestion({ question, onUpdate, onRemove }: {
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="border rounded-lg p-4 bg-white">
+    <div className="border rounded-lg p-4 bg-card">
       <div className="flex items-start space-x-3">
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab p-1 hover:bg-gray-100 rounded"
-        >
-          <GripVertical className="h-4 w-4 text-gray-400" />
+        {/* Reorder buttons */}
+        <div className="flex flex-col gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={onMoveUp}
+            disabled={isFirst}
+            aria-label="Move question up"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={onMoveDown}
+            disabled={isLast}
+            aria-label="Move question down"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </Button>
         </div>
         
         <div className="flex-1 space-y-3">
@@ -203,13 +194,6 @@ function SortableQuestion({ question, onUpdate, onRemove }: {
 export function SectionBuilder({ sections, onSectionsChange }: SectionBuilderProps) {
   const [activeSection, setActiveSection] = useState(0)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
-
   const addSection = () => {
     const newSection: Section = {
       id: `section-${Date.now()}`,
@@ -270,25 +254,22 @@ export function SectionBuilder({ sections, onSectionsChange }: SectionBuilderPro
     updateSection(sectionIndex, { questions: newQuestions })
   }
 
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return
-
-    const { source, destination } = result
-
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return
-    }
-
-    const sectionIndex = parseInt(source.droppableId.split("-")[1])
+  const moveQuestionUp = (sectionIndex: number, questionIndex: number) => {
+    if (questionIndex <= 0) return
     const section = sections[sectionIndex]
-    const questions = Array.from(section.questions)
-    const [reorderedQuestion] = questions.splice(source.index, 1)
-    questions.splice(destination.index, 0, reorderedQuestion)
+    const newQuestions = [...section.questions]
+    const [moved] = newQuestions.splice(questionIndex, 1)
+    newQuestions.splice(questionIndex - 1, 0, moved)
+    updateSection(sectionIndex, { questions: newQuestions })
+  }
 
-    updateSection(sectionIndex, { questions })
+  const moveQuestionDown = (sectionIndex: number, questionIndex: number) => {
+    const section = sections[sectionIndex]
+    if (questionIndex >= section.questions.length - 1) return
+    const newQuestions = [...section.questions]
+    const [moved] = newQuestions.splice(questionIndex, 1)
+    newQuestions.splice(questionIndex + 1, 0, moved)
+    updateSection(sectionIndex, { questions: newQuestions })
   }
 
   return (
@@ -400,29 +381,27 @@ export function SectionBuilder({ sections, onSectionsChange }: SectionBuilderPro
                       </Button>
                     </div>
 
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <div className="space-y-3">
-                        {section.questions.map((question, questionIndex) => (
-                          <SortableQuestion
-                            key={question.id}
-                            question={question}
-                            onUpdate={(updatedQuestion) => updateQuestion(sectionIndex, questionIndex, updatedQuestion)}
-                            onRemove={(questionId) => removeQuestion(sectionIndex, questionId)}
-                          />
-                        ))}
-                        
-                        {section.questions.length === 0 && (
-                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                            <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                            <p className="text-sm text-gray-500">No questions yet. Add your first question to get started.</p>
-                          </div>
-                        )}
-                      </div>
-                    </DndContext>
+                    <div className="space-y-3">
+                      {section.questions.map((question, questionIndex) => (
+                        <QuestionItem
+                          key={question.id}
+                          question={question}
+                          onUpdate={(updatedQuestion) => updateQuestion(sectionIndex, questionIndex, updatedQuestion)}
+                          onRemove={(questionId) => removeQuestion(sectionIndex, questionId)}
+                          onMoveUp={() => moveQuestionUp(sectionIndex, questionIndex)}
+                          onMoveDown={() => moveQuestionDown(sectionIndex, questionIndex)}
+                          isFirst={questionIndex === 0}
+                          isLast={questionIndex === section.questions.length - 1}
+                        />
+                      ))}
+                      
+                      {section.questions.length === 0 && (
+                        <div className="text-center py-8 border-2 border-dashed border-border rounded-lg">
+                          <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">No questions yet. Add your first question to get started.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

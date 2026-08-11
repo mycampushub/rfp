@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { AnalyticsService } from "@/lib/analytics-service"
 
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     switch (type) {
       case "full":
@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid analytics type" }, { status: 400 })
     }
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching analytics:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

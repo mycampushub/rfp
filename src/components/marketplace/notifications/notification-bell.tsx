@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Bell, X, Eye, Settings, ExternalLink } from "lucide-react"
-import { useNotificationService, Notification } from "@/lib/notification-service"
+import { useNotificationService, type NotificationWithDetails } from "@/lib/notification-service"
 import { NotificationCenter } from "./notification-center"
+import { formatDate } from "@/lib/utils"
 
 interface NotificationBellProps {
   onOpenSettings?: () => void
@@ -79,7 +80,7 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
     const diffInDays = Math.floor(diffInHours / 24)
     if (diffInDays < 7) return `${diffInDays}d ago`
     
-    return date.toLocaleDateString()
+    return formatDate(date)
   }
 
   const getNotificationIcon = (type: string) => {
@@ -101,12 +102,12 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
 
   const getNotificationColor = (priority: string) => {
     const colors = {
-      low: 'border-gray-200',
-      medium: 'border-blue-200',
-      high: 'border-orange-200',
-      urgent: 'border-red-200'
+      low: 'border-border',
+      medium: 'border-sky-500/30',
+      high: 'border-orange-500/30',
+      urgent: 'border-red-500/30'
     }
-    return colors[priority as keyof typeof colors] || 'border-gray-200'
+    return colors[priority as keyof typeof colors] || 'border-border'
   }
 
   const recentNotifications = notifications
@@ -127,7 +128,7 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <Badge 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white rounded-full"
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-primary-foreground rounded-full"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
@@ -138,7 +139,7 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
         {isOpen && (
           <div
             ref={dropdownRef}
-            className="absolute right-0 mt-2 w-80 bg-white border rounded-lg shadow-lg z-50"
+            className="absolute right-0 mt-2 w-80 bg-card border rounded-lg shadow-lg z-50"
           >
             <Card className="border-0 rounded-t-none">
               <CardContent className="p-0">
@@ -187,7 +188,7 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
                     recentNotifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors ${getNotificationColor(notification.priority)}`}
+                        className={`p-4 border-b hover:bg-muted cursor-pointer transition-colors ${getNotificationColor(notification.priority ?? 'low')}`}
                         onClick={() => handleNotificationAction(notification.id)}
                       >
                         <div className="flex items-start space-x-3">
@@ -243,7 +244,7 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
                 </div>
 
                 {/* Footer */}
-                <div className="p-3 border-t bg-gray-50">
+                <div className="p-3 border-t bg-muted/50">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -261,8 +262,8 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
 
       {/* Notification Center Modal */}
       {showNotificationCenter && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
             <div className="p-4 border-b flex items-center justify-between">
               <h2 className="text-xl font-semibold">Notification Center</h2>
               <Button
@@ -275,7 +276,7 @@ export function NotificationBell({ onOpenSettings }: NotificationBellProps) {
             </div>
             <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
               <NotificationCenter
-                notifications={notifications}
+                notifications={notifications as any}
                 onMarkAsRead={markAsRead}
                 onDismissNotification={dismissNotification}
                 onMarkAllAsRead={markAllAsRead}

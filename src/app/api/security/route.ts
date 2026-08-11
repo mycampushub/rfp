@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { SecurityService } from "@/lib/security-service"
 import { TenantService } from "@/lib/tenant-service"
 import { z } from "zod"
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Check if user has admin permissions
     const hasAdminPermission = await TenantService.hasPermission(
@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error in security operation:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -96,7 +98,7 @@ export async function PUT(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Check if user has admin permissions
     const hasAdminPermission = await TenantService.hasPermission(
@@ -145,8 +147,10 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error in security operation:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -163,7 +167,7 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Check if user has admin permissions
     const hasAdminPermission = await TenantService.hasPermission(
@@ -203,6 +207,8 @@ export async function POST(request: NextRequest) {
           const decrypted = SecurityService.decryptData(decryptBody.encrypted, decryptBody.iv, decryptBody.tag)
           return NextResponse.json({ decrypted })
         } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
           return NextResponse.json({ error: "Failed to decrypt data" }, { status: 400 })
         }
 
@@ -210,6 +216,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error in security operation:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

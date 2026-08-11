@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
+import NotificationService from "@/lib/notification-service"
 
 const initiateProcessSchema = z.object({
   rfpId: z.string(),
   workflowId: z.string(),
-  metadata: z.any().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -22,9 +23,9 @@ export async function GET(request: NextRequest) {
     const rfpId = searchParams.get("rfpId")
     const status = searchParams.get("status")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
     
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       rfp: {
         tenantId: tenantContext.tenantId,
       },
@@ -37,41 +38,55 @@ export async function GET(request: NextRequest) {
       whereClause.status = status
     }
 
-    const processes = await db.approvalProcess.findMany({
-      where: whereClause,
-      include: {
-        rfp: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-          },
-        },
-        workflow: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        requests: {
-          include: {
-            approver: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
+
+    const [processes, total] = await Promise.all([
+      db.approvalProcess.findMany({
+        where: whereClause,
+        include: {
+          rfp: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
             },
           },
-          orderBy: { createdAt: "asc" },
+          workflow: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+          requests: {
+            include: {
+              approver: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    })
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      db.approvalProcess.count({ where: whereClause }),
+    ])
 
-    return NextResponse.json(processes)
+    return NextResponse.json({
+      data: processes,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching processes:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -87,7 +102,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = initiateProcessSchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify RFP belongs to tenant
     const rfp = await db.rFP.findFirst({
@@ -139,7 +154,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Create approval requests for each stage
-    const workflowStages = workflow.stages as any[]
+    const workflowStages = workflow.stages as unknown[]
     const requests = await Promise.all(
       workflowStages.map((stage, index) =>
         db.approvalRequest.create({
@@ -156,8 +171,21 @@ export async function POST(request: NextRequest) {
       )
     )
 
-    // TODO: Send notifications for first stage approvers
-    // This would integrate with a notification system
+    // Send notification to first stage approvers
+    const firstStageRequest = requests.find(r => r.status === "pending")
+    if (firstStageRequest && workflowStages[0]) {
+      const stageApproverIds = workflowStages[0].approvers as string[] | undefined
+      if (stageApproverIds) {
+        for (const approverId of stageApproverIds) {
+          await NotificationService.send({
+            userId: approverId,
+            type: "approval_process_started",
+            title: "Approval Process Started",
+            message: "A new approval process has been started",
+          })
+        }
+      }
+    }
 
     const fullProcess = await db.approvalProcess.findUnique({
       where: { id: process.id },
@@ -193,8 +221,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(fullProcess, { status: 201 })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error creating approval process:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

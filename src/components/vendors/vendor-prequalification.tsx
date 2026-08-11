@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useState, useRef, useCallback } from "react"
+
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,20 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
-  FileText, 
-  Award,
-  Building,
-  Users,
-  DollarSign,
-  Clock,
-  Upload,
-  Download
-} from "lucide-react"
+
+import { CheckCircle, XCircle, AlertCircle, Upload } from "lucide-react"
 import { toast } from "sonner"
 
 interface PrequalificationQuestion {
@@ -147,13 +134,78 @@ const prequalificationQuestions: PrequalificationQuestion[] = [
 const responseSchema = z.object({
   responses: z.array(z.object({
     questionId: z.string(),
-    value: z.any(),
+    value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
     score: z.number().optional(),
     notes: z.string().optional()
   }))
 })
 
 type ResponseFormData = z.infer<typeof responseSchema>
+
+interface FileUploadAreaProps {
+  questionId: string
+  uploadedFiles: Record<string, string[]>
+  onFilesChange: (files: Record<string, string[]>) => void
+}
+
+function FileUploadArea({ questionId, uploadedFiles, onFilesChange }: FileUploadAreaProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleFiles = useCallback((fileList: FileList | null) => {
+    if (!fileList) return
+    const accepted = Array.from(fileList).filter(
+      (f) => f.type === 'application/pdf' || f.type === 'application/msword' || f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+    if (accepted.length === 0) {
+      toast.error('Please upload PDF, DOC, or DOCX files only')
+      return
+    }
+    const names = accepted.map((f) => f.name)
+    onFilesChange({ ...uploadedFiles, [questionId]: [...(uploadedFiles[questionId] || []), ...names] })
+  }, [questionId, uploadedFiles, onFilesChange])
+
+  const handleRemove = useCallback((index: number) => {
+    const current = uploadedFiles[questionId] || []
+    const updated = current.filter((_, i) => i !== index)
+    onFilesChange({ ...uploadedFiles, [questionId]: updated })
+  }, [questionId, uploadedFiles, onFilesChange])
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        multiple
+        className="hidden"
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+      <div
+        role="button"
+        tabIndex={0}
+        className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+          dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground'
+        }`}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click() }}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
+      >
+        <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground/80">Click to upload or drag and drop</p>
+        <p className="text-xs text-muted-foreground">PDF, DOC, DOCX up to 10MB</p>
+      </div>
+      {uploadedFiles[questionId]?.map((file, index) => (
+        <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+          <span className="text-sm">{file}</span>
+          <Button variant="ghost" size="sm" onClick={() => handleRemove(index)}>Remove</Button>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalificationProps) {
   const [currentStep, setCurrentStep] = useState(0)
@@ -271,14 +323,30 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
     try {
       const totalScore = calculateTotalScore()
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Store prequalification result in contactInfo, NOT as the vendor rating.
+      // The rating field should come from actual performance data.
+      const res = await fetch(`/api/vendors/${vendorId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          contactInfo: {
+            prequalification: {
+              score: totalScore,
+              responses: responses.map(r => ({
+                questionId: r.questionId,
+                value: r.value,
+                score: r.score,
+              })),
+              submittedAt: new Date().toISOString(),
+            }
+          }
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to submit')
       
       onComplete(responses, totalScore)
       toast.success("Prequalification submitted successfully!")
-    } catch (error) {
-      toast.error("Failed to submit prequalification")
-    } finally {
+    } catch (err) { toast.error("Failed to submit prequalification") } finally {
       setIsSubmitting(false)
     }
   }
@@ -375,19 +443,11 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
 
       case "file":
         return (
-          <div className="space-y-2">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-              <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-              <p className="text-xs text-gray-500">PDF, DOC, DOCX up to 10MB</p>
-            </div>
-            {uploadedFiles[question.id]?.map((file, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                <span className="text-sm">{file}</span>
-                <Button variant="ghost" size="sm">Remove</Button>
-              </div>
-            ))}
-          </div>
+          <FileUploadArea
+            questionId={question.id}
+            uploadedFiles={uploadedFiles}
+            onFilesChange={setUploadedFiles}
+          />
         )
 
       default:
@@ -433,9 +493,9 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
             </div>
             <div className="text-right">
               <div className={`text-3xl font-bold ${
-                currentScore >= 80 ? 'text-green-600' :
-                currentScore >= 60 ? 'text-yellow-600' :
-                'text-red-600'
+                currentScore >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+                currentScore >= 60 ? 'text-amber-600 dark:text-amber-400' :
+                'text-red-600 dark:text-red-400'
               }`}>
                 {currentScore}%
               </div>
@@ -516,7 +576,7 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+                <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 <span className="font-medium">Excellent (80-100%)</span>
               </div>
               <p className="text-sm text-muted-foreground ml-7">
@@ -525,7 +585,7 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
             </div>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 <span className="font-medium">Good (60-79%)</span>
               </div>
               <p className="text-sm text-muted-foreground ml-7">
@@ -534,7 +594,7 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
             </div>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <AlertCircle className="h-5 w-5 text-orange-600" />
+                <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 <span className="font-medium">Fair (40-59%)</span>
               </div>
               <p className="text-sm text-muted-foreground ml-7">
@@ -543,7 +603,7 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
             </div>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <XCircle className="h-5 w-5 text-red-600" />
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
                 <span className="font-medium">Needs Improvement (&lt;40%)</span>
               </div>
               <p className="text-sm text-muted-foreground ml-7">

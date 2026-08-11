@@ -9,24 +9,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { 
-  ArrowLeft, 
-  Users, 
-  Building, 
-  MapPin, 
-  Globe,
-  Phone,
-  Mail,
-  Star,
-  CheckCircle,
-  Plus,
-  X,
-  Upload,
-  FileText,
-  DollarSign
-} from "lucide-react"
+import { ArrowLeft, Users, Building, MapPin, Globe, Phone, Mail, Star, CheckCircle, Plus, X, FileText, DollarSign } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export default function VendorRegister() {
   const [formData, setFormData] = useState({
@@ -230,11 +217,71 @@ export default function VendorRegister() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter()
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission
-    console.log("Form submitted:", formData)
-    // Here you would typically send the data to your API
+    if (!formData.businessName.trim()) {
+      toast.error("Business name is required")
+      return
+    }
+    setSubmitting(true)
+    try {
+      const location = [formData.address, formData.city, formData.state, formData.country, formData.zipCode].filter(Boolean).join(", ")
+      const payload: Record<string, unknown> = {
+        name: formData.businessName,
+        description: formData.description || undefined,
+        email: formData.email || undefined,
+        phone: formData.phone || undefined,
+        website: formData.website || undefined,
+        location: location || undefined,
+        contactInfo: {
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          address: formData.address || undefined,
+          city: formData.city || undefined,
+          state: formData.state || undefined,
+          country: formData.country || undefined,
+          zipCode: formData.zipCode || undefined,
+        },
+        categories: formData.categories.length > 0 ? formData.categories : undefined,
+        certifications: formData.certifications.length > 0 ? formData.certifications : undefined,
+        specialties: formData.specialties.length > 0 ? formData.specialties : undefined,
+        portfolio: formData.portfolio.length > 0 ? formData.portfolio : undefined,
+        serviceAreas: formData.serviceAreas.length > 0 ? formData.serviceAreas : undefined,
+        languages: formData.languages.length > 0 ? formData.languages : undefined,
+        paymentMethods: formData.paymentMethods.length > 0 ? formData.paymentMethods : undefined,
+        references: formData.references.length > 0 ? formData.references : undefined,
+        socialMedia: Object.keys(formData.socialMedia).length > 0 ? formData.socialMedia : undefined,
+        businessType: formData.businessType || undefined,
+        taxId: formData.taxId || undefined,
+        insurance: formData.insurance || undefined,
+        licenseNumber: formData.licenseNumber || undefined,
+        employees: formData.employees || undefined,
+        yearFounded: formData.founded || undefined,
+        hourlyRate: formData.hourlyRate || undefined,
+        responseTime: formData.responseTime || undefined,
+        availability: formData.availability || undefined,
+        ndaSigned: formData.ndaSigned || undefined,
+        backgroundCheck: formData.backgroundCheck || undefined,
+      }
+      const res = await fetch("/api/vendors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Failed to register" }))
+        throw new Error(data.error || "Failed to register vendor")
+      }
+      toast.success("Vendor registered successfully!")
+      router.push("/marketplace/vendors")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to register vendor")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -494,7 +541,7 @@ export default function VendorRegister() {
                         <button
                           type="button"
                           onClick={() => removeSpecialty(specialty)}
-                          className="ml-1 hover:text-red-500"
+                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -535,7 +582,7 @@ export default function VendorRegister() {
                         <button
                           type="button"
                           onClick={() => removeCertification(cert)}
-                          className="ml-1 hover:text-red-500"
+                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -576,7 +623,7 @@ export default function VendorRegister() {
                         <button
                           type="button"
                           onClick={() => removePortfolioItem(item)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -731,7 +778,7 @@ export default function VendorRegister() {
                         <button
                           type="button"
                           onClick={() => removeServiceArea(area)}
-                          className="ml-1 hover:text-red-500"
+                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -797,7 +844,7 @@ export default function VendorRegister() {
                         <button
                           type="button"
                           onClick={() => removeLanguage(language)}
-                          className="ml-1 hover:text-red-500"
+                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -920,7 +967,7 @@ export default function VendorRegister() {
                         <button
                           type="button"
                           onClick={() => removeReference(reference)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -981,7 +1028,7 @@ export default function VendorRegister() {
                         I certify that all information provided is accurate and truthful
                       </Label>
                     </div>
-                    <Button type="submit" className="w-full" size="lg">
+                    <Button type="submit" className="w-full" size="lg" disabled={submitting}>
                       Create Vendor Profile
                     </Button>
                   </div>

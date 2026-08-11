@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 
 const createRubricSchema = z.object({
@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
     const rfpId = searchParams.get("rfpId")
     const sectionId = searchParams.get("sectionId")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
     
-    const whereClause: any = {}
+    const whereClause: Record<string, unknown> = {}
     
     if (rfpId) {
       whereClause.rfpId = rfpId
@@ -64,27 +64,41 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    const rubrics = await db.rubricCriterion.findMany({
-      where: whereClause,
-      include: {
-        rfp: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-        section: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-      },
-      orderBy: { label: "asc" },
-    })
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(rubrics)
+    const [rubrics, total] = await Promise.all([
+      db.rubricCriterion.findMany({
+        where: whereClause,
+        include: {
+          rfp: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          section: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: { label: "asc" },
+        take: limit,
+        skip,
+      }),
+      db.rubricCriterion.count({ where: whereClause }),
+    ])
+
+    return NextResponse.json({
+      data: rubrics,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching rubrics:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -100,7 +114,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createRubricSchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify either RFP or section belongs to tenant
     if (validatedData.rfpId) {
@@ -149,8 +163,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(rubric, { status: 201 })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error creating rubric:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

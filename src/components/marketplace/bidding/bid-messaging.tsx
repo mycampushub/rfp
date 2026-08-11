@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getStatusColor } from "@/lib/status-utils"
 import { 
   MessageSquare, 
   Send, 
@@ -91,18 +92,6 @@ export function BidMessaging({
     return new Date(dateString).toLocaleString()
   }
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      draft: "bg-gray-100 text-gray-800",
-      submitted: "bg-blue-100 text-blue-800",
-      reviewed: "bg-yellow-100 text-yellow-800",
-      accepted: "bg-green-100 text-green-800",
-      rejected: "bg-red-100 text-red-800",
-      withdrawn: "bg-purple-100 text-purple-800"
-    }
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -171,7 +160,7 @@ export function BidMessaging({
                             </Badge>
                           </div>
                           {message.isPublic && (
-                            <Badge className="bg-blue-100 text-blue-800 text-xs">
+                            <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-400 text-xs">
                               Public
                             </Badge>
                           )}
@@ -184,7 +173,7 @@ export function BidMessaging({
 
                       {/* Message Content */}
                       {message.message && (
-                        <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="bg-muted/50 rounded-lg p-3">
                           <p className="text-sm">{message.message}</p>
                         </div>
                       )}
@@ -244,10 +233,10 @@ export function BidMessaging({
                 </div>
 
                 {isPublic && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="bg-sky-500/10 dark:bg-sky-500/20 border border-sky-500/30 dark:border-sky-500/40 rounded-lg p-3">
                     <div className="flex items-start space-x-2">
-                      <CheckCircle className="h-4 w-4 text-blue-500 mt-0.5" />
-                      <div className="text-sm text-blue-800">
+                      <CheckCircle className="h-4 w-4 text-sky-500 mt-0.5" />
+                      <div className="text-sm text-sky-700 dark:text-sky-400">
                         <p className="font-medium">Public Comment</p>
                         <p>This message will be visible to all marketplace participants and will be part of the public Q&A.</p>
                       </div>
@@ -256,10 +245,10 @@ export function BidMessaging({
                 )}
 
                 {!isPublic && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <div className="bg-muted/50 border border-border rounded-lg p-3">
                     <div className="flex items-start space-x-2">
-                      <AlertCircle className="h-4 w-4 text-gray-500 mt-0.5" />
-                      <div className="text-sm text-gray-700">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div className="text-sm text-foreground/80">
                         <p className="font-medium">Private Message</p>
                         <p>This message will only be visible to you and the other party involved in this bid.</p>
                       </div>
@@ -282,9 +271,9 @@ export function BidMessaging({
                 {/* File Attachments */}
                 <div className="space-y-2">
                   <Label>Attachments</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                    <Paperclip className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-600 mb-2">
+                  <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
+                    <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground/80 mb-2">
                       Attach files to your message
                     </p>
                     <Input
@@ -317,7 +306,7 @@ export function BidMessaging({
                               variant="ghost"
                               size="sm"
                               onClick={() => removeAttachment(index)}
-                              className="text-red-500 hover:text-red-700"
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                             >
                               <X className="h-4 w-4" />
                             </Button>

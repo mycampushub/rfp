@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 import { createHash } from "crypto"
 
@@ -13,7 +13,7 @@ const updateSubmissionSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -21,11 +21,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tenantContext = getTenantContext()
+    const { id } = await params
+    const tenantContext = getTenantContext(session)
 
     const submission = await db.submission.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -35,7 +36,6 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            email: true,
           },
         },
         rfp: {
@@ -124,6 +124,8 @@ export async function GET(
 
     return NextResponse.json(submissionWithScores)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching submission:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -131,23 +133,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateSubmissionSchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify submission belongs to tenant
     const existingSubmission = await db.submission.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -158,7 +161,7 @@ export async function PUT(
       return NextResponse.json({ error: "Submission not found" }, { status: 404 })
     }
 
-    const updateData: any = { ...validatedData }
+    const updateData: Record<string, unknown> = { ...validatedData }
 
     // If submitting, set submittedAt and calculate checksum
     if (validatedData.status === "submitted") {
@@ -166,8 +169,9 @@ export async function PUT(
       
       // Calculate checksum based on answers
       const answers = await db.answer.findMany({
-        where: { submissionId: params.id },
+        where: { submissionId: id },
         orderBy: { createdAt: "asc" },
+        take: 200,
       })
 
       const answerData = answers.map(a => ({
@@ -186,14 +190,13 @@ export async function PUT(
     }
 
     const submission = await db.submission.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData,
       include: {
         vendor: {
           select: {
             id: true,
             name: true,
-            email: true,
           },
         },
         rfp: {
@@ -208,8 +211,10 @@ export async function PUT(
 
     return NextResponse.json(submission)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error updating submission:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -218,20 +223,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify submission belongs to tenant
     const existingSubmission = await db.submission.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -248,11 +254,13 @@ export async function DELETE(
     }
 
     await db.submission.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({ message: "Submission deleted successfully" })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting submission:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

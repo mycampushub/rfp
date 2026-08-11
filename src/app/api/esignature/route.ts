@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getTenantContext } from "@/lib/tenant-context"
+import { db } from "@/lib/db"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 
 const createSignatureSchema = z.object({
@@ -31,12 +32,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const submissionId = searchParams.get("submissionId")
     const signatureId = searchParams.get("signatureId")
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     if (signatureId) {
       // Get specific signature
-      const signature = await db.eSignature.findFirst({
+      const signature = await db.electronicSignature.findFirst({
         where: {
           id: signatureId,
           submission: {
@@ -68,24 +72,40 @@ export async function GET(request: NextRequest) {
 
     if (submissionId) {
       // Get all signatures for a submission
-      const signatures = await db.eSignature.findMany({
-        where: {
-          submissionId,
-          submission: {
-            rfp: {
-              tenantId: tenantContext.tenantId,
-            },
+      const whereClause = {
+        submissionId,
+        submission: {
+          rfp: {
+            tenantId: tenantContext.tenantId,
           },
         },
-        orderBy: { createdAt: "desc" },
-      })
+      }
 
-      return NextResponse.json(signatures)
+      const [signatures, total] = await Promise.all([
+        db.electronicSignature.findMany({
+          where: whereClause,
+          orderBy: { createdAt: "desc" },
+          take: limit,
+          skip,
+        }),
+        db.electronicSignature.count({ where: whereClause }),
+      ])
+
+      return NextResponse.json({
+        data: signatures,
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      })
     }
 
     return NextResponse.json({ error: "Missing submissionId or signatureId" }, { status: 400 })
 
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+    if (error instanceof PermissionError) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
+    }
     console.error("Error fetching signatures:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -101,7 +121,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createSignatureSchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify submission belongs to tenant
     const submission = await db.submission.findFirst({
@@ -118,16 +138,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate signature metadata
+    const clientIp = getClientIp(request)
     const signatureMetadata = {
-      ipAddress: validatedData.ipAddress || request.ip || "unknown",
+      ipAddress: validatedData.ipAddress || clientIp,
       userAgent: validatedData.userAgent || request.headers.get("user-agent") || "unknown",
-      location: await getLocationFromIP(validatedData.ipAddress || request.ip || "unknown"),
+      location: await getLocationFromIP(validatedData.ipAddress || clientIp),
       deviceFingerprint: generateDeviceFingerprint(request),
       timestamp: new Date().toISOString(),
     }
 
     // Create signature record
-    const signature = await db.eSignature.create({
+    const signature = await db.electronicSignature.create({
       data: {
         submissionId: validatedData.submissionId,
         signerName: validatedData.signerName,
@@ -158,15 +179,15 @@ export async function POST(request: NextRequest) {
     const verificationResult = await verifySignatureIntegrity(signature)
 
     // Update signature with verification result
-    await db.eSignature.update({
+    const updatedSignature = await db.electronicSignature.update({
       where: { id: signature.id },
       data: {
         status: verificationResult.valid ? "verified" : "failed",
         verificationResult: verificationResult,
         auditTrail: {
-          ...signature.auditTrail as any,
+          ...(signature.auditTrail as Record<string, unknown>),
           actions: [
-            ...(signature.auditTrail as any)?.actions || [],
+            ...((signature.auditTrail as Record<string, unknown>)?.actions as Array<Record<string, unknown>>) || [],
             {
               action: "verification_completed",
               timestamp: new Date().toISOString(),
@@ -178,17 +199,23 @@ export async function POST(request: NextRequest) {
     })
 
     // Send confirmation email (in real implementation)
-    await sendSignatureConfirmation(signature)
+    await sendSignatureConfirmation(updatedSignature)
 
     return NextResponse.json({
-      ...signature,
+      ...updatedSignature,
       verificationResult,
       status: verificationResult.valid ? "verified" : "failed"
     }, { status: 201 })
 
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+    if (error instanceof PermissionError) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
+    }
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error creating signature:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -205,9 +232,9 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { signatureId, action } = body
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
-    const signature = await db.eSignature.findFirst({
+    const signature = await db.electronicSignature.findFirst({
       where: {
         id: signatureId,
         submission: {
@@ -222,18 +249,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Signature not found" }, { status: 404 })
     }
 
-    let updateData: any = {}
+    let updateData: Record<string, unknown> = {}
 
     switch (action) {
-      case "verify":
+      case "verify": {
         const verificationResult = await verifySignatureIntegrity(signature)
         updateData = {
           status: verificationResult.valid ? "verified" : "failed",
           verificationResult,
           auditTrail: {
-            ...signature.auditTrail as any,
+            ...(signature.auditTrail as Record<string, unknown>),
             actions: [
-              ...(signature.auditTrail as any)?.actions || [],
+              ...((signature.auditTrail as Record<string, unknown>)?.actions as Array<Record<string, unknown>>) || [],
               {
                 action: "manual_verification",
                 timestamp: new Date().toISOString(),
@@ -243,14 +270,15 @@ export async function PUT(request: NextRequest) {
           }
         }
         break
+      }
 
-      case "revoke":
+      case "revoke": {
         updateData = {
           status: "revoked",
           auditTrail: {
-            ...signature.auditTrail as any,
+            ...(signature.auditTrail as Record<string, unknown>),
             actions: [
-              ...(signature.auditTrail as any)?.actions || [],
+              ...((signature.auditTrail as Record<string, unknown>)?.actions as Array<Record<string, unknown>>) || [],
               {
                 action: "signature_revoked",
                 timestamp: new Date().toISOString(),
@@ -260,12 +288,13 @@ export async function PUT(request: NextRequest) {
           }
         }
         break
+      }
 
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
 
-    const updatedSignature = await db.eSignature.update({
+    const updatedSignature = await db.electronicSignature.update({
       where: { id: signatureId },
       data: updateData,
     })
@@ -273,30 +302,39 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(updatedSignature)
 
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+    if (error instanceof PermissionError) {
+      return NextResponse.json({ error: error.message }, { status: 403 })
+    }
     console.error("Error updating signature:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
 
 // Helper functions
-async function getLocationFromIP(ip: string) {
+async function getLocationFromIP(ip: string): Promise<string> {
   // Mock location service - in real implementation, use a geolocation service
-  const locations = {
+  const locations: Record<string, string> = {
     "192.168.1.1": "New York, NY",
     "10.0.0.1": "San Francisco, CA",
     "unknown": "Unknown Location"
   }
-  return locations[ip as keyof typeof locations] || "Unknown Location"
+  return locations[ip] || "Unknown Location"
 }
 
-function generateDeviceFingerprint(request: NextRequest) {
-  // Generate a simple device fingerprint
+function getClientIp(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || "unknown"
+}
+
+function generateDeviceFingerprint(request: NextRequest): string {
   const userAgent = request.headers.get("user-agent") || ""
-  const ip = request.ip || "unknown"
-  return Buffer.from(`${userAgent}:${ip}:${Date.now()}`).toString("base64").substring(0, 32)
+  const ip = getClientIp(request)
+  return Buffer.from(`${userAgent}:${ip}`).toString("base64").substring(0, 32)
 }
 
-async function generateDocumentHash(submission: any) {
+async function generateDocumentHash(submission: Record<string, unknown>): Promise<string> {
   // Generate a hash of the submission data
   const encoder = new TextEncoder()
   const submissionString = JSON.stringify(submission)
@@ -307,38 +345,37 @@ async function generateDocumentHash(submission: any) {
   return hashHex
 }
 
-async function verifySignatureIntegrity(signature: any) {
-  // Mock signature verification - in real implementation, use proper cryptographic verification
+async function verifySignatureIntegrity(signature: Record<string, unknown>) {
+  const checks = {
+    signatureFormat: !!(signature.signatureData && typeof signature.signatureData === 'string' && signature.signatureData.length > 0),
+    dataIntegrity: !!(signature.documentHash && typeof signature.documentHash === 'string' && signature.documentHash.length === 64),
+    timestampValid: !!(signature.createdAt && new Date(signature.createdAt as string).getTime() > 0),
+    certificateValid: !!(signature.signerName && signature.signerEmail),
+    chainOfCustody: !!(Array.isArray(signature.auditTrail?.actions)),
+  }
+
+  const passedChecks = Object.values(checks).filter(Boolean).length
+  const totalChecks = Object.values(checks).length
+  const score = Math.round((passedChecks / totalChecks) * 100)
+  const valid = passedChecks === totalChecks
+
+  const warnings: string[] = []
+  if (!checks.signatureFormat) warnings.push('Signature data is missing or invalid format')
+  if (!checks.dataIntegrity) warnings.push('Document hash is missing or invalid')
+  if (!checks.timestampValid) warnings.push('Timestamp is invalid')
+  if (!checks.certificateValid) warnings.push('Signer name or email is missing')
+  if (!checks.chainOfCustody) warnings.push('Audit trail is incomplete')
+
   return {
-    valid: true,
-    score: 95,
-    checks: {
-      signatureFormat: true,
-      dataIntegrity: true,
-      timestampValid: true,
-      certificateValid: true,
-      chainOfCustody: true
-    },
-    warnings: [],
+    valid,
+    score,
+    checks,
+    warnings,
     verifiedAt: new Date().toISOString()
   }
 }
 
-async function sendSignatureConfirmation(signature: any) {
-  // Mock email sending - in real implementation, use email service
-  console.log(`Signature confirmation sent to ${signature.signerEmail}`)
+async function sendSignatureConfirmation(signature: Record<string, unknown>): Promise<boolean> {
+  // In real implementation, use email service (e.g. Resend, SendGrid)
   return true
-}
-
-// Database models (these would be in prisma schema)
-const db = {
-  eSignature: {
-    findFirst: async () => ({}),
-    findMany: async () => [],
-    create: async (data: any) => ({ id: "sig_" + Date.now(), ...data }),
-    update: async () => ({})
-  },
-  submission: {
-    findFirst: async () => ({})
-  }
 }

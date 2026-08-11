@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -16,24 +16,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { 
-  Plus, 
-  Mail, 
-  Search, 
-  Users, 
-  Building,
-  Calendar,
-  Clock,
-  Send,
-  Eye,
-  Edit,
-  Trash2,
-  UserPlus,
-  Filter,
-  Download,
-  Upload
-} from "lucide-react"
+import { Mail, Search, Clock, Send, Trash2, UserPlus, Download, Upload } from "lucide-react"
 import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface Vendor {
   id: string
@@ -98,88 +83,18 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
     },
   })
 
-  // Mock available vendors - in real app, this would come from API
+  // Fetch available vendors from API
   useEffect(() => {
-    const mockVendors: Vendor[] = [
-      {
-        id: "1",
-        name: "Tech Solutions Inc",
-        contactInfo: {
-          email: "contact@techsolutions.com",
-          phone: "+1-555-0123",
-          website: "https://techsolutions.com"
-        },
-        categories: ["IT Services", "Software Development"],
-        certifications: ["ISO 27001", "CMMI Level 3"],
-        diversityAttrs: {
-          isMinorityOwned: true,
-          certifications: ["MBE Certified"]
-        },
-        isActive: true
-      },
-      {
-        id: "2",
-        name: "Global IT Services",
-        contactInfo: {
-          email: "info@globalit.com",
-          phone: "+1-555-0456",
-          website: "https://globalit.com"
-        },
-        categories: ["IT Services", "Cloud Computing"],
-        certifications: ["AWS Partner", "Azure Expert"],
-        diversityAttrs: {
-          isWomenOwned: true,
-          certifications: ["WBE Certified"]
-        },
-        isActive: true
-      },
-      {
-        id: "3",
-        name: "Digital Dynamics",
-        contactInfo: {
-          email: "hello@digitaldynamics.com",
-          phone: "+1-555-0789",
-          website: "https://digitaldynamics.com"
-        },
-        categories: ["Digital Marketing", "Web Development"],
-        certifications: ["Google Partner", "Facebook Marketing Partner"],
-        diversityAttrs: {
-          isVeteranOwned: true,
-          certifications: ["VOSB Certified"]
-        },
-        isActive: true
-      },
-      {
-        id: "4",
-        name: "Creative Agency Pro",
-        contactInfo: {
-          email: "contact@creativeagency.com",
-          phone: "+1-555-0321",
-          website: "https://creativeagency.com"
-        },
-        categories: ["Marketing", "Design"],
-        certifications: ["Adobe Certified"],
-        diversityAttrs: {},
-        isActive: true
-      },
-      {
-        id: "5",
-        name: "Office Supplies Co",
-        contactInfo: {
-          email: "sales@officesupplies.com",
-          phone: "+1-555-0654",
-          website: "https://officesupplies.com"
-        },
-        categories: ["Office Supplies", "Facilities"],
-        certifications: ["GSA Certified"],
-        diversityAttrs: {
-          isDisabilityOwned: true,
-          certifications: ["DBE Certified"]
-        },
-        isActive: true
-      }
-    ]
-    setAvailableVendors(mockVendors)
+    async function fetchVendors() {
+      try {
+        const res = await fetch('/api/vendors')
+        if (res.ok) {
+          const data = await res.json()
+          setAvailableVendors(data)
+        }
+      } catch (err) { console.error("Failed to load vendors:", err) }
+    }
+    fetchVendors()
   }, [])
 
   const filteredVendors = availableVendors.filter(vendor =>
@@ -191,24 +106,24 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
   const getStatusColor = (status: string) => {
     switch (status) {
       case "accepted":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       case "declined":
-        return "bg-red-100 text-red-800"
+        return "bg-red-500/15 text-red-700 dark:text-red-400"
       case "expired":
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
   const getDiversityBadges = (diversityAttrs?: Vendor["diversityAttrs"]) => {
     const badges = []
-    if (diversityAttrs?.isMinorityOwned) badges.push({ label: "MBE", color: "bg-purple-100 text-purple-800" })
-    if (diversityAttrs?.isWomenOwned) badges.push({ label: "WBE", color: "bg-pink-100 text-pink-800" })
-    if (diversityAttrs?.isVeteranOwned) badges.push({ label: "VOSB", color: "bg-blue-100 text-blue-800" })
-    if (diversityAttrs?.isDisabilityOwned) badges.push({ label: "DBE", color: "bg-orange-100 text-orange-800" })
+    if (diversityAttrs?.isMinorityOwned) badges.push({ label: "MBE", color: "bg-violet-500/15 text-violet-700 dark:text-violet-400" })
+    if (diversityAttrs?.isWomenOwned) badges.push({ label: "WBE", color: "bg-pink-500/15 text-pink-700 dark:text-pink-400" })
+    if (diversityAttrs?.isVeteranOwned) badges.push({ label: "VOSB", color: "bg-sky-500/15 text-sky-700 dark:text-sky-400" })
+    if (diversityAttrs?.isDisabilityOwned) badges.push({ label: "DBE", color: "bg-orange-500/15 text-orange-700 dark:text-orange-400" })
     return badges
   }
 
@@ -289,7 +204,7 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
         <div className="flex items-center space-x-4">
           <div className="text-sm">
             <span className="font-medium">Invited: </span>
-            <span className="text-blue-600">{invitations.length}</span>
+            <span className="text-sky-600 dark:text-sky-400">{invitations.length}</span>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -357,7 +272,7 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
                                 <TableCell>
                                   <div className="flex items-center space-x-3">
                                     <Avatar className="h-8 w-8">
-                                      <AvatarImage src="" />
+                                      <AvatarImage src="" alt={vendor.name} />
                                       <AvatarFallback>{vendor.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div>
@@ -414,7 +329,7 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
                               variant="ghost"
                               size="sm"
                               onClick={() => removeCustomEmail(email)}
-                              className="text-red-600 hover:text-red-700"
+                              className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -495,7 +410,7 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => removeCustomEmail(email)}
-                                className="text-red-600 hover:text-red-700"
+                                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -595,12 +510,12 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
                       <div className="flex items-center space-x-3">
                         {vendor ? (
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src="" />
+                            <AvatarImage src="" alt={vendor.name} />
                             <AvatarFallback>{vendor.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                         ) : (
-                          <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                            <Mail className="h-5 w-5 text-gray-400" />
+                          <div className="h-10 w-10 bg-muted rounded-full flex items-center justify-center">
+                            <Mail className="h-5 w-5 text-muted-foreground" />
                           </div>
                         )}
                         <div>
@@ -613,7 +528,7 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
                           {invitation.expiresAt && (
                             <div className="text-xs text-muted-foreground flex items-center space-x-1">
                               <Clock className="h-3 w-3" />
-                              <span>Expires: {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+                              <span>Expires: {formatDate(invitation.expiresAt)}</span>
                             </div>
                           )}
                         </div>
@@ -637,7 +552,7 @@ export function VendorInvitation({ invitations, onInvitationsChange, rfpDeadline
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteInvitation(invitation.id)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

@@ -29,35 +29,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = registerSchema.parse(body)
 
-    // Check if user already exists
-    const existingUser = await db.user.findFirst({
-      where: {
-        email: validatedData.email
-      }
-    })
-
-    if (existingUser) {
-      return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
-    }
-
     // Hash the password
     const hashedPassword = await bcrypt.hash(validatedData.password, 12)
 
-    // Create or get tenant using the provided businessId
-    let tenant = await db.tenant.findFirst({
-      where: {
-        id: validatedData.businessId
-      }
-    })
+    // Wrap multi-step writes in a transaction
+    const result = await db.$transaction(async (tx) => {
+      // Check if user already exists
+      const existingUser = await tx.user.findFirst({
+        where: {
+          email: validatedData.email
+        }
+      })
 
-    if (!tenant) {
-      // Create new tenant with the provided businessId as the ID
-      tenant = await db.tenant.create({
+      if (existingUser) {
+        throw new Error('CONFLICT')
+      }
+
+      // Always create a new tenant for registration (never join an existing one)
+      const tenant = await tx.tenant.create({
         data: {
           id: validatedData.businessId,
           name: validatedData.company,
-          plan: "standard", // Default plan
-          region: "US", // Default region
           settings: {
             notifications: {
               emailEnabled: true,
@@ -70,68 +62,56 @@ export async function POST(request: NextRequest) {
           }
         }
       })
-    }
 
-    // Create default role for the user
-    const userRole = await db.role.findFirst({
-      where: {
-        tenantId: tenant.id,
-        name: "Tenant Admin"
-      }
-    })
-
-    if (!userRole) {
-      // Create default role
-      await db.role.create({
-        data: {
+      // Find or create a basic 'Member' role (NOT Tenant Admin)
+      let userRole = await tx.role.findFirst({
+        where: {
           tenantId: tenant.id,
-          name: "Tenant Admin",
-          permissions: [
-            "admin:users",
-            "admin:roles", 
-            "rfp:create",
-            "rfp:edit",
-            "rfp:view",
-            "rfp:delete",
-            "vendor:invite",
-            "vendor:view",
-            "submission:view",
-            "score:create",
-            "score:edit"
-          ]
+          name: "Member"
         }
       })
-    }
 
-    // Create user
-    const user = await db.user.create({
-      data: {
-        tenantId: tenant.id,
-        email: validatedData.email,
-        name: `${validatedData.firstName} ${validatedData.lastName}`,
-        roleIds: ["Tenant Admin"], // Default role
-        isActive: true
+      if (!userRole) {
+        userRole = await tx.role.create({
+          data: {
+            tenantId: tenant.id,
+            name: "Member",
+            permissions: [
+              "rfp:view",
+              "submission:view",
+              "approval:view"
+            ]
+          }
+        })
       }
-    })
 
-    // In a real application, you would:
-    // 1. Send a verification email
-    // 2. Create audit log entry
-    // 3. Send welcome notification
-    // 4. Set up default preferences
+      // Create user with hashed password and real role ID
+      const user = await tx.user.create({
+        data: {
+          tenantId: tenant.id,
+          email: validatedData.email,
+          name: `${validatedData.firstName} ${validatedData.lastName}`,
+          password: hashedPassword,
+          roleIds: [userRole.id],
+          isActive: true
+        }
+      })
+
+      return { user, tenant }
+    })
 
     return NextResponse.json({
       success: true,
       message: "User registered successfully",
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        tenantId: tenant.id
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        tenantId: result.tenant.id
       },
       tenant: {
-        id: tenant.id,
-        name: tenant.name
+        id: result.tenant.id,
+        name: result.tenant.name
       }
     }, { status: 201 })
 
@@ -139,8 +119,11 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ 
         error: "Validation Error", 
-        details: error.errors 
+        details: error.issues 
       }, { status: 400 })
+    }
+    if (error instanceof Error && error.message === 'CONFLICT') {
+      return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
     }
 
     console.error("Registration error:", error)

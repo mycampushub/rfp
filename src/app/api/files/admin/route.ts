@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { FileService } from "@/lib/file-service"
 import { TenantService } from "@/lib/tenant-service"
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Check if user has admin permissions
     const hasAdminPermission = await TenantService.hasPermission(
@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error in file admin operation:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Check if user has admin permissions
     const hasAdminPermission = await TenantService.hasPermission(
@@ -96,6 +98,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error in file admin operation:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

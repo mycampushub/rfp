@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
@@ -27,52 +26,10 @@ import {
 import { 
   Checkbox,
 } from "@/components/ui/checkbox"
-import { 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
-  Trash2,
-  CheckCircle,
-  AlertTriangle,
-  Users,
-  Shield,
-  Key,
-  Settings,
-  UserPlus,
-  Filter,
-  RefreshCw,
-  Copy,
-  Lock,
-  Unlock,
-  Crown,
-  User,
-  Users2,
-  Activity,
-  Star,
-  Clock,
-  Mail,
-  Phone,
-  MapPin,
-  Globe,
-  Target,
-  BarChart3,
-  FileText,
-  MessageSquare,
-  Calendar,
-  TrendingUp,
-  Award,
-  Building,
-  DollarSign,
-  Bell,
-  Download,
-  Upload,
-  Link,
-  Unlink,
-  QrCode
-} from "lucide-react"
+import { Search, Plus, MoreHorizontal, Eye, Edit, Trash2, CheckCircle, AlertTriangle, Users, Shield, Key, Settings, Filter, RefreshCw, Copy, Lock, Crown, User, Link } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface Role {
   id: string
@@ -135,257 +92,106 @@ export default function RoleManagement() {
     permissions: [] as string[]
   })
 
-  // Mock data for demonstration
-  const mockPermissions: Permission[] = [
-    // Dashboard Permissions
+  // Static permissions list (not stored in DB, these are UI-only definitions)
+  const STATIC_PERMISSIONS: Permission[] = [
     { id: "dashboard_view", name: "View Dashboard", description: "Access to vendor dashboard", category: "Dashboard", isDangerous: false },
     { id: "dashboard_analytics", name: "View Analytics", description: "Access to analytics and reports", category: "Dashboard", isDangerous: false },
-    
-    // Profile Permissions
     { id: "profile_view", name: "View Profile", description: "View business profile", category: "Profile", isDangerous: false },
     { id: "profile_edit", name: "Edit Profile", description: "Edit business profile information", category: "Profile", isDangerous: false },
     { id: "profile_manage", name: "Manage Profile", description: "Full control over business profile", category: "Profile", isDangerous: false },
-    
-    // Team Permissions
     { id: "team_view", name: "View Team", description: "View team members", category: "Team", isDangerous: false },
     { id: "team_manage", name: "Manage Team", description: "Add, edit, remove team members", category: "Team", isDangerous: true },
     { id: "team_roles", name: "Manage Roles", description: "Create and manage user roles", category: "Team", isDangerous: true },
-    
-    // Bidding Permissions
     { id: "bids_view", name: "View Bids", description: "View submitted bids", category: "Bidding", isDangerous: false },
     { id: "bids_create", name: "Create Bids", description: "Submit new bids", category: "Bidding", isDangerous: false },
     { id: "bids_manage", name: "Manage Bids", description: "Full control over bids", category: "Bidding", isDangerous: true },
-    
-    // Connections Permissions
     { id: "connections_view", name: "View Connections", description: "View business connections", category: "Connections", isDangerous: false },
     { id: "connections_manage", name: "Manage Connections", description: "Create and manage business connections", category: "Connections", isDangerous: true },
-    
-    // Marketplace Permissions
     { id: "marketplace_view", name: "View Marketplace", description: "Browse marketplace opportunities", category: "Marketplace", isDangerous: false },
     { id: "marketplace_bid", name: "Bid on Opportunities", description: "Submit bids on marketplace RFPs", category: "Marketplace", isDangerous: false },
-    
-    // Admin Permissions
     { id: "admin_settings", name: "Admin Settings", description: "Access to administrative settings", category: "Admin", isDangerous: true },
     { id: "admin_audit", name: "View Audit Logs", description: "Access to system audit logs", category: "Admin", isDangerous: true },
     { id: "admin_billing", name: "Manage Billing", description: "Access to billing and payments", category: "Admin", isDangerous: true },
   ]
 
-  const mockRoles: Role[] = [
-    {
-      id: "1",
-      name: "Admin",
-      description: "Full access to all vendor dashboard features",
-      permissions: mockPermissions.map(p => p.id),
-      userCount: 1,
-      isSystemRole: true,
-      createdAt: "2024-01-01",
-      updatedAt: "2024-12-01"
-    },
-    {
-      id: "2",
-      name: "Bid Manager",
-      description: "Manage bidding activities and proposals",
-      permissions: [
-        "dashboard_view", "dashboard_analytics", "profile_view", "profile_edit",
-        "team_view", "bids_view", "bids_create", "bids_manage",
-        "connections_view", "connections_manage", "marketplace_view", "marketplace_bid"
-      ],
-      userCount: 2,
-      isSystemRole: false,
-      createdAt: "2024-02-01",
-      updatedAt: "2024-11-15"
-    },
-    {
-      id: "3",
-      name: "Team Member",
-      description: "Basic access to dashboard and team features",
-      permissions: [
-        "dashboard_view", "profile_view", "team_view", "bids_view",
-        "connections_view", "marketplace_view"
-      ],
-      userCount: 3,
-      isSystemRole: false,
-      createdAt: "2024-02-15",
-      updatedAt: "2024-10-20"
-    },
-    {
-      id: "4",
-      name: "Viewer",
-      description: "Read-only access to dashboard and analytics",
-      permissions: [
-        "dashboard_view", "dashboard_analytics", "profile_view", "team_view"
-      ],
-      userCount: 1,
-      isSystemRole: false,
-      createdAt: "2024-03-01",
-      updatedAt: "2024-09-10"
-    }
-  ]
-
-  const mockUsers: VendorUser[] = [
-    {
-      id: "1",
-      name: "John Smith",
-      email: "john@techsolutions.com",
-      role: "1",
-      roleName: "Admin",
-      permissions: mockRoles.find(r => r.id === "1")?.permissions || [],
-      lastActive: "2024-12-10",
-      status: "active",
-      createdAt: "2024-01-15",
-      twoFactorEnabled: true
-    },
-    {
-      id: "2",
-      name: "Sarah Johnson",
-      email: "sarah@techsolutions.com",
-      role: "2",
-      roleName: "Bid Manager",
-      permissions: mockRoles.find(r => r.id === "2")?.permissions || [],
-      lastActive: "2024-12-09",
-      status: "active",
-      createdAt: "2024-02-20",
-      twoFactorEnabled: false
-    },
-    {
-      id: "3",
-      name: "Mike Wilson",
-      email: "mike@techsolutions.com",
-      role: "2",
-      roleName: "Bid Manager",
-      permissions: mockRoles.find(r => r.id === "2")?.permissions || [],
-      lastActive: "2024-12-08",
-      status: "active",
-      createdAt: "2024-03-15",
-      twoFactorEnabled: true
-    },
-    {
-      id: "4",
-      name: "Emily Davis",
-      email: "emily@techsolutions.com",
-      role: "3",
-      roleName: "Team Member",
-      permissions: mockRoles.find(r => r.id === "3")?.permissions || [],
-      lastActive: "2024-12-05",
-      status: "active",
-      createdAt: "2024-04-10",
-      twoFactorEnabled: false
-    },
-    {
-      id: "5",
-      name: "Robert Brown",
-      email: "robert@techsolutions.com",
-      role: "4",
-      roleName: "Viewer",
-      permissions: mockRoles.find(r => r.id === "4")?.permissions || [],
-      lastActive: "2024-12-01",
-      status: "inactive",
-      createdAt: "2024-05-20",
-      twoFactorEnabled: false
-    }
-  ]
-
-  const mockAccessLogs: AccessLog[] = [
-    {
-      id: "1",
-      userId: "1",
-      userName: "John Smith",
-      action: "LOGIN",
-      resource: "Dashboard",
-      ipAddress: "192.168.1.100",
-      timestamp: "2024-12-10T09:30:00Z",
-      status: "success"
-    },
-    {
-      id: "2",
-      userId: "2",
-      userName: "Sarah Johnson",
-      action: "BID_CREATE",
-      resource: "RFP-1234",
-      ipAddress: "192.168.1.101",
-      timestamp: "2024-12-10T10:15:00Z",
-      status: "success"
-    },
-    {
-      id: "3",
-      userId: "3",
-      userName: "Mike Wilson",
-      action: "PROFILE_EDIT",
-      resource: "Business Profile",
-      ipAddress: "192.168.1.102",
-      timestamp: "2024-12-10T11:20:00Z",
-      status: "success"
-    },
-    {
-      id: "4",
-      userId: "4",
-      userName: "Emily Davis",
-      action: "LOGIN",
-      resource: "Dashboard",
-      ipAddress: "192.168.1.103",
-      timestamp: "2024-12-10T14:45:00Z",
-      status: "failed"
-    },
-    {
-      id: "5",
-      userId: "5",
-      userName: "Robert Brown",
-      action: "DASHBOARD_VIEW",
-      resource: "Analytics",
-      ipAddress: "192.168.1.104",
-      timestamp: "2024-12-09T16:30:00Z",
-      status: "success"
-    }
-  ]
-
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setRoles(mockRoles)
-      setUsers(mockUsers)
-      setPermissions(mockPermissions)
-      setAccessLogs(mockAccessLogs)
-      setLoading(false)
-    }, 1000)
+    const fetchData = async () => {
+      try {
+        const [rolesRes, logsRes] = await Promise.all([
+          fetch('/api/roles').then(r => r.ok ? r.json() : []),
+          fetch('/api/audit-logs?limit=10').then(r => r.ok ? r.json() : []),
+        ])
+
+        const rolesData = Array.isArray(rolesRes) ? rolesRes : []
+        setRoles(rolesData.map((r: Record<string, unknown>) => ({
+          id: r.id,
+          name: r.name || '',
+          description: r.description || '',
+          permissions: Array.isArray(r.permissions) ? r.permissions as string[] : [],
+          userCount: 0,
+          isSystemRole: false,
+          createdAt: r.createdAt || '',
+          updatedAt: r.updatedAt || '',
+        })))
+        setPermissions(STATIC_PERMISSIONS)
+        setUsers([])
+
+        const logsData = Array.isArray(logsRes) ? logsRes : []
+        setAccessLogs(logsData.map((log: Record<string, unknown>) => ({
+          id: log.id,
+          userId: log.actor || '',
+          userName: log.actor || '',
+          action: log.action || '',
+          resource: log.targetType || '',
+          ipAddress: '',
+          timestamp: log.timestamp || '',
+          status: 'success' as const,
+        })))
+      } catch {
+        toast.error('Failed to load role management data')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
       case "success":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       case "inactive":
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
       case "suspended":
       case "failed":
-        return "bg-red-100 text-red-800"
       case "blocked":
-        return "bg-red-100 text-red-800"
+        return "bg-red-500/15 text-red-700 dark:text-red-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
   const getPermissionCategoryColor = (category: string) => {
     switch (category) {
       case "Dashboard":
-        return "bg-blue-100 text-blue-800"
+        return "bg-sky-500/15 text-sky-700 dark:text-sky-400"
       case "Profile":
-        return "bg-purple-100 text-purple-800"
+        return "bg-violet-500/15 text-violet-700 dark:text-violet-400"
       case "Team":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       case "Bidding":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-500/15 text-orange-700 dark:text-orange-400"
       case "Connections":
-        return "bg-pink-100 text-pink-800"
+        return "bg-pink-500/15 text-pink-700 dark:text-pink-400"
       case "Marketplace":
-        return "bg-indigo-100 text-indigo-800"
+        return "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400"
       case "Admin":
-        return "bg-red-100 text-red-800"
+        return "bg-red-500/15 text-red-700 dark:text-red-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -398,11 +204,39 @@ export default function RoleManagement() {
     return matchesSearch && matchesRole && matchesStatus
   })
 
-  const handleCreateRole = () => {
-    // Handle role creation logic
-    console.log("Creating role:", newRole)
-    setShowCreateRoleModal(false)
-    setNewRole({ name: "", description: "", permissions: [] as string[] })
+  const handleCreateRole = async () => {
+    try {
+      const res = await fetch('/api/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newRole.name, permissions: newRole.permissions }),
+      })
+      if (res.ok) {
+        toast.success('Role created successfully')
+        setShowCreateRoleModal(false)
+        setNewRole({ name: "", description: "", permissions: [] as string[] })
+        // Refresh roles
+        const rolesRes = await fetch('/api/roles')
+        if (rolesRes.ok) {
+          const rolesData = await rolesRes.json()
+          setRoles((Array.isArray(rolesData) ? rolesData : []).map((r: Record<string, unknown>) => ({
+            id: r.id,
+            name: r.name || '',
+            description: r.description || '',
+            permissions: Array.isArray(r.permissions) ? r.permissions as string[] : [],
+            userCount: 0,
+            isSystemRole: false,
+            createdAt: r.createdAt || '',
+            updatedAt: r.updatedAt || '',
+          })))
+        }
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Failed to create role')
+      }
+    } catch {
+      toast.error('Failed to create role')
+    }
   }
 
   const handlePermissionToggle = (permissionId: string, checked: boolean) => {
@@ -561,7 +395,7 @@ export default function RoleManagement() {
                             </Badge>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="sm" aria-label={`Role options for ${role.name}`}>
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -578,7 +412,7 @@ export default function RoleManagement() {
                                   Duplicate Role
                                 </DropdownMenuItem>
                                 {!role.isSystemRole && (
-                                  <DropdownMenuItem className="text-red-600">
+                                  <DropdownMenuItem className="text-red-600 dark:text-red-400">
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Delete Role
                                   </DropdownMenuItem>
@@ -599,7 +433,7 @@ export default function RoleManagement() {
                                   <Badge 
                                     key={permissionId} 
                                     variant="outline" 
-                                    className={`text-xs ${permission.isDangerous ? 'border-red-200 text-red-700' : ''}`}
+                                    className={`text-xs ${permission.isDangerous ? 'border-red-500/30 text-red-700 dark:text-red-400' : ''}`}
                                   >
                                     {permission.name}
                                     {permission.isDangerous && <Lock className="ml-1 h-2 w-2" />}
@@ -615,8 +449,8 @@ export default function RoleManagement() {
                           </div>
                           
                           <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <span>Created: {new Date(role.createdAt).toLocaleDateString()}</span>
-                            <span>Updated: {new Date(role.updatedAt).toLocaleDateString()}</span>
+                            <span>Created: {formatDate(role.createdAt)}</span>
+                            <span>Updated: {formatDate(role.updatedAt)}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -675,6 +509,7 @@ export default function RoleManagement() {
                 </div>
 
                 {/* Users Table */}
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -694,7 +529,7 @@ export default function RoleManagement() {
                           <div className="flex items-center space-x-2">
                             <div className="font-medium">{user.name}</div>
                             {user.twoFactorEnabled && (
-                              <Shield className="h-4 w-4 text-green-600" title="2FA Enabled" />
+                              <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" title="2FA Enabled" />
                             )}
                           </div>
                         </TableCell>
@@ -728,7 +563,7 @@ export default function RoleManagement() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" aria-label={`User options for ${user.name}`}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -764,6 +599,7 @@ export default function RoleManagement() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -794,7 +630,7 @@ export default function RoleManagement() {
                                   <h4 className="font-medium flex items-center">
                                     {permission.name}
                                     {permission.isDangerous && (
-                                      <Lock className="ml-2 h-3 w-3 text-red-600" title="Dangerous permission" />
+                                      <Lock className="ml-2 h-3 w-3 text-red-600 dark:text-red-400" title="Dangerous permission" />
                                     )}
                                   </h4>
                                   <p className="text-sm text-muted-foreground mt-1">
@@ -828,6 +664,7 @@ export default function RoleManagement() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -846,13 +683,13 @@ export default function RoleManagement() {
                           <div className="font-medium">{log.userName}</div>
                         </TableCell>
                         <TableCell>
-                          <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                          <code className="bg-muted px-2 py-1 rounded text-xs">
                             {log.action}
                           </code>
                         </TableCell>
                         <TableCell>{log.resource}</TableCell>
                         <TableCell>
-                          <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                          <code className="bg-muted px-2 py-1 rounded text-xs">
                             {log.ipAddress}
                           </code>
                         </TableCell>
@@ -868,6 +705,7 @@ export default function RoleManagement() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -876,7 +714,7 @@ export default function RoleManagement() {
 
       {/* Create Role Modal */}
       {showCreateRoleModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Create New Role</CardTitle>
@@ -929,7 +767,7 @@ export default function RoleManagement() {
                                 <div className="flex items-center">
                                   {permission.name}
                                   {permission.isDangerous && (
-                                    <Lock className="ml-1 h-3 w-3 text-red-600" />
+                                    <Lock className="ml-1 h-3 w-3 text-red-600 dark:text-red-400" />
                                   )}
                                 </div>
                               </label>
@@ -962,7 +800,7 @@ export default function RoleManagement() {
 
       {/* Edit Permissions Modal */}
       {showEditPermissionsModal && selectedRole && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Edit Permissions - {selectedRole.name}</CardTitle>
@@ -1007,7 +845,7 @@ export default function RoleManagement() {
                                 <div className="flex items-center">
                                   {permission.name}
                                   {permission.isDangerous && (
-                                    <Lock className="ml-1 h-3 w-3 text-red-600" />
+                                    <Lock className="ml-1 h-3 w-3 text-red-600 dark:text-red-400" />
                                   )}
                                 </div>
                               </label>
@@ -1027,10 +865,24 @@ export default function RoleManagement() {
                     <Button variant="outline" onClick={() => setShowEditPermissionsModal(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={() => {
-                      // Handle saving permissions
-                      console.log("Saving permissions for role:", selectedRole)
-                      setShowEditPermissionsModal(false)
+                    <Button onClick={async () => {
+                      if (!selectedRole) return
+                      try {
+                        const res = await fetch(`/api/roles/${selectedRole.id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ permissions: selectedRole.permissions }),
+                        })
+                        if (res.ok) {
+                          toast.success('Permissions updated successfully')
+                          setShowEditPermissionsModal(false)
+                        } else {
+                          const err = await res.json()
+                          toast.error(err.error || 'Failed to update permissions')
+                        }
+                      } catch {
+                        toast.error('Failed to update permissions')
+                      }
                     }}>
                       Save Changes
                     </Button>

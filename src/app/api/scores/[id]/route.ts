@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 
 const updateScoreSchema = z.object({
@@ -12,7 +12,7 @@ const updateScoreSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -20,11 +20,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tenantContext = getTenantContext()
+    const { id } = await params
+    const tenantContext = getTenantContext(session)
 
     const score = await db.score.findFirst({
       where: {
-        id: params.id,
+        id: id,
         submission: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -38,7 +39,6 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
-                email: true,
               },
             },
             rfp: {
@@ -76,6 +76,8 @@ export async function GET(
 
     return NextResponse.json(score)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching score:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -83,23 +85,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateScoreSchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify score belongs to tenant and user is the evaluator
     const existingScore = await db.score.findFirst({
       where: {
-        id: params.id,
+        id: id,
         submission: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -134,7 +137,7 @@ export async function PUT(
     }
 
     const score = await db.score.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
       include: {
         submission: {
@@ -143,7 +146,6 @@ export async function PUT(
               select: {
                 id: true,
                 name: true,
-                email: true,
               },
             },
             rfp: {
@@ -181,8 +183,10 @@ export async function PUT(
 
     return NextResponse.json(score)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error updating score:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -191,20 +195,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify score belongs to tenant and user is the evaluator
     const existingScore = await db.score.findFirst({
       where: {
-        id: params.id,
+        id: id,
         submission: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -219,7 +224,7 @@ export async function DELETE(
     }
 
     await db.score.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     // Recalculate consensus
@@ -228,6 +233,8 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Score deleted successfully" })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting score:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

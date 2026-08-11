@@ -1,7 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { MainLayout } from "@/components/layout/main-layout"
+import { EmptyState } from "@/components/shared/empty-state"
+import { LoadingCards } from "@/components/shared/loading-table"
+import { getPrequalificationColor, getScoreColor } from "@/lib/status-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,30 +26,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
-  Trash2,
-  Building,
-  Mail,
-  Phone,
-  Award,
-  Users,
-  Star,
-  TrendingUp,
-  TrendingDown,
-  CheckCircle,
-  AlertTriangle,
-  Upload,
-  Download
-} from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Search, Filter, Plus, MoreHorizontal, Eye, Edit, Trash2, Building, Building2, Mail, Phone, Award, Users, Star, TrendingUp, TrendingDown, CheckCircle, Upload, Download } from "lucide-react"
 import Link from "next/link"
-import { VendorPrequalification } from "@/components/vendors/vendor-prequalification"
-import { VendorPerformance } from "@/components/vendors/vendor-performance"
+import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface Vendor {
   id: string
@@ -86,160 +80,44 @@ interface Vendor {
 }
 
 export default function VendorsPage() {
+  useEffect(() => { document.title = 'Vendors | RFP Platform' }, [])
+  const router = useRouter()
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
-
-  // Mock data for demonstration
-  const mockVendors: Vendor[] = [
-    {
-      id: "1",
-      name: "Tech Solutions Inc",
-      contactInfo: {
-        email: "contact@techsolutions.com",
-        phone: "+1-555-0123",
-        address: "123 Tech St, Silicon Valley, CA 94000"
-      },
-      categories: ["IT Services", "Software Development"],
-      certifications: ["ISO 27001", "SOC 2"],
-      diversityAttrs: {
-        isMinorityOwned: true,
-        isVeteranOwned: false
-      },
-      isActive: true,
-      createdAt: "2024-01-15",
-      performance: {
-        overallScore: 92,
-        onTimeDelivery: 95,
-        qualityScore: 94,
-        budgetAdherence: 88,
-        projectsCompleted: 8,
-        lastProjectDate: "2024-11-15",
-        trend: "up"
-      },
-      prequalification: {
-        status: "approved",
-        score: 85,
-        expiryDate: "2025-12-31"
-      },
-      _count: {
-        invitations: 5,
-        submissions: 3
-      }
-    },
-    {
-      id: "2",
-      name: "Global IT Services",
-      contactInfo: {
-        email: "info@globalit.com",
-        phone: "+1-555-0456",
-        address: "456 Global Ave, New York, NY 10001"
-      },
-      categories: ["IT Services", "Cloud Computing"],
-      certifications: ["ISO 9001", "CMMI Level 3"],
-      diversityAttrs: {
-        isWomenOwned: true,
-        isMinorityOwned: false
-      },
-      isActive: true,
-      createdAt: "2024-02-01",
-      performance: {
-        overallScore: 88,
-        onTimeDelivery: 90,
-        qualityScore: 92,
-        budgetAdherence: 85,
-        projectsCompleted: 12,
-        lastProjectDate: "2024-12-01",
-        trend: "stable"
-      },
-      prequalification: {
-        status: "approved",
-        score: 78,
-        expiryDate: "2025-06-30"
-      },
-      _count: {
-        invitations: 8,
-        submissions: 6
-      }
-    },
-    {
-      id: "3",
-      name: "Digital Dynamics",
-      contactInfo: {
-        email: "hello@digitaldynamics.com",
-        phone: "+1-555-0789",
-        address: "789 Digital Way, Austin, TX 73301"
-      },
-      categories: ["Digital Marketing", "Web Development"],
-      certifications: ["Google Partner", "HubSpot Certified"],
-      diversityAttrs: {
-        isDisabilityOwned: true,
-        isMinorityOwned: false
-      },
-      isActive: true,
-      createdAt: "2024-02-15",
-      performance: {
-        overallScore: 76,
-        onTimeDelivery: 82,
-        qualityScore: 78,
-        budgetAdherence: 70,
-        projectsCompleted: 4,
-        lastProjectDate: "2024-10-20",
-        trend: "down"
-      },
-      prequalification: {
-        status: "pending",
-        score: 0
-      },
-      _count: {
-        invitations: 3,
-        submissions: 2
-      }
-    },
-    {
-      id: "4",
-      name: "Construction Pro",
-      contactInfo: {
-        email: "projects@constructionpro.com",
-        phone: "+1-555-0321",
-        address: "321 Build Rd, Chicago, IL 60601"
-      },
-      categories: ["Construction", "Renovation"],
-      certifications: ["LEED Certified", "OSHA Compliant"],
-      diversityAttrs: {
-        isVeteranOwned: true,
-        isWomenOwned: false
-      },
-      isActive: true,
-      createdAt: "2024-03-01",
-      performance: {
-        overallScore: 95,
-        onTimeDelivery: 98,
-        qualityScore: 96,
-        budgetAdherence: 92,
-        projectsCompleted: 15,
-        lastProjectDate: "2024-12-10",
-        trend: "up"
-      },
-      prequalification: {
-        status: "approved",
-        score: 92,
-        expiryDate: "2025-09-30"
-      },
-      _count: {
-        invitations: 4,
-        submissions: 4
-      }
-    }
-  ]
+  const [deleteTarget, setDeleteTarget] = useState<Vendor | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setVendors(mockVendors)
-      setLoading(false)
-    }, 1000)
+    const fetchVendors = async () => {
+      try {
+        const res = await fetch('/api/vendors')
+        if (!res.ok) throw new Error('Failed to fetch vendors')
+        const data = await res.json()
+        const mapped: Vendor[] = (Array.isArray(data) ? data : []).map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          contactInfo: v.contactInfo || undefined,
+          categories: v.categories || [],
+          certifications: v.certifications || [],
+          diversityAttrs: v.diversityAttrs || undefined,
+          isActive: v.isActive ?? true,
+          createdAt: v.createdAt,
+          _count: {
+            invitations: v._count?.invitations || 0,
+            submissions: v._count?.submissions || 0,
+          },
+        }))
+        setVendors(mapped)
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to load vendors')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchVendors()
   }, [])
 
   const filteredVendors = vendors.filter(vendor => {
@@ -258,60 +136,36 @@ export default function VendorsPage() {
     const badges = []
     
     if (diversityAttrs?.isMinorityOwned) {
-      badges.push({ label: "Minority Owned", color: "bg-blue-100 text-blue-800" })
+      badges.push({ label: "Minority Owned", color: "bg-sky-500/15 text-sky-700 dark:text-sky-300" })
     }
     if (diversityAttrs?.isWomenOwned) {
-      badges.push({ label: "Women Owned", color: "bg-pink-100 text-pink-800" })
+      badges.push({ label: "Women Owned", color: "bg-pink-500/15 text-pink-700 dark:text-pink-300" })
     }
     if (diversityAttrs?.isVeteranOwned) {
-      badges.push({ label: "Veteran Owned", color: "bg-green-100 text-green-800" })
+      badges.push({ label: "Veteran Owned", color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" })
     }
     if (diversityAttrs?.isDisabilityOwned) {
-      badges.push({ label: "Disability Owned", color: "bg-purple-100 text-purple-800" })
+      badges.push({ label: "Disability Owned", color: "bg-violet-500/15 text-violet-700 dark:text-violet-300" })
     }
     
     return badges
   }
 
-  const getPerformanceColor = (score: number) => {
-    if (score >= 90) return "text-green-600"
-    if (score >= 80) return "text-blue-600"
-    if (score >= 70) return "text-yellow-600"
-    return "text-red-600"
-  }
-
-  const getPrequalificationColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "bg-green-100 text-green-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "rejected":
-        return "bg-red-100 text-red-800"
-      case "expired":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "up":
-        return <TrendingUp className="h-4 w-4 text-green-600" />
+        return <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
       case "down":
-        return <TrendingDown className="h-4 w-4 text-red-600" />
+        return <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
       default:
-        return <Star className="h-4 w-4 text-gray-600" />
+        return <Star className="h-4 w-4 text-muted-foreground/80" />
     }
   }
 
   if (loading) {
     return (
       <MainLayout title="Vendors">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading vendors...</div>
-        </div>
+        <LoadingCards count={6} />
       </MainLayout>
     )
   }
@@ -328,16 +182,117 @@ export default function VendorsPage() {
             </p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline">
+            <input
+              type="file"
+              accept=".csv"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                try {
+                  const text = await file.text()
+                  const rawRows = text.trim().split('\n')
+                  if (rawRows.length < 2) { toast.error('CSV file is empty'); return }
+
+                  // Robust CSV parser that handles quoted fields
+                  function parseCsvLine(line: string): string[] {
+                    const fields: string[] = []
+                    const regex = /(?:"([^"]*)"|([^,]*))/g
+                    let match: RegExpExecArray | null
+                    while ((match = regex.exec(line)) !== null) {
+                      fields.push((match[1] !== undefined ? match[1] : match[2]).trim())
+                    }
+                    return fields
+                  }
+
+                  const headers = parseCsvLine(rawRows[0]).map(h => h.toLowerCase())
+                  const dataRows = rawRows.slice(1)
+
+                  // Build vendor payloads
+                  const payloads: object[] = []
+                  for (const row of dataRows) {
+                    if (!row.trim()) continue
+                    const values = parseCsvLine(row)
+                    const name = values[headers.indexOf('name')] || values[0]
+                    if (!name) continue
+                    const email = values[headers.indexOf('email')] || values[1]
+                    const phone = values[headers.indexOf('phone')] || ''
+                    const body: any = { name }
+                    if (email || phone) {
+                      body.contactInfo = {}
+                      if (email) body.contactInfo.email = email
+                      if (phone) body.contactInfo.phone = phone
+                    }
+                    payloads.push(body)
+                  }
+
+                  // Process in batches of 15 with 100ms delay between batches
+                  const BATCH_SIZE = 15
+                  const BATCH_DELAY_MS = 100
+                  let imported = 0
+                  for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+                    const batch = payloads.slice(i, i + BATCH_SIZE)
+                    const results = await Promise.allSettled(
+                      batch.map(body =>
+                        fetch('/api/vendors', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(body),
+                        }).then(res => res.ok ? 1 : 0)
+                      )
+                    )
+                    imported += results.reduce((sum, r) => sum + (r.status === 'fulfilled' ? r.value : 0), 0)
+                    if (i + BATCH_SIZE < payloads.length) {
+                      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS))
+                    }
+                  }
+                  if (imported > 0) {
+                    toast.success(`Successfully imported ${imported} vendor(s)`)
+                    const vendorsRes = await fetch('/api/vendors')
+                    if (vendorsRes.ok) {
+                      const data = await vendorsRes.json()
+                      const mapped: Vendor[] = (Array.isArray(data) ? data : []).map((v: any) => ({
+                        id: v.id, name: v.name, contactInfo: v.contactInfo || undefined,
+                        categories: v.categories || [], certifications: v.certifications || [],
+                        diversityAttrs: v.diversityAttrs || undefined, isActive: v.isActive ?? true,
+                        createdAt: v.createdAt, _count: { invitations: v._count?.invitations || 0, submissions: v._count?.submissions || 0 },
+                      }))
+                      setVendors(mapped)
+                    }
+                  } else { toast.error('No vendors were imported') }
+                } catch { toast.error('Failed to parse CSV file') }
+                e.target.value = ''
+              }}
+            />
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
               Import Vendors
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => {
+              if (vendors.length === 0) { toast.info('No vendors to export'); return }
+              const headers = ['Name','Email','Phone','Categories','Active','Created']
+              const rows = vendors.map(v => [
+                v.name,
+                v.contactInfo?.email || '',
+                v.contactInfo?.phone || '',
+                (v.categories || []).join('; '),
+                v.isActive ? 'Yes' : 'No',
+                formatDate(v.createdAt),
+              ].map(field => `"${field}"`).join(','))
+              const csv = [headers.join(','), ...rows].join('\n')
+              const blob = new Blob([csv], { type: 'text/csv' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url; a.download = 'vendor-export.csv'; a.click()
+              URL.revokeObjectURL(url)
+              toast.success('Vendor data exported successfully')
+            }}>
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
             <Button asChild>
-              <Link href="/vendors/create">
+              <Link href="/marketplace/vendors/register">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Vendor
               </Link>
@@ -464,6 +419,7 @@ export default function VendorsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -483,14 +439,14 @@ export default function VendorsPage() {
                           <div>
                             <div className="font-medium">{vendor.name}</div>
                             <div className="text-sm text-muted-foreground">
-                              Added: {new Date(vendor.createdAt).toLocaleDateString()}
+                              Added: {formatDate(vendor.createdAt)}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           {vendor.performance ? (
                             <div className="flex items-center space-x-2">
-                              <div className={`font-bold ${getPerformanceColor(vendor.performance.overallScore)}`}>
+                              <div className={`font-bold ${getScoreColor(vendor.performance.overallScore)}`}>
                                 {vendor.performance.overallScore}%
                               </div>
                               {getTrendIcon(vendor.performance.trend)}
@@ -546,7 +502,7 @@ export default function VendorsPage() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Vendor actions">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -575,7 +531,7 @@ export default function VendorsPage() {
                                   Prequalify
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">
+                              <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={() => setDeleteTarget(vendor)}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
@@ -586,11 +542,10 @@ export default function VendorsPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 
                 {filteredVendors.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No vendors found matching your filters.</p>
-                  </div>
+                  <EmptyState icon={Building2} title="No vendors found" description="Add your first vendor or import from a CSV file." action={{ label: "Add Vendor", onClick: () => router.push('/marketplace/vendors/register') }} />
                 )}
               </CardContent>
             </Card>
@@ -615,7 +570,7 @@ export default function VendorsPage() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                             {vendors.filter(v => v.prequalification?.status === "approved").length}
                           </div>
                           <p className="text-sm text-muted-foreground">Approved</p>
@@ -625,7 +580,7 @@ export default function VendorsPage() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-yellow-600">
+                          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                             {vendors.filter(v => v.prequalification?.status === "pending").length}
                           </div>
                           <p className="text-sm text-muted-foreground">Pending</p>
@@ -635,7 +590,7 @@ export default function VendorsPage() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-gray-600">
+                          <div className="text-2xl font-bold text-muted-foreground/80">
                             {vendors.filter(v => !v.prequalification).length}
                           </div>
                           <p className="text-sm text-muted-foreground">Not Started</p>
@@ -667,8 +622,8 @@ export default function VendorsPage() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
-                            {Math.round(vendors.filter(v => v.performance?.overallScore && v.performance.overallScore >= 90).length / vendors.length * 100)}%
+                          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                            {vendors.length > 0 ? Math.round(vendors.filter(v => v.performance?.overallScore && v.performance.overallScore >= 90).length / vendors.length * 100) : 0}%
                           </div>
                           <p className="text-sm text-muted-foreground">High Performers</p>
                         </div>
@@ -677,7 +632,7 @@ export default function VendorsPage() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-blue-600">
+                          <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
                             {vendors.filter(v => v.performance?.trend === "up").length}
                           </div>
                           <p className="text-sm text-muted-foreground">Improving</p>
@@ -687,7 +642,7 @@ export default function VendorsPage() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-yellow-600">
+                          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                             {vendors.filter(v => v.performance?.trend === "stable").length}
                           </div>
                           <p className="text-sm text-muted-foreground">Stable</p>
@@ -697,7 +652,7 @@ export default function VendorsPage() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-red-600">
+                          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                             {vendors.filter(v => v.performance?.trend === "down").length}
                           </div>
                           <p className="text-sm text-muted-foreground">Declining</p>
@@ -720,16 +675,16 @@ export default function VendorsPage() {
                   <div className="space-y-4">
                     {categories.map(category => {
                       const count = vendors.filter(v => v.categories?.includes(category)).length
-                      const percentage = (count / vendors.length) * 100
+                      const percentage = vendors.length > 0 ? (count / vendors.length) * 100 : 0
                       return (
                         <div key={category} className="space-y-2">
                           <div className="flex justify-between">
                             <span className="font-medium">{category}</span>
                             <span className="text-sm text-muted-foreground">{count} vendors</span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-full bg-muted-foreground/20 rounded-full h-2">
                             <div 
-                              className="bg-blue-600 h-2 rounded-full"
+                              className="bg-sky-500 h-2 rounded-full"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
@@ -753,11 +708,11 @@ export default function VendorsPage() {
                           {vendors.filter(v => v.prequalification?.status === "approved").length}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-muted-foreground/20 rounded-full h-2">
                         <div 
-                          className="bg-green-600 h-2 rounded-full"
+                          className="bg-emerald-500 h-2 rounded-full"
                           style={{ 
-                            width: `${(vendors.filter(v => v.prequalification?.status === "approved").length / vendors.length) * 100}%` 
+                            width: `${vendors.length > 0 ? (vendors.filter(v => v.prequalification?.status === "approved").length / vendors.length) * 100 : 0}%` 
                           }}
                         />
                       </div>
@@ -769,11 +724,11 @@ export default function VendorsPage() {
                           {vendors.filter(v => v.prequalification?.status === "pending").length}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-muted-foreground/20 rounded-full h-2">
                         <div 
-                          className="bg-yellow-600 h-2 rounded-full"
+                          className="bg-amber-500 h-2 rounded-full"
                           style={{ 
-                            width: `${(vendors.filter(v => v.prequalification?.status === "pending").length / vendors.length) * 100}%` 
+                            width: `${vendors.length > 0 ? (vendors.filter(v => v.prequalification?.status === "pending").length / vendors.length) * 100 : 0}%` 
                           }}
                         />
                       </div>
@@ -785,11 +740,11 @@ export default function VendorsPage() {
                           {vendors.filter(v => !v.prequalification).length}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-muted-foreground/20 rounded-full h-2">
                         <div 
-                          className="bg-gray-600 h-2 rounded-full"
+                          className="bg-muted-foreground/80 h-2 rounded-full"
                           style={{ 
-                            width: `${(vendors.filter(v => !v.prequalification).length / vendors.length) * 100}%` 
+                            width: `${vendors.length > 0 ? (vendors.filter(v => !v.prequalification).length / vendors.length) * 100 : 0}%` 
                           }}
                         />
                       </div>
@@ -801,6 +756,39 @@ export default function VendorsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vendor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-800"
+              onClick={async () => {
+                if (!deleteTarget) return
+                try {
+                  const res = await fetch(`/api/vendors/${deleteTarget.id}`, { method: 'DELETE' })
+                  if (res.ok) {
+                    setVendors(prev => prev.filter(v => v.id !== deleteTarget.id))
+                    toast.success(`Vendor "${deleteTarget.name}" deleted successfully`)
+                  } else {
+                    toast.error('Failed to delete vendor')
+                  }
+                } catch { toast.error('Failed to delete vendor') }
+                setDeleteTarget(null)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   )
 }

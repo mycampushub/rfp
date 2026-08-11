@@ -1,9 +1,22 @@
+/**
+ * Versioned RFPs API (v1)
+ *
+ * This is the versioned API under /api/v1/rfps.
+ * The base routes at /api/rfps are considered legacy and will be deprecated in a future release.
+ *
+ * Key differences from the base /api/rfps routes:
+ *   - GET returns paginated results (page/limit query params) wrapped in { data, pagination }
+ *     instead of a flat array.
+ *   - POST creates the RFP and its timeline in a single request.
+ *   - All mutations log activity to the audit trail.
+ *
+ * Consumers should migrate to these v1 endpoints for new integrations.
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { requireAuth, requirePermission } from "@/lib/auth-utils"
 import { db } from "@/lib/db"
-import { PERMISSIONS } from "@/types/auth"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 
 const createRFPSchema = z.object({
@@ -22,28 +35,14 @@ const createRFPSchema = z.object({
   settings: z.object({}).optional(),
 })
 
-const updateRFPSchema = z.object({
-  title: z.string().min(1).optional(),
-  category: z.string().optional(),
-  budget: z.number().optional(),
-  confidentiality: z.enum(["internal", "confidential", "restricted"]).optional(),
-  description: z.string().optional(),
-  status: z.enum(["draft", "published", "closed", "awarded", "archived"]).optional(),
-  timeline: z.object({
-    qnaStart: z.string().optional(),
-    qnaEnd: z.string().optional(),
-    submissionDeadline: z.string().optional(),
-    evaluationStart: z.string().optional(),
-    awardTarget: z.string().optional(),
-  }).optional(),
-  settings: z.object({}).optional(),
-})
-
 // GET /api/v1/rfps - List RFPs
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth()
-    await requirePermission(PERMISSIONS.VIEW_RFP)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const ctx = getTenantContext(session)
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
@@ -53,15 +52,14 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search")
 
     const skip = (page - 1) * limit
+    const where: Record<string, unknown> = { tenantId: ctx.tenantId }
 
-    const where: any = {}
-    
-    if (status) where.status = status
-    if (category) where.category = category
+    if (status) (where as Record<string, unknown>).status = status
+    if (category) (where as Record<string, unknown>).category = category
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
+      (where as Record<string, unknown>).OR = [
+        { title: { contains: search } },
+        { description: { contains: search } },
       ]
     }
 
@@ -70,16 +68,9 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           timeline: true,
-          _count: {
-            select: {
-              invitations: true,
-              submissions: true,
-              qna: true,
-            }
-          }
+          _count: { select: { invitations: true, submissions: true, qna: true } }
         },
-        skip,
-        take: limit,
+        skip, take: limit,
         orderBy: { createdAt: "desc" }
       }),
       db.rFP.count({ where })
@@ -87,38 +78,31 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: rfps,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching RFPs:", error)
-    return NextResponse.json(
-      { error: "Failed to fetch RFPs" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Failed to fetch RFPs" }, { status: 500 })
   }
 }
 
 // POST /api/v1/rfps - Create RFP
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth()
-    await requirePermission(PERMISSIONS.CREATE_RFP)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const ctx = getTenantContext(session)
 
     const body = await request.json()
     const validatedData = createRFPSchema.parse(body)
 
-    // Get tenant ID from session
-    const tenantId = session.user.tenantId
-
-    // Create RFP
     const rfp = await db.rFP.create({
       data: {
-        tenantId,
+        tenantId: ctx.tenantId,
         title: validatedData.title,
         category: validatedData.category,
         budget: validatedData.budget,
@@ -137,43 +121,28 @@ export async function POST(request: NextRequest) {
       },
       include: {
         timeline: true,
-        _count: {
-          select: {
-            invitations: true,
-            submissions: true,
-            qna: true,
-          }
-        }
+        _count: { select: { invitations: true, submissions: true, qna: true } }
       }
     })
 
-    // Log activity
     await db.activityLog.create({
       data: {
-        tenantId,
-        actor: session.user.id,
+        tenantId: ctx.tenantId,
+        actor: ctx.userId,
         action: "CREATE_RFP",
         targetType: "RFP",
         targetId: rfp.id,
-        metadata: {
-          rfpTitle: rfp.title
-        }
+        metadata: { rfpTitle: rfp.title }
       }
     })
 
     return NextResponse.json(rfp, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
-
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     console.error("Error creating RFP:", error)
-    return NextResponse.json(
-      { error: "Failed to create RFP" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Failed to create RFP" }, { status: 500 })
   }
 }

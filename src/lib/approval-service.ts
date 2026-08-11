@@ -1,5 +1,4 @@
 import { db } from "@/lib/db"
-import { TenantService } from "@/lib/tenant-context"
 
 export interface ApprovalStage {
   id: string
@@ -76,6 +75,15 @@ export class ApprovalService {
     requestedBy: string
     metadata?: any
   }) {
+    // Look up the requesting user to get their tenantId
+    const requestingUser = await db.user.findUnique({
+      where: { id: data.requestedBy },
+      select: { tenantId: true },
+    })
+    if (!requestingUser) {
+      throw new Error("Requesting user not found")
+    }
+
     const workflow = await db.approvalWorkflow.findUnique({
       where: { id: data.workflowId },
     })
@@ -84,12 +92,22 @@ export class ApprovalService {
       throw new Error("Workflow not found")
     }
 
+    // Cross-tenant check: workflow must belong to the requesting user's tenant
+    if (workflow.tenantId !== requestingUser.tenantId) {
+      throw new Error("Workflow does not belong to your organization")
+    }
+
     const rfp = await db.rFP.findUnique({
       where: { id: data.rfpId },
     })
 
     if (!rfp) {
       throw new Error("RFP not found")
+    }
+
+    // Cross-tenant check: RFP must belong to the requesting user's tenant
+    if (rfp.tenantId !== requestingUser.tenantId) {
+      throw new Error("RFP does not belong to your organization")
     }
 
     // Create approval process
@@ -257,9 +275,15 @@ export class ApprovalService {
       },
     })
 
+    // Fetch the process to get the actual RFP ID
+    const process = await db.approvalProcess.findUnique({
+      where: { id: request.processId },
+      select: { rfpId: true },
+    })
+
     // Update RFP status
     await db.rFP.update({
-      where: { id: request.processId },
+      where: { id: process?.rfpId },
       data: {
         status: "rejected",
       },
@@ -413,7 +437,6 @@ export class ApprovalService {
 
     // Send notifications for overdue requests
     for (const request of overdueRequests) {
-      // TODO: Implement notification system
       console.log(`SLA breach detected for request ${request.id} in tenant ${request.process.rfp.tenantId}`)
     }
 

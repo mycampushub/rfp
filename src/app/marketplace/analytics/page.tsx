@@ -6,304 +6,148 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Users, 
-  FileText, 
-  Star,
-  Eye,
-  Calendar,
-  BarChart3,
-  PieChart,
-  Target,
-  Award,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  Download,
-  Filter,
-  Search,
-  ArrowUpRight,
-  ArrowDownRight,
-  Activity,
-  Globe,
-  MapPin,
-  Phone,
-  Mail,
-  Building,
-  Briefcase,
-  TrendingDown,
-  Zap,
-  Shield,
-  ThumbsUp,
-  MessageSquare
-} from "lucide-react"
-import { useState } from "react"
+import { TrendingUp, DollarSign, Users, FileText, BarChart3, PieChart, Target, Award, CheckCircle, AlertTriangle, Download, ArrowUpRight, ArrowDownRight, Globe, Briefcase } from "lucide-react"
+import { useState, useEffect } from "react"
+import { toast } from "sonner"
+import { LoadingCards } from "@/components/shared/loading-table"
+import { EmptyState } from "@/components/shared/empty-state"
 
 export default function MarketplaceAnalytics() {
+  useEffect(() => { document.title = 'Marketplace Analytics | RFP Platform' }, [])
   const [timeRange, setTimeRange] = useState("30d")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedRegion, setSelectedRegion] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
 
-  // Enhanced mock data for vendor analytics
-  const overviewStats = {
-    totalRFPs: 1247,
-    activeRFPs: 156,
-    totalVendors: 2847,
-    activeVendors: 892,
-    totalValue: "$12.5M",
-    avgBidsPerRFP: 8.4,
-    successRate: 94,
-    avgResponseTime: "2.3 hours",
-    marketGrowth: 12.5,
-    newVendorsThisMonth: 145,
-    vendorRetention: 87.3,
-    avgProjectValue: "$45,000",
-    completionRate: 96.2
-  }
+  useEffect(() => {
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch(`/api/analytics?type=full&range=${timeRange}`)
+        if (!res.ok) throw new Error("Failed to fetch")
+        const data = await res.json()
+        setAnalyticsData(data)
+      } catch {
+        toast.error("Failed to load analytics data")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAnalytics()
+  }, [timeRange])
 
-  const performanceMetrics = [
+  // Derive data from API response
+  const overviewStats = analyticsData ? {
+    totalRFPs: analyticsData.rfpMetrics?.total ?? 0,
+    activeRFPs: analyticsData.rfpMetrics?.published ?? 0,
+    totalVendors: analyticsData.vendorMetrics?.total ?? 0,
+    activeVendors: analyticsData.vendorMetrics?.active ?? 0,
+    totalValue: `$${((analyticsData.financialMetrics?.totalBudget ?? 0) / 1000000).toFixed(1)}M`,
+    avgBidsPerRFP: 0,
+    successRate: analyticsData.vendorMetrics?.avgResponseRate ?? 0,
+    avgResponseTime: `${analyticsData.vendorMetrics?.avgResponseRate ?? 0}%`,
+    marketGrowth: 0,
+    newVendorsThisMonth: 0,
+    vendorRetention: analyticsData.vendorMetrics?.avgResponseRate ?? 0,
+    avgProjectValue: `$${((analyticsData.financialMetrics?.avgAwardValue ?? 0) / 1000).toFixed(0)}K`,
+    completionRate: analyticsData.rfpMetrics?.awarded > 0
+      ? Math.round((analyticsData.rfpMetrics.awarded / Math.max(analyticsData.rfpMetrics.total, 1)) * 100)
+      : 0,
+  } : null
+
+  const performanceMetrics = analyticsData ? [
     { 
-      metric: "Bid Success Rate", 
-      value: 34, 
-      target: 40, 
-      status: "below", 
+      metric: "Total RFPs", 
+      value: analyticsData.rfpMetrics?.total ?? 0, 
+      target: 0, 
+      status: "good", 
       trend: "up", 
-      change: 2.3,
-      description: "Percentage of bids that result in awards"
+      change: 0,
+      description: "Total RFPs in the system"
     },
     { 
-      metric: "Average Response Time", 
-      value: "2.3h", 
-      target: "2h", 
-      status: "below", 
-      trend: "down",
-      change: -0.5,
-      description: "Average time to respond to RFP invitations"
-    },
-    { 
-      metric: "Profile Completion", 
-      value: 92, 
-      target: 100, 
+      metric: "Published RFPs", 
+      value: analyticsData.rfpMetrics?.published ?? 0, 
+      target: 0, 
       status: "good", 
       trend: "up",
-      change: 5.2,
-      description: "Completeness of vendor profile information"
+      change: 0,
+      description: "RFPs currently published"
     },
     { 
-      metric: "Client Satisfaction", 
-      value: 4.7, 
-      target: 4.5, 
-      status: "excellent", 
+      metric: "Awarded RFPs", 
+      value: analyticsData.rfpMetrics?.awarded ?? 0, 
+      target: 0, 
+      status: "good", 
       trend: "up",
-      change: 0.3,
-      description: "Average client rating across all projects"
+      change: 0,
+      description: "RFPs that have been awarded"
     },
     { 
-      metric: "Repeat Business", 
-      value: 78, 
-      target: 70, 
-      status: "excellent", 
-      trend: "up",
-      change: 8.1,
-      description: "Percentage of clients who return for additional projects"
-    },
-    { 
-      metric: "On-Time Delivery", 
-      value: 94, 
-      target: 95, 
+      metric: "Avg Cycle Time", 
+      value: `${analyticsData.rfpMetrics?.avgCycleTime ?? 0} days`, 
+      target: "30 days", 
       status: "good", 
       trend: "stable",
       change: 0,
-      description: "Percentage of projects delivered on or before deadline"
+      description: "Average days from creation to award"
+    },
+    { 
+      metric: "Active Vendors", 
+      value: analyticsData.vendorMetrics?.active ?? 0, 
+      target: 0, 
+      status: "good", 
+      trend: "up",
+      change: 0,
+      description: "Currently active vendors"
+    },
+    { 
+      metric: "Response Rate", 
+      value: `${analyticsData.vendorMetrics?.avgResponseRate ?? 0}%`, 
+      target: "80%", 
+      status: "good", 
+      trend: "up",
+      change: 0,
+      description: "Average vendor response rate"
     }
-  ]
+  ] : []
 
-  const revenueAnalytics = [
-    { month: "Jul", revenue: 85000, bids: 67, wins: 23, avgValue: 3696 },
-    { month: "Aug", revenue: 92000, bids: 72, wins: 26, avgValue: 3538 },
-    { month: "Sep", revenue: 108000, bids: 85, wins: 31, avgValue: 3484 },
-    { month: "Oct", revenue: 125000, bids: 94, wins: 36, avgValue: 3472 },
-    { month: "Nov", revenue: 142000, bids: 103, wins: 42, avgValue: 3381 },
-    { month: "Dec", revenue: 165000, bids: 118, wins: 48, avgValue: 3438 }
-  ]
+  const revenueAnalytics = analyticsData?.monthlyData?.map((m: any) => ({
+    month: m.month,
+    revenue: m.budget,
+    bids: m.rfps,
+    wins: m.awards,
+    avgValue: m.rfps > 0 ? Math.round(m.budget / m.rfps) : 0,
+  })) ?? []
 
-  const categoryPerformance = [
-    { 
-      name: "IT Services", 
-      bids: 234, 
-      wins: 78, 
-      winRate: 33.3, 
-      avgValue: 52000, 
-      revenue: 4056000,
-      growth: 15.2,
-      topSkill: "Cloud Migration",
-      satisfaction: 4.8
-    },
-    { 
-      name: "Software Development", 
-      bids: 189, 
-      wins: 71, 
-      winRate: 37.6, 
-      avgValue: 48000, 
-      revenue: 3408000,
-      growth: 22.1,
-      topSkill: "Web Development",
-      satisfaction: 4.7
-    },
-    { 
-      name: "Marketing", 
-      bids: 156, 
-      wins: 52, 
-      winRate: 33.3, 
-      avgValue: 35000, 
-      revenue: 1820000,
-      growth: 8.7,
-      topSkill: "Digital Marketing",
-      satisfaction: 4.6
-    },
-    { 
-      name: "Consulting", 
-      bids: 98, 
-      wins: 34, 
-      winRate: 34.7, 
-      avgValue: 42000, 
-      revenue: 1428000,
-      growth: 12.3,
-      topSkill: "Business Strategy",
-      satisfaction: 4.9
-    },
-    { 
-      name: "Design", 
-      bids: 87, 
-      wins: 28, 
-      winRate: 32.2, 
-      avgValue: 28000, 
-      revenue: 784000,
-      growth: 18.9,
-      topSkill: "UI/UX Design",
-      satisfaction: 4.7
-    }
-  ]
+  const categoryPerformance = analyticsData?.categoryData?.map((c: any) => ({
+    name: c.category,
+    bids: c.count,
+    wins: 0,
+    winRate: 0,
+    avgValue: c.value,
+    revenue: c.value,
+    growth: 0,
+    topSkill: "",
+    satisfaction: 0,
+  })) ?? []
 
-  const competitorAnalysis = [
-    { 
-      name: "TechSolutions Pro", 
-      marketShare: 15.2, 
-      bids: 267, 
-      wins: 89, 
-      winRate: 33.3, 
-      avgValue: 55000,
-      strengths: ["Cloud Services", "Enterprise Solutions"],
-      weaknesses: ["Higher Pricing", "Limited Small Projects"]
-    },
-    { 
-      name: "Marketing Masters", 
-      marketShare: 12.8, 
-      bids: 198, 
-      wins: 78, 
-      winRate: 39.4, 
-      avgValue: 38000,
-      strengths: ["Creative Strategy", "Brand Building"],
-      weaknesses: ["Technical Skills", "Data Analytics"]
-    },
-    { 
-      name: "BuildRight Construction", 
-      marketShare: 10.5, 
-      bids: 145, 
-      wins: 56, 
-      winRate: 38.6, 
-      avgValue: 75000,
-      strengths: ["Large Projects", "Commercial Construction"],
-      weaknesses: ["Small Projects", "Residential Work"]
-    },
-    { 
-      name: "Data Insights Consulting", 
-      marketShare: 8.9, 
-      bids: 124, 
-      wins: 41, 
-      winRate: 33.1, 
-      avgValue: 45000,
-      strengths: ["Data Analytics", "Business Intelligence"],
-      weaknesses: ["Creative Services", "Marketing"]
-    }
-  ]
+  const competitorAnalysis = analyticsData?.vendorMetrics?.topPerformers?.map((v: any) => ({
+    name: v.name,
+    marketShare: 0,
+    bids: 0,
+    wins: 0,
+    winRate: v.winRate,
+    avgValue: 0,
+    strengths: [],
+    weaknesses: [],
+  })) ?? []
 
-  const marketTrends = [
-    {
-      trend: "Increased Demand for AI/ML Services",
-      impact: "High",
-      growth: 45.2,
-      description: "Growing need for artificial intelligence and machine learning expertise",
-      opportunity: "High",
-      timeframe: "Next 6-12 months"
-    },
-    {
-      trend: "Remote Work Solutions",
-      impact: "Medium",
-      growth: 28.7,
-      description: "Continued demand for remote collaboration and digital transformation",
-      opportunity: "Medium",
-      timeframe: "Ongoing"
-    },
-    {
-      trend: "Sustainability Consulting",
-      impact: "Medium",
-      growth: 35.1,
-      description: "Increasing focus on environmental and sustainability consulting",
-      opportunity: "High",
-      timeframe: "Next 12-18 months"
-    },
-    {
-      trend: "Cybersecurity Services",
-      impact: "High",
-      growth: 52.3,
-      description: "Rising demand for cybersecurity and data protection services",
-      opportunity: "Very High",
-      timeframe: "Immediate"
-    }
-  ]
-
-  const clientInsights = [
-    {
-      industry: "Technology",
-      avgProjectValue: 65000,
-      projectCount: 45,
-      satisfaction: 4.8,
-      repeatRate: 82,
-      topNeeds: ["Cloud Migration", "Software Development", "DevOps"]
-    },
-    {
-      industry: "Healthcare",
-      avgProjectValue: 85000,
-      projectCount: 32,
-      satisfaction: 4.6,
-      repeatRate: 78,
-      topNeeds: ["Data Security", "Compliance", "System Integration"]
-    },
-    {
-      industry: "Finance",
-      avgProjectValue: 95000,
-      projectCount: 28,
-      satisfaction: 4.9,
-      repeatRate: 85,
-      topNeeds: ["Security Audits", "Compliance", "Risk Management"]
-    },
-    {
-      industry: "Retail",
-      avgProjectValue: 42000,
-      projectCount: 38,
-      satisfaction: 4.5,
-      repeatRate: 73,
-      topNeeds: ["E-commerce", "Digital Marketing", "Mobile Apps"]
-    }
-  ]
+  const marketTrends: any[] = []
+  const clientInsights: any[] = []
 
   const getGrowthColor = (growth: number) => {
-    return growth >= 0 ? "text-green-600" : "text-red-600"
+    return growth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
   }
 
   const getGrowthIcon = (growth: number) => {
@@ -311,13 +155,13 @@ export default function MarketplaceAnalytics() {
   }
 
   const getStatusColor = (status: string) => {
-    const colors = {
-      "excellent": "bg-green-100 text-green-800",
-      "good": "bg-blue-100 text-blue-800",
-      "below": "bg-yellow-100 text-yellow-800",
-      "poor": "bg-red-100 text-red-800"
+    const colors: Record<string, string> = {
+      "excellent": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+      "good": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+      "below": "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+      "poor": "bg-red-500/15 text-red-700 dark:text-red-400"
     }
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[status] || "bg-muted text-muted-foreground"
   }
 
   const getStatusIcon = (status: string) => {
@@ -333,23 +177,24 @@ export default function MarketplaceAnalytics() {
     }
   }
 
-  const getImpactColor = (impact: string) => {
-    const colors = {
-      "High": "bg-red-100 text-red-800",
-      "Medium": "bg-yellow-100 text-yellow-800",
-      "Low": "bg-green-100 text-green-800"
-    }
-    return colors[impact as keyof typeof colors] || "bg-gray-100 text-gray-800"
-  }
-
-  const getOpportunityColor = (opportunity: string) => {
-    const colors = {
-      "Very High": "bg-purple-100 text-purple-800",
-      "High": "bg-blue-100 text-blue-800",
-      "Medium": "bg-yellow-100 text-yellow-800",
-      "Low": "bg-gray-100 text-gray-800"
-    }
-    return colors[opportunity as keyof typeof colors] || "bg-gray-100 text-gray-800"
+  if (loading) {
+    return (
+      <MainLayout title="Vendor Analytics Dashboard">
+        <div className="space-y-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold">Vendor Analytics Dashboard</h1>
+              <p className="text-muted-foreground mt-1">Loading...</p>
+            </div>
+          </div>
+          <LoadingCards count={4} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-lg border p-6"><div className="h-48 bg-muted rounded animate-pulse" /></div>
+            <div className="rounded-lg border p-6"><div className="h-48 bg-muted rounded animate-pulse" /></div>
+          </div>
+        </div>
+      </MainLayout>
+    )
   }
 
   return (
@@ -375,7 +220,48 @@ export default function MarketplaceAnalytics() {
                 <SelectItem value="1y">Last year</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
+            <Button variant="outline" onClick={async () => {
+              try {
+                const res = await fetch(`/api/analytics?type=full&range=${timeRange}`)
+                if (!res.ok) throw new Error()
+                const data = await res.json()
+                const rows: string[][] = []
+                rows.push(['Metric', 'Value'])
+                if (data.rfpMetrics) {
+                  rows.push(['Total RFPs', String(data.rfpMetrics.total ?? 0)])
+                  rows.push(['Published RFPs', String(data.rfpMetrics.published ?? 0)])
+                  rows.push(['Awarded RFPs', String(data.rfpMetrics.awarded ?? 0)])
+                  rows.push(['Avg Cycle Time (days)', String(data.rfpMetrics.avgCycleTime ?? 0)])
+                }
+                if (data.vendorMetrics) {
+                  rows.push(['Total Vendors', String(data.vendorMetrics.total ?? 0)])
+                  rows.push(['Active Vendors', String(data.vendorMetrics.active ?? 0)])
+                  rows.push(['Avg Response Rate', String(data.vendorMetrics.avgResponseRate ?? 0) + '%'])
+                }
+                if (data.financialMetrics) {
+                  rows.push(['Total Budget', String(data.financialMetrics.totalBudget ?? 0)])
+                  rows.push(['Avg Award Value', String(data.financialMetrics.avgAwardValue ?? 0)])
+                }
+                if (data.monthlyData) {
+                  rows.push([])
+                  rows.push(['Month', 'RFPs', 'Budget', 'Awards'])
+                  data.monthlyData.forEach((m: any) => {
+                    rows.push([m.month, String(m.rfps ?? 0), String(m.budget ?? 0), String(m.awards ?? 0)])
+                  })
+                }
+                const csvContent = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = 'marketplace-analytics.csv'
+                link.click()
+                URL.revokeObjectURL(url)
+                toast.success('Report exported successfully')
+              } catch {
+                toast.error('Failed to export report')
+              }
+            }}>
               <Download className="mr-2 h-4 w-4" />
               Export Report
             </Button>
@@ -383,71 +269,73 @@ export default function MarketplaceAnalytics() {
         </div>
 
         {/* Overview Stats */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold">{overviewStats.totalRFPs}</div>
-                  <div className="text-sm text-muted-foreground">Total RFPs</div>
-                  <div className="text-xs text-green-600 flex items-center">
-                    <ArrowUpRight className="h-3 w-3 mr-1" />
-                    {overviewStats.activeRFPs} active
+ {overviewStats && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold">{overviewStats.totalRFPs}</div>
+                    <div className="text-sm text-muted-foreground">Total RFPs</div>
+                    <div className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center">
+                      <ArrowUpRight className="h-3 w-3 mr-1" />
+                      {overviewStats.activeRFPs} active
+                    </div>
                   </div>
+                  <FileText className="h-8 w-8 text-sky-600 dark:text-sky-400" />
                 </div>
-                <FileText className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold">{overviewStats.successRate}%</div>
-                  <div className="text-sm text-muted-foreground">Success Rate</div>
-                  <div className="text-xs text-green-600 flex items-center">
-                    <ArrowUpRight className="h-3 w-3 mr-1" />
-                    +2.3% vs last period
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold">{overviewStats.successRate}%</div>
+                    <div className="text-sm text-muted-foreground">Response Rate</div>
+                    <div className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center">
+                      <ArrowUpRight className="h-3 w-3 mr-1" />
+                      Vendor engagement
+                    </div>
                   </div>
+                  <Target className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <Target className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold">${(parseInt(overviewStats.totalValue.replace(/[$M]/g, '')) * 1000000).toLocaleString()}</div>
-                  <div className="text-sm text-muted-foreground">Total Revenue</div>
-                  <div className="text-xs text-green-600 flex items-center">
-                    <ArrowUpRight className="h-3 w-3 mr-1" />
-                    +{overviewStats.marketGrowth}% growth
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold">{overviewStats.totalValue}</div>
+                    <div className="text-sm text-muted-foreground">Total Budget</div>
+                    <div className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center">
+                      <ArrowUpRight className="h-3 w-3 mr-1" />
+                      Across all RFPs
+                    </div>
                   </div>
+                  <DollarSign className="h-8 w-8 text-violet-600 dark:text-violet-400" />
                 </div>
-                <DollarSign className="h-8 w-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold">{overviewStats.avgProjectValue}</div>
-                  <div className="text-sm text-muted-foreground">Avg Project Value</div>
-                  <div className="text-xs text-green-600 flex items-center">
-                    <ArrowUpRight className="h-3 w-3 mr-1" />
-                    +5.2% increase
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-2xl font-bold">{overviewStats.avgProjectValue}</div>
+                    <div className="text-sm text-muted-foreground">Avg Award Value</div>
+                    <div className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center">
+                      <ArrowUpRight className="h-3 w-3 mr-1" />
+                      Per project
+                    </div>
                   </div>
+                  <TrendingUp className="h-8 w-8 text-orange-600 dark:text-orange-400" />
                 </div>
-                <TrendingUp className="h-8 w-8 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="performance" className="space-y-6">
@@ -515,33 +403,38 @@ export default function MarketplaceAnalytics() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Market Share</span>
-                    <span className="font-medium">8.5%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Market Rank</span>
-                    <span className="font-medium">#12</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Vendor Retention</span>
-                    <span className="font-medium text-green-600">{overviewStats.vendorRetention}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">New Vendors (Monthly)</span>
-                    <span className="font-medium">{overviewStats.newVendorsThisMonth}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Completion Rate</span>
-                    <span className="font-medium text-green-600">{overviewStats.completionRate}%</span>
-                  </div>
+                  {overviewStats ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Total Vendors</span>
+                        <span className="font-medium">{overviewStats.totalVendors}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Active Vendors</span>
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{overviewStats.activeVendors}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Vendor Response Rate</span>
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{overviewStats.vendorRetention}%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Completion Rate</span>
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{overviewStats.completionRate}%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Avg Cycle Time</span>
+                        <span className="font-medium">{analyticsData?.rfpMetrics?.avgCycleTime ?? 0} days</span>
+                      </div>
+                    </>
+                  ) : (
+                    <EmptyState icon={BarChart3} title="No marketplace analytics" description="Marketplace analytics will populate as vendors and RFPs are added." />
+                  )}
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
           <TabsContent value="revenue" className="space-y-6">
-            {/* Revenue Analytics */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -553,45 +446,48 @@ export default function MarketplaceAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {revenueAnalytics.map((month, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="font-medium">{month.month}</div>
-                        <div className="flex items-center space-x-6 text-sm">
-                          <span className="flex items-center">
-                            <Target className="mr-1 h-3 w-3" />
-                            {month.bids} bids
-                          </span>
-                          <span className="flex items-center">
-                            <Award className="mr-1 h-3 w-3" />
-                            {month.wins} wins
-                          </span>
+                {revenueAnalytics.length > 0 ? (
+                  <div className="space-y-4">
+                    {revenueAnalytics.map((month, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="font-medium">{month.month}</div>
+                          <div className="flex items-center space-x-6 text-sm">
+                            <span className="flex items-center">
+                              <Target className="mr-1 h-3 w-3" />
+                              {month.bids} RFPs
+                            </span>
+                            <span className="flex items-center">
+                              <Award className="mr-1 h-3 w-3" />
+                              {month.wins} awards
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-6 text-right">
+                          <div>
+                            <div className="font-medium">${month.revenue.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">Budget</div>
+                          </div>
+                          <div>
+                            <div className="font-medium">${month.avgValue.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">Avg Value</div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-6 text-right">
-                        <div>
-                          <div className="font-medium">${month.revenue.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Revenue</div>
-                        </div>
-                        <div>
-                          <div className="font-medium">${month.avgValue.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Avg Value</div>
-                        </div>
-                        <div>
-                          <div className="font-medium">{((month.wins / month.bids) * 100).toFixed(1)}%</div>
-                          <div className="text-xs text-muted-foreground">Win Rate</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No revenue data available</h3>
+                    <p className="text-muted-foreground">Revenue data will appear as RFPs are created and awarded.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="categories" className="space-y-6">
-            {/* Category Performance */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -603,99 +499,83 @@ export default function MarketplaceAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {categoryPerformance.map((category, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-1">
-                          <div className="font-medium">{category.name}</div>
-                          <div className="text-xs text-muted-foreground">Top: {category.topSkill}</div>
+                {categoryPerformance.length > 0 ? (
+                  <div className="space-y-4">
+                    {categoryPerformance.map((category, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-1">
+                            <div className="font-medium">{category.name}</div>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Star className="h-4 w-4 text-yellow-500" />
-                          <span className="text-sm">{category.satisfaction}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-6 text-sm">
-                        <div className="text-center">
-                          <div className="font-medium">{category.bids}</div>
-                          <div className="text-xs text-muted-foreground">Bids</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">{category.wins}</div>
-                          <div className="text-xs text-muted-foreground">Wins</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">{category.winRate}%</div>
-                          <div className="text-xs text-muted-foreground">Win Rate</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">${category.avgValue.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Avg Value</div>
-                        </div>
-                        <div className={`text-center font-medium ${getGrowthColor(category.growth)}`}>
-                          {getGrowthIcon(category.growth)}
-                          {category.growth}%
+                        <div className="flex items-center space-x-6 text-sm">
+                          <div className="text-center">
+                            <div className="font-medium">{category.bids}</div>
+                            <div className="text-xs text-muted-foreground">RFPs</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-medium">${category.avgValue.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">Total Value</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <PieChart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No category data available</h3>
+                    <p className="text-muted-foreground">Category data will appear as RFPs with categories are created.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="competitors" className="space-y-6">
-            {/* Competitor Analysis */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Users className="mr-2 h-5 w-5" />
-                  Competitor Analysis
+                  Top Performing Vendors
                 </CardTitle>
                 <CardDescription>
-                  Key competitors and their market position
+                  Vendor performance rankings
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {competitorAnalysis.map((competitor, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-1">
-                          <div className="font-medium">{competitor.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Market Share: {competitor.marketShare}%
+                {competitorAnalysis.length > 0 ? (
+                  <div className="space-y-4">
+                    {competitorAnalysis.map((vendor, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-1">
+                            <div className="font-medium">{vendor.name}</div>
                           </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">{competitor.winRate}%</div>
-                          <div className="text-xs text-muted-foreground">Win Rate</div>
-                        </div>
+                          <div className="text-center">
+                            <div className="font-medium">{vendor.winRate}%</div>
+                            <div className="text-xs text-muted-foreground">Win Rate</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-medium">{vendor.avgValue > 0 ? (vendor.avgValue / 1000).toFixed(1) + 'K' : 'N/A'}</div>
+                            <div className="text-xs text-muted-foreground">Avg Score</div>
+                          </div>
+                          </div>
                       </div>
-                      <div className="flex items-center space-x-6 text-sm">
-                        <div className="text-center">
-                          <div className="font-medium">{competitor.bids}</div>
-                          <div className="text-xs text-muted-foreground">Bids</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">{competitor.wins}</div>
-                          <div className="text-xs text-muted-foreground">Wins</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">${competitor.avgValue.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Avg Value</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No vendor ranking data available</h3>
+                    <p className="text-muted-foreground">Vendor performance data will appear as submissions are evaluated.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="trends" className="space-y-6">
-            {/* Market Trends */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -707,40 +587,16 @@ export default function MarketplaceAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {marketTrends.map((trend, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-1">
-                          <div className="font-medium">{trend.trend}</div>
-                          <div className="text-sm text-muted-foreground">{trend.description}</div>
-                          <div className="text-xs text-muted-foreground">Timeframe: {trend.timeframe}</div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getImpactColor(trend.impact)}>
-                            {trend.impact} Impact
-                          </Badge>
-                          <Badge className={getOpportunityColor(trend.opportunity)}>
-                            {trend.opportunity} Opportunity
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`font-medium ${getGrowthColor(trend.growth)}`}>
-                          {getGrowthIcon(trend.growth)}
-                          {trend.growth}%
-                        </div>
-                        <div className="text-xs text-muted-foreground">Growth</div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-8">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No trend data available</h3>
+                  <p className="text-muted-foreground">Market trend analysis requires more data to generate insights.</p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="clients" className="space-y-6">
-            {/* Client Insights */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -752,37 +608,10 @@ export default function MarketplaceAnalytics() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {clientInsights.map((client, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-1">
-                          <div className="font-medium">{client.industry}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Top Needs: {client.topNeeds.join(", ")}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Star className="h-4 w-4 text-yellow-500" />
-                          <span className="text-sm">{client.satisfaction}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-6 text-sm">
-                        <div className="text-center">
-                          <div className="font-medium">${client.avgProjectValue.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Avg Value</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">{client.projectCount}</div>
-                          <div className="text-xs text-muted-foreground">Projects</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-medium">{client.repeatRate}%</div>
-                          <div className="text-xs text-muted-foreground">Repeat Rate</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No client insight data available</h3>
+                  <p className="text-muted-foreground">Client insights require more historical data to generate patterns.</p>
                 </div>
               </CardContent>
             </Card>

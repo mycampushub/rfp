@@ -1,5 +1,8 @@
 import { db } from "@/lib/db"
+import { AuditLogger } from "@/lib/audit-logger"
 import { DEFAULT_ROLES } from "@/types/auth"
+import bcrypt from "bcryptjs"
+import crypto from "crypto"
 
 export class TenantService {
   static async createTenant(data: {
@@ -8,6 +11,7 @@ export class TenantService {
     plan?: string
     adminEmail: string
     adminName: string
+    adminPassword?: string
   }) {
     const tenant = await db.tenant.create({
       data: {
@@ -42,12 +46,15 @@ export class TenantService {
       )
     )
 
-    // Create admin user
+    // Create admin user with hashed password
+    const rawPassword = data.adminPassword || crypto.randomBytes(16).toString("hex")
+    const hashedPassword = await bcrypt.hash(rawPassword, 12)
     const adminUser = await db.user.create({
       data: {
         tenantId: tenant.id,
         email: data.adminEmail,
         name: data.adminName,
+        password: hashedPassword,
         roleIds: [roles.find(r => r.name === "Tenant Admin")!.id],
         isActive: true,
       },
@@ -78,23 +85,33 @@ export class TenantService {
     })
   }
 
-  static async updateTenantSettings(tenantId: string, settings: any) {
+  static async updateTenantSettings(tenantId: string, newSettings: any) {
+    const tenant = await db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { settings: true },
+    })
     return await db.tenant.update({
       where: { id: tenantId },
       data: {
         settings: {
-          ...settings,
+          ...(tenant?.settings && typeof tenant.settings === "object" ? tenant.settings : {}),
+          ...newSettings,
         },
       },
     })
   }
 
-  static async updateTenantBranding(tenantId: string, branding: any) {
+  static async updateTenantBranding(tenantId: string, newBranding: any) {
+    const tenant = await db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { branding: true },
+    })
     return await db.tenant.update({
       where: { id: tenantId },
       data: {
         branding: {
-          ...branding,
+          ...(tenant?.branding && typeof tenant.branding === "object" ? tenant.branding : {}),
+          ...newBranding,
         },
       },
     })
@@ -168,6 +185,9 @@ export class TenantService {
     return userPermissions.includes(permission)
   }
 
+  /**
+   * @deprecated Use AuditLogger.log() directly instead.
+   */
   static async createAuditLog(
     tenantId: string,
     actor: string,
@@ -175,21 +195,21 @@ export class TenantService {
     targetType: string,
     targetId: string,
     metadata?: any,
-    ip?: string
+    _ip?: string
   ) {
-    return await db.activityLog.create({
-      data: {
-        tenantId,
-        actor,
-        action,
-        targetType,
-        targetId,
-        metadata,
-        ip,
-      },
+    return AuditLogger.log({
+      action,
+      targetType,
+      targetId,
+      metadata,
+      userId: actor,
+      tenantId,
     })
   }
 
+  /**
+   * @deprecated Use AuditLogger.getAuditLogs() directly instead.
+   */
   static async getAuditLogs(tenantId: string, options?: {
     limit?: number
     offset?: number
@@ -198,43 +218,14 @@ export class TenantService {
     startDate?: Date
     endDate?: Date
   }) {
-    const where: any = { tenantId }
-
-    if (options?.actor) {
-      where.actor = options.actor
-    }
-    if (options?.targetType) {
-      where.targetType = options.targetType
-    }
-    if (options?.startDate || options?.endDate) {
-      where.timestamp = {}
-      if (options.startDate) {
-        where.timestamp.gte = options.startDate
-      }
-      if (options.endDate) {
-        where.timestamp.lte = options.endDate
-      }
-    }
-
-    const [logs, total] = await Promise.all([
-      db.activityLog.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-        orderBy: { timestamp: "desc" },
-        take: options?.limit || 50,
-        skip: options?.offset || 0,
-      }),
-      db.activityLog.count({ where }),
-    ])
-
-    return { logs, total }
+    return AuditLogger.getAuditLogs(tenantId, {
+      userId: options?.actor,
+      targetType: options?.targetType,
+      startDate: options?.startDate,
+      endDate: options?.endDate,
+    }, {
+      limit: options?.limit || 50,
+      offset: options?.offset || 0,
+    })
   }
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
     const submissionId = searchParams.get("submissionId")
     const criterionId = searchParams.get("criterionId")
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
     
-    const whereClause: any = {
+    const whereClause: Record<string, unknown> = {
       submission: {
         rfp: {
           tenantId: tenantContext.tenantId,
@@ -32,43 +32,56 @@ export async function GET(request: NextRequest) {
       whereClause.criterionId = criterionId
     }
 
-    const consensusScores = await db.consensusScore.findMany({
-      where: whereClause,
-      include: {
-        submission: {
-          include: {
-            vendor: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-            rfp: {
-              select: {
-                id: true,
-                title: true,
-                status: true,
-              },
-            },
-          },
-        },
-        criterion: {
-          select: {
-            id: true,
-            label: true,
-            weight: true,
-            scaleMin: true,
-            scaleMax: true,
-            guidance: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    })
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(consensusScores)
+    const [consensusScores, total] = await Promise.all([
+      db.consensusScore.findMany({
+        where: whereClause,
+        include: {
+          submission: {
+            include: {
+              vendor: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              rfp: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                },
+              },
+            },
+          },
+          criterion: {
+            select: {
+              id: true,
+              label: true,
+              weight: true,
+              scaleMin: true,
+              scaleMax: true,
+              guidance: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      db.consensusScore.count({ where: whereClause }),
+    ])
+
+    return NextResponse.json({
+      data: consensusScores,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching consensus scores:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -91,7 +104,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Submission ID is required" }, { status: 400 })
       }
 
-      const tenantContext = getTenantContext()
+      const tenantContext = getTenantContext(session)
 
       // Verify submission belongs to tenant
       const submission = await db.submission.findFirst({
@@ -117,11 +130,13 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      // Import once before the loop
+      const scoresModule = await import("../scores/route")
+
       // Recalculate consensus for each criterion
       const results = []
       for (const criterion of criteria) {
-        const { calculateConsensus } = await import("../scores/route")
-        await calculateConsensus(submissionId, criterion.id)
+        await scoresModule.calculateConsensus(submissionId, criterion.id)
         
         const consensus = await db.consensusScore.findFirst({
           where: {
@@ -146,6 +161,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error in consensus operation:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

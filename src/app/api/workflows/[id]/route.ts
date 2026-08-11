@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 
 const updateWorkflowSchema = z.object({
@@ -17,14 +17,14 @@ const updateWorkflowSchema = z.object({
     approverRole: z.string(),
     slaHours: z.number(),
     autoApprove: z.boolean().optional(),
-    conditions: z.array(z.any()).optional(),
+    conditions: z.array(z.record(z.string(), z.unknown())).optional(),
   })).optional(),
   isActive: z.boolean().optional(),
 })
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -32,11 +32,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tenantContext = getTenantContext()
+    const { id } = await params
+    const tenantContext = getTenantContext(session)
 
     const workflow = await db.approvalWorkflow.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: tenantContext.tenantId,
       },
       include: {
@@ -71,6 +72,8 @@ export async function GET(
 
     return NextResponse.json(workflow)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching workflow:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -78,23 +81,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateWorkflowSchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify workflow belongs to tenant
     const existingWorkflow = await db.approvalWorkflow.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: tenantContext.tenantId,
       },
     })
@@ -104,14 +108,16 @@ export async function PUT(
     }
 
     const workflow = await db.approvalWorkflow.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
     })
 
     return NextResponse.json(workflow)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error updating workflow:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -120,20 +126,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify workflow belongs to tenant
     const existingWorkflow = await db.approvalWorkflow.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: tenantContext.tenantId,
       },
     })
@@ -145,7 +152,7 @@ export async function DELETE(
     // Check if workflow is being used by any active processes
     const activeProcesses = await db.approvalProcess.count({
       where: {
-        workflowId: params.id,
+        workflowId: id,
         status: "in_progress",
       },
     })
@@ -158,12 +165,14 @@ export async function DELETE(
     }
 
     await db.approvalWorkflow.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { isActive: false },
     })
 
     return NextResponse.json({ message: "Workflow deactivated successfully" })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting workflow:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

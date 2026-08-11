@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
+import { EmptyState } from "@/components/shared/empty-state"
+import { LoadingTable } from "@/components/shared/loading-table"
+import { getStatusColor, getPriorityColor, getAwardStatusColor } from "@/lib/status-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,23 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { 
-  CheckSquare, 
-  Clock, 
-  AlertCircle, 
-  CheckCircle,
-  Award,
-  FileText,
-  User,
-  Calendar,
-  DollarSign,
-  TrendingUp,
-  Filter,
-  Search,
-  Eye
-} from "lucide-react"
+import { CheckSquare, Clock, AlertCircle, CheckCircle, Award, FileText, User, DollarSign, TrendingUp, Search, Eye, ShieldCheck } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface Approval {
   id: string
@@ -49,7 +41,7 @@ interface Approval {
   priority: "low" | "medium" | "high" | "urgent"
 }
 
-interface Award {
+interface AwardItem {
   id: string
   rfpId: string
   rfpTitle: string
@@ -62,117 +54,88 @@ interface Award {
 }
 
 export default function ApprovalsPage() {
+  useEffect(() => { document.title = 'Approvals & Awards | RFP Platform' }, [])
   const [approvals, setApprovals] = useState<Approval[]>([])
-  const [awards, setAwards] = useState<Award[]>([])
+  const [awards, setAwards] = useState<AwardItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [stageFilter, setStageFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-
-  // Mock data for demonstration
-  const mockApprovals: Approval[] = [
-    {
-      id: "1",
-      rfpId: "1",
-      rfpTitle: "IT Managed Services 2024",
-      stage: "budget",
-      status: "pending",
-      requestedBy: "John Smith",
-      requestedByEmail: "john.smith@company.com",
-      approver: "Sarah Johnson",
-      approverEmail: "sarah.johnson@company.com",
-      requestedAt: "2024-11-10T09:00:00Z",
-      budget: 250000,
-      priority: "high"
-    },
-    {
-      id: "2",
-      rfpId: "2",
-      rfpTitle: "Marketing Campaign Services",
-      stage: "legal_review",
-      status: "approved",
-      requestedBy: "Mike Chen",
-      requestedByEmail: "mike.chen@company.com",
-      approver: "Legal Team",
-      approverEmail: "legal@company.com",
-      requestedAt: "2024-11-09T14:00:00Z",
-      decidedAt: "2024-11-09T16:30:00Z",
-      comments: "All legal terms reviewed and approved.",
-      priority: "medium"
-    },
-    {
-      id: "3",
-      rfpId: "3",
-      rfpTitle: "Office Equipment Procurement",
-      stage: "award",
-      status: "pending",
-      requestedBy: "Lisa Wang",
-      requestedByEmail: "lisa.wang@company.com",
-      approver: "Finance Director",
-      approverEmail: "finance.director@company.com",
-      requestedAt: "2024-11-11T10:30:00Z",
-      budget: 75000,
-      priority: "urgent"
-    },
-    {
-      id: "4",
-      rfpId: "1",
-      rfpTitle: "IT Managed Services 2024",
-      stage: "publish",
-      status: "approved",
-      requestedBy: "John Smith",
-      requestedByEmail: "john.smith@company.com",
-      approver: "Procurement Manager",
-      approverEmail: "procurement@company.com",
-      requestedAt: "2024-11-08T11:00:00Z",
-      decidedAt: "2024-11-08T13:00:00Z",
-      priority: "medium"
-    }
-  ]
-
-  const mockAwards: Award[] = [
-    {
-      id: "1",
-      rfpId: "4",
-      rfpTitle: "Construction Services",
-      vendorName: "Construction Pro",
-      totalValue: 500000,
-      status: "contract_signed",
-      awardedAt: "2024-10-15T10:00:00Z",
-      estimatedStartDate: "2024-11-01",
-      estimatedDuration: "6 months"
-    },
-    {
-      id: "2",
-      rfpId: "5",
-      rfpTitle: "Consulting Services",
-      vendorName: "Business Consultants Inc",
-      totalValue: 150000,
-      status: "in_progress",
-      awardedAt: "2024-10-20T14:00:00Z",
-      estimatedStartDate: "2024-11-01",
-      estimatedDuration: "3 months"
-    },
-    {
-      id: "3",
-      rfpId: "3",
-      rfpTitle: "Office Equipment Procurement",
-      vendorName: "Office Supplies Co",
-      totalValue: 75000,
-      status: "pending",
-      awardedAt: "2024-11-11T15:00:00Z",
-      estimatedStartDate: "2024-12-01",
-      estimatedDuration: "1 month"
-    }
-  ]
+  const [viewApproval, setViewApproval] = useState<Approval | null>(null)
+  const [viewAward, setViewAward] = useState<AwardItem | null>(null)
 
   useEffect(() => {
-    setTimeout(() => {
-      setApprovals(mockApprovals)
-      setAwards(mockAwards)
-      setLoading(false)
-    }, 1000)
+    const fetchData = async () => {
+      try {
+        const [approvalsRes, consensusRes] = await Promise.all([
+          fetch('/api/approvals'),
+          fetch('/api/consensus'),
+        ])
+
+        if (!approvalsRes.ok) throw new Error('Failed to fetch approvals')
+        const approvalsData = await approvalsRes.json()
+
+        const mappedApprovals: Approval[] = (Array.isArray(approvalsData) ? approvalsData : []).map((a: any) => ({
+          id: a.id,
+          rfpId: a.rfpId || a.rfp?.id || '',
+          rfpTitle: a.rfp?.title || 'Untitled RFP',
+          stage: a.stage || 'draft',
+          status: a.status || 'pending',
+          requestedBy: a.approver?.name || 'Unknown',
+          requestedByEmail: a.approver?.email || '',
+          approver: a.approver?.name || 'Unknown',
+          approverEmail: a.approver?.email || '',
+          requestedAt: a.createdAt || '',
+          decidedAt: a.decidedAt || undefined,
+          comments: a.comments || undefined,
+          priority: 'medium',
+        }))
+        setApprovals(mappedApprovals)
+
+        // Derive awards from approved approvals
+        const approvedApprovals = mappedApprovals.filter(a => a.status === 'approved' && a.stage === 'award')
+        const mappedAwards: AwardItem[] = approvedApprovals.map((a, idx) => ({
+          id: a.id,
+          rfpId: a.rfpId,
+          rfpTitle: a.rfpTitle,
+          vendorName: 'Pending Vendor',
+          totalValue: 0,
+          status: 'pending' as const,
+          awardedAt: a.decidedAt || a.requestedAt,
+          estimatedStartDate: '',
+          estimatedDuration: '',
+        }))
+        setAwards(mappedAwards)
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to load approvals')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [])
+
+  const handleApproveReject = async (approvalId: string, newStatus: 'approved' | 'rejected') => {
+    try {
+      const res = await fetch(`/api/approvals/${approvalId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!res.ok) throw new Error('Failed to update approval')
+      const updated = await res.json()
+      setApprovals(prev => prev.map(a => a.id === approvalId ? {
+        ...a,
+        status: updated.status,
+        decidedAt: updated.decidedAt || new Date().toISOString(),
+      } : a))
+      toast.success(`Approval ${newStatus} successfully`)
+    } catch (err) {
+      console.error(err)
+      toast.error(`Failed to ${newStatus} approval`)
+    }
+  }
 
   const filteredApprovals = approvals.filter(approval => {
     const matchesSearch = approval.rfpTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -198,55 +161,10 @@ export default function ApprovalsPage() {
     return labels[stage] || stage
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "bg-green-100 text-green-800"
-      case "rejected":
-        return "bg-red-100 text-red-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return "bg-red-100 text-red-800"
-      case "high":
-        return "bg-orange-100 text-orange-800"
-      case "medium":
-        return "bg-yellow-100 text-yellow-800"
-      case "low":
-        return "bg-blue-100 text-blue-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getAwardStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-800"
-      case "in_progress":
-        return "bg-blue-100 text-blue-800"
-      case "contract_signed":
-        return "bg-purple-100 text-purple-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
   if (loading) {
     return (
       <MainLayout title="Approvals & Awards">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading approvals...</div>
-        </div>
+        <LoadingTable rows={5} columns={7} />
       </MainLayout>
     )
   }
@@ -323,18 +241,19 @@ export default function ApprovalsPage() {
                     Track and manage approval requests
                   </CardDescription>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search approvals..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8 w-64"
+                      className="pl-8 w-full sm:w-64"
+                      aria-label="Search approvals"
                     />
                   </div>
                   <Select value={stageFilter} onValueChange={setStageFilter}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-full sm:w-auto">
                       <SelectValue placeholder="Stage" />
                     </SelectTrigger>
                     <SelectContent>
@@ -347,7 +266,7 @@ export default function ApprovalsPage() {
                     </SelectContent>
                   </Select>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-full sm:w-auto">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -361,6 +280,7 @@ export default function ApprovalsPage() {
               </div>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -420,20 +340,20 @@ export default function ApprovalsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {new Date(approval.requestedAt).toLocaleDateString()}
+                          {formatDate(approval.requestedAt)}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => setViewApproval(approval)}>
                             <Eye className="h-3 w-3" />
                           </Button>
                           {approval.status === "pending" && (
                             <>
-                              <Button variant="outline" size="sm" className="text-green-600">
+                              <Button variant="outline" size="sm" className="text-emerald-600 dark:text-emerald-400" onClick={() => handleApproveReject(approval.id, 'approved')} aria-label="Approve">
                                 <CheckCircle className="h-3 w-3" />
                               </Button>
-                              <Button variant="outline" size="sm" className="text-red-600">
+                              <Button variant="outline" size="sm" className="text-red-600 dark:text-red-400" onClick={() => handleApproveReject(approval.id, 'rejected')} aria-label="Reject">
                                 <AlertCircle className="h-3 w-3" />
                               </Button>
                             </>
@@ -446,11 +366,9 @@ export default function ApprovalsPage() {
               </Table>
               
               {filteredApprovals.length === 0 && (
-                <div className="text-center py-8">
-                  <CheckSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No approvals found matching your filters.</p>
-                </div>
+                <EmptyState icon={ShieldCheck} title="No approvals found" description="Approval requests will appear here when RFPs are submitted for review." />
               )}
+              </div>
             </CardContent>
           </Card>
 
@@ -466,6 +384,7 @@ export default function ApprovalsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -496,21 +415,29 @@ export default function ApprovalsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {new Date(award.awardedAt).toLocaleDateString()}
+                          {formatDate(award.awardedAt)}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{award.estimatedStartDate}</div>
+                        <div className="text-sm">{award.estimatedStartDate || 'TBD'}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{award.estimatedDuration}</div>
+                        <div className="text-sm">{award.estimatedDuration || 'TBD'}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => setViewAward(award)}>
                             <Eye className="h-3 w-3" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            const text = `AWARD DOCUMENT\n\nRFP: ${award.rfpTitle}\nVendor: ${award.vendorName}\nTotal Value: $${award.totalValue.toLocaleString()}\nStatus: ${award.status.replace('_', ' ')}\nAwarded: ${formatDate(award.awardedAt)}\nStart: ${award.estimatedStartDate || 'TBD'}\nDuration: ${award.estimatedDuration || 'TBD'}\n\n---\nGenerated from RFP Platform`
+                            const blob = new Blob([text], { type: 'text/plain' })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url; a.download = `award-${award.rfpTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`; a.click()
+                            URL.revokeObjectURL(url)
+                            toast.success('Award document downloaded')
+                          }}>
                             <FileText className="h-3 w-3" />
                           </Button>
                         </div>
@@ -519,6 +446,10 @@ export default function ApprovalsPage() {
                   ))}
                 </TableBody>
               </Table>
+              {awards.length === 0 && (
+                <EmptyState icon={Award} title="No awards yet" description="Awards will appear here once approvals are granted." />
+              )}
+              </div>
             </CardContent>
           </Card>
 
@@ -538,7 +469,7 @@ export default function ApprovalsPage() {
                   { stage: "Budget Approval", count: approvals.filter(a => a.stage === "budget").length, completed: approvals.filter(a => a.stage === "budget" && a.status === "approved").length },
                   { stage: "Publish Approval", count: approvals.filter(a => a.stage === "publish").length, completed: approvals.filter(a => a.stage === "publish" && a.status === "approved").length },
                   { stage: "Award Approval", count: approvals.filter(a => a.stage === "award").length, completed: approvals.filter(a => a.stage === "award" && a.status === "approved").length }
-                ].map((stage, index) => (
+                ].map((stage) => (
                   <div key={stage.stage} className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium">{stage.stage}</span>
@@ -557,6 +488,67 @@ export default function ApprovalsPage() {
           </Card>
         </div>
       </div>
+
+      {/* View Approval Dialog */}
+      {viewApproval && (
+        <Dialog open={!!viewApproval} onOpenChange={() => setViewApproval(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <CheckSquare className="mr-2 h-4 w-4" />
+                Approval Details
+              </DialogTitle>
+              <DialogDescription>Full details of this approval request</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-sm font-medium">RFP Title</span><span className="text-sm">{viewApproval.rfpTitle}</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Stage</span><Badge variant="outline">{getStageLabel(viewApproval.stage)}</Badge></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Status</span><Badge className={getStatusColor(viewApproval.status)}>{viewApproval.status}</Badge></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Priority</span><Badge className={getPriorityColor(viewApproval.priority)}>{viewApproval.priority}</Badge></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Requested By</span><span className="text-sm">{viewApproval.requestedBy} ({viewApproval.requestedByEmail})</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Approver</span><span className="text-sm">{viewApproval.approver} ({viewApproval.approverEmail})</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Requested At</span><span className="text-sm">{new Date(viewApproval.requestedAt).toLocaleString()}</span></div>
+                {viewApproval.decidedAt && (
+                  <div className="flex justify-between"><span className="text-sm font-medium">Decided At</span><span className="text-sm">{new Date(viewApproval.decidedAt).toLocaleString()}</span></div>
+                )}
+                {viewApproval.budget && (
+                  <div className="flex justify-between"><span className="text-sm font-medium">Budget</span><span className="text-sm">${viewApproval.budget.toLocaleString()}</span></div>
+                )}
+                {viewApproval.comments && (
+                  <div className="space-y-1"><span className="text-sm font-medium">Comments</span><p className="text-sm text-muted-foreground">{viewApproval.comments}</p></div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* View Award Dialog */}
+      {viewAward && (
+        <Dialog open={!!viewAward} onOpenChange={() => setViewAward(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center">
+                <Award className="mr-2 h-4 w-4" />
+                Award Details
+              </DialogTitle>
+              <DialogDescription>Full details of this award</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-sm font-medium">RFP Title</span><span className="text-sm">{viewAward.rfpTitle}</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Vendor Name</span><span className="text-sm">{viewAward.vendorName}</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Total Value</span><span className="text-sm font-medium">${viewAward.totalValue.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Status</span><Badge className={getAwardStatusColor(viewAward.status)}>{viewAward.status.replace("_", " ")}</Badge></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Awarded At</span><span className="text-sm">{formatDate(viewAward.awardedAt)}</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Start Date</span><span className="text-sm">{viewAward.estimatedStartDate || 'TBD'}</span></div>
+                <div className="flex justify-between"><span className="text-sm font-medium">Duration</span><span className="text-sm">{viewAward.estimatedDuration || 'TBD'}</span></div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   )
 }

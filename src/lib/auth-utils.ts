@@ -1,7 +1,18 @@
+/**
+ * Backward-compatibility shim — all permission logic lives in @/lib/permissions.ts
+ * (PermissionsManager class) which is the canonical implementation.
+ *
+ * Auth helper functions (getCurrentUser, requireAuth, getCurrentTenant,
+ * requireTenant) are kept here because they are session/tenant context
+ * helpers, not permission checks.
+ */
+
 import { getServerSession } from "next-auth"
 import { authOptions } from "./auth"
-import { Permission, PERMISSIONS } from "@/types/auth"
-import { db } from "./db"
+import { PermissionsManager } from "./permissions"
+import { AuthError, PermissionError } from "./tenant-context"
+
+// ─── Auth helpers (kept here — not permission logic) ───────────────────
 
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions)
@@ -11,91 +22,17 @@ export async function getCurrentUser() {
 export async function requireAuth() {
   const user = await getCurrentUser()
   if (!user) {
-    throw new Error("Authentication required")
+    throw new AuthError("Authentication required")
   }
   return user
-}
-
-export async function hasPermission(permission: Permission): Promise<boolean> {
-  const user = await getCurrentUser()
-  if (!user) return false
-
-  // Get user's roles and permissions
-  const roles = await db.role.findMany({
-    where: {
-      id: {
-        in: user.roleIds || []
-      }
-    }
-  })
-
-  const userPermissions = roles.flatMap(role => 
-    role.permissions || []
-  )
-
-  return userPermissions.includes(permission)
-}
-
-export async function requirePermission(permission: Permission) {
-  const hasAccess = await hasPermission(permission)
-  if (!hasAccess) {
-    throw new Error(`Permission denied: ${permission}`)
-  }
-}
-
-export async function hasAnyPermission(permissions: Permission[]): Promise<boolean> {
-  const user = await getCurrentUser()
-  if (!user) return false
-
-  // Get user's roles and permissions
-  const roles = await db.role.findMany({
-    where: {
-      id: {
-        in: user.roleIds || []
-      }
-    }
-  })
-
-  const userPermissions = roles.flatMap(role => 
-    role.permissions || []
-  )
-
-  return permissions.some(permission => userPermissions.includes(permission))
-}
-
-export async function requireAnyPermission(permissions: Permission[]) {
-  const hasAccess = await hasAnyPermission(permissions)
-  if (!hasAccess) {
-    throw new Error(`Permission denied: none of the required permissions found`)
-  }
-}
-
-export async function isSystemAdmin(): Promise<boolean> {
-  return hasPermission(PERMISSIONS.SYSTEM_ADMIN)
-}
-
-export async function requireSystemAdmin() {
-  const isAdmin = await isSystemAdmin()
-  if (!isAdmin) {
-    throw new Error("System admin access required")
-  }
-}
-
-export async function isTenantAdmin(): Promise<boolean> {
-  return hasPermission(PERMISSIONS.MANAGE_TENANT)
-}
-
-export async function requireTenantAdmin() {
-  const isAdmin = await isTenantAdmin()
-  if (!isAdmin) {
-    throw new Error("Tenant admin access required")
-  }
 }
 
 export async function getCurrentTenant() {
   const user = await getCurrentUser()
   if (!user) return null
 
+  // Inline DB call kept to avoid circular dependency with permissions.ts
+  const { db } = await import("./db")
   return db.tenant.findUnique({
     where: {
       id: user.tenantId
@@ -106,7 +43,47 @@ export async function getCurrentTenant() {
 export async function requireTenant() {
   const tenant = await getCurrentTenant()
   if (!tenant) {
-    throw new Error("Tenant not found")
+    throw new AuthError("Tenant not found")
   }
   return tenant
+}
+
+// ─── Permission re-exports — delegate to PermissionsManager ─────────────
+
+export async function hasPermission(permission: Parameters<typeof PermissionsManager.hasPermission>[0]) {
+  return PermissionsManager.hasPermission(permission)
+}
+
+export async function requirePermission(permission: Parameters<typeof PermissionsManager.requirePermission>[0]) {
+  return PermissionsManager.requirePermission(permission)
+}
+
+export async function hasAnyPermission(permissions: Parameters<typeof PermissionsManager.hasPermission>[0]) {
+  return PermissionsManager.hasPermission(permissions)
+}
+
+export async function requireAnyPermission(permissions: Parameters<typeof PermissionsManager.requirePermission>[0]) {
+  return PermissionsManager.requirePermission(permissions)
+}
+
+export async function isSystemAdmin(): Promise<boolean> {
+  return PermissionsManager.isSystemAdmin()
+}
+
+export async function requireSystemAdmin() {
+  const isAdmin = await PermissionsManager.isSystemAdmin()
+  if (!isAdmin) {
+    throw new PermissionError("System admin access required")
+  }
+}
+
+export async function isTenantAdmin(): Promise<boolean> {
+  return PermissionsManager.isTenantAdmin()
+}
+
+export async function requireTenantAdmin() {
+  const isAdmin = await PermissionsManager.isTenantAdmin()
+  if (!isAdmin) {
+    throw new PermissionError("Tenant admin access required")
+  }
 }

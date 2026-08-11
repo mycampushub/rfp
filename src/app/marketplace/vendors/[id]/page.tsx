@@ -5,166 +5,69 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  ArrowLeft, 
-  Star, 
-  MapPin, 
-  Users, 
-  Building,
-  Globe,
-  Phone,
-  Mail,
-  CheckCircle,
-  Award,
-  Briefcase,
-  Calendar,
-  MessageSquare,
-  ExternalLink,
-  Download,
-  FileText,
-  BarChart3,
-  Clock,
-  DollarSign
-} from "lucide-react"
+import { ArrowLeft, Star, MapPin, Users, Phone, Mail, CheckCircle, Award, MessageSquare, ExternalLink, Download, FileText } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { toast } from "sonner"
+import { use } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
-export default function VendorProfile({ params }: { params: { id: string } }) {
-  // Mock data for the vendor
-  const vendor = {
-    id: params.id,
-    name: "TechSolutions Pro",
-    description: "TechSolutions Pro is a leading cloud services and software development company with over 10 years of experience delivering enterprise-grade solutions. We specialize in cloud migration, custom software development, and IT consulting services for businesses of all sizes.",
-    rating: 4.9,
-    reviews: 127,
-    projects: 156,
-    employees: "50-200",
-    founded: 2014,
-    location: "San Francisco, CA",
-    website: "https://techsolutions.example.com",
-    email: "contact@techsolutions.example.com",
-    phone: "+1 (555) 123-4567",
-    verified: true,
-    featured: true,
-    hourlyRate: "$150-200",
-    responseTime: "2 hours",
-    specialties: [
-      { name: "Cloud Services", level: "Expert", years: 8, projects: 45 },
-      { name: "Software Development", level: "Expert", years: 10, projects: 67 },
-      { name: "DevOps", level: "Advanced", years: 6, projects: 34 },
-      { name: "Cybersecurity", level: "Advanced", years: 5, projects: 23 },
-      { name: "Data Analytics", level: "Intermediate", years: 4, projects: 18 },
-      { name: "AI/ML", level: "Intermediate", years: 3, projects: 12 }
-    ],
-    certifications: [
-      { name: "AWS Certified Solutions Architect", issuer: "Amazon Web Services", year: 2020 },
-      { name: "Microsoft Azure Solutions Architect", issuer: "Microsoft", year: 2021 },
-      { name: "ISO 27001 Information Security", issuer: "ISO", year: 2019 },
-      { name: "CMMI Level 3", issuer: "CMMI Institute", year: 2022 }
-    ],
-    portfolio: [
-      {
-        id: "1",
-        title: "Enterprise Cloud Migration",
-        description: "Complete migration of 200+ servers and 50+ databases to AWS for Fortune 500 company",
-        category: "Cloud Services",
-        budget: "$750,000",
-        duration: "6 months",
-        year: 2023,
-        image: "/api/placeholder/400/200"
-      },
-      {
-        id: "2",
-        title: "Custom ERP System",
-        description: "Development of comprehensive ERP system for manufacturing company",
-        category: "Software Development",
-        budget: "$500,000",
-        duration: "8 months",
-        year: 2023,
-        image: "/api/placeholder/400/200"
-      },
-      {
-        id: "3",
-        title: "Security Overhaul",
-        description: "Complete security infrastructure redesign and implementation",
-        category: "Cybersecurity",
-        budget: "$300,000",
-        duration: "4 months",
-        year: 2022,
-        image: "/api/placeholder/400/200"
-      }
-    ],
-    team: [
-      {
-        name: "John Smith",
-        position: "CEO & Founder",
-        experience: "15+ years",
-        photo: "/api/placeholder/100/100",
-        bio: "Former AWS architect with extensive experience in cloud solutions"
-      },
-      {
-        name: "Sarah Johnson",
-        position: "CTO",
-        experience: "12+ years",
-        photo: "/api/placeholder/100/100",
-        bio: "Expert in software architecture and team leadership"
-      },
-      {
-        name: "Mike Chen",
-        position: "Lead Developer",
-        experience: "10+ years",
-        photo: "/api/placeholder/100/100",
-        bio: "Full-stack developer specializing in enterprise applications"
-      }
-    ],
-    reviews: [
-      {
-        id: "1",
-        author: "Global Finance Corp",
-        rating: 5,
-        title: "Exceptional cloud migration services",
-        comment: "TechSolutions Pro delivered an outstanding cloud migration project. Their team was professional, knowledgeable, and completed the project ahead of schedule.",
-        date: "2024-01-15",
-        project: "Cloud Infrastructure Migration"
-      },
-      {
-        id: "2",
-        author: "Healthcare Systems Inc",
-        rating: 4,
-        title: "Great development team",
-        comment: "Very satisfied with the custom software development. The only minor issue was some delays in the timeline, but the quality was excellent.",
-        date: "2023-11-20",
-        project: "Patient Management System"
-      },
-      {
-        id: "3",
-        author: "Retail Chain Co",
-        rating: 5,
-        title: "Excellent security implementation",
-        comment: "Their security team helped us completely overhaul our IT security. Professional, thorough, and always available when needed.",
-        date: "2023-09-10",
-        project: "Security Infrastructure"
-      }
-    ],
-    stats: {
-      completionRate: 98,
-      onTimeDelivery: 95,
-      clientRetention: 92,
-      repeatBusiness: 78
-    }
-  }
-
+export default function VendorProfile({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const [vendor, setVendor] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
+  const [showMessageDialog, setShowMessageDialog] = useState(false)
+  const [messageName, setMessageName] = useState("")
+  const [messageText, setMessageText] = useState("")
+  const [sendingMessage, setSendingMessage] = useState(false)
 
-  const getSpecialtyColor = (level: string) => {
-    const colors = {
-      "Expert": "bg-purple-100 text-purple-800",
-      "Advanced": "bg-blue-100 text-blue-800",
-      "Intermediate": "bg-green-100 text-green-800",
-      "Beginner": "bg-yellow-100 text-yellow-800"
+  useEffect(() => {
+    async function fetchVendor() {
+      try {
+        const res = await fetch(`/api/v1/vendors/${id}`)
+        if (!res.ok) throw new Error("Failed to fetch")
+        const data = await res.json()
+        setVendor({
+          id: data.id,
+          name: data.name,
+          description: data.contactInfo?.address || "No description available.",
+          rating: 0,
+          reviews: data._count?.qna ?? 0,
+          projects: data._count?.submissions ?? 0,
+          employees: "",
+          founded: "",
+          location: data.contactInfo?.address || "N/A",
+          website: data.contactInfo?.website || "",
+          email: data.contactInfo?.email || "",
+          phone: data.contactInfo?.phone || "",
+          verified: data.isActive ?? false,
+          featured: false,
+          hourlyRate: "",
+          responseTime: "",
+          categories: data.categories || [],
+          certifications: data.certifications || [],
+          specialties: [],
+          portfolio: [],
+          team: [],
+          stats: {
+            completionRate: null,
+            onTimeDelivery: null,
+            clientRetention: null,
+            repeatBusiness: null
+          }
+        })
+      } catch {
+        toast.error("Failed to load vendor profile")
+      } finally {
+        setLoading(false)
+      }
     }
-    return colors[level as keyof typeof colors] || "bg-gray-100 text-gray-800"
-  }
+    fetchVendor()
+  }, [id])
 
   const renderStars = (rating: number) => {
     return (
@@ -177,12 +80,58 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                 ? "text-yellow-500 fill-current" 
                 : star === Math.ceil(rating) && rating % 1 !== 0 
                 ? "text-yellow-500 fill-current" 
-                : "text-gray-300"
+                : "text-muted-foreground/50"
             }`}
           />
         ))}
         <span className="ml-2 text-sm font-medium">{rating}</span>
       </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <MainLayout title="Loading...">
+        <div className="space-y-6">
+          <div className="flex items-center space-x-4 mb-6">
+            <div className="h-9 w-32 bg-muted rounded animate-pulse" />
+            <div className="flex-1">
+              <div className="h-10 w-80 bg-muted rounded animate-pulse mb-2" />
+              <div className="h-5 w-60 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              <Card><CardContent className="p-6"><div className="h-40 bg-muted rounded animate-pulse" /></CardContent></Card>
+            </div>
+            <div className="space-y-6">
+              <Card><CardContent className="p-6"><div className="h-32 bg-muted rounded animate-pulse" /></CardContent></Card>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  if (!vendor) {
+    return (
+      <MainLayout title="Vendor Not Found">
+        <div className="space-y-6">
+          <Button variant="ghost" asChild>
+            <Link href="/marketplace/vendors">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Vendors
+            </Link>
+          </Button>
+          <Card>
+            <CardContent className="text-center py-12">
+              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Vendor Not Found</h3>
+              <p className="text-muted-foreground">The vendor you are looking for does not exist.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </MainLayout>
     )
   }
 
@@ -201,13 +150,13 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
             <div className="flex items-center space-x-2 mb-2">
               <h1 className="text-3xl font-bold">{vendor.name}</h1>
               {vendor.verified && (
-                <Badge className="bg-blue-100 text-blue-800">
+                <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-400">
                   <CheckCircle className="mr-1 h-3 w-3" />
                   Verified
                 </Badge>
               )}
               {vendor.featured && (
-                <Badge className="bg-yellow-100 text-yellow-800">
+                <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
                   <Star className="mr-1 h-3 w-3" />
                   Featured
                 </Badge>
@@ -218,22 +167,33 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                 <MapPin className="mr-1 h-4 w-4" />
                 {vendor.location}
               </span>
-              <span className="flex items-center">
-                <Users className="mr-1 h-4 w-4" />
-                {vendor.employees}
-              </span>
-              <span className="flex items-center">
-                <Building className="mr-1 h-4 w-4" />
-                Since {vendor.founded}
-              </span>
+              {vendor.employees && (
+                <span className="flex items-center">
+                  <Users className="mr-1 h-4 w-4" />
+                  {vendor.employees}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => {
+              if (!vendor) return
+              const jsonStr = JSON.stringify(vendor, null, 2)
+              const blob = new Blob([jsonStr], { type: 'application/json' })
+              const url = URL.createObjectURL(blob)
+              const link = document.createElement('a')
+              link.href = url
+              link.download = 'vendor-profile.json'
+              link.click()
+              URL.revokeObjectURL(url)
+              toast.success('Profile downloaded')
+            }}>
               <Download className="mr-2 h-4 w-4" />
               Download Profile
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => {
+              document.getElementById('contact-section')?.scrollIntoView({ behavior: 'smooth' })
+            }}>
               <MessageSquare className="mr-2 h-4 w-4" />
               Contact
             </Button>
@@ -254,43 +214,40 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                 </p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-3">
+                    {vendor.email && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Email:</span>
+                        <a href={`mailto:${vendor.email}`} className="text-sky-600 dark:text-sky-400 hover:underline">
+                          {vendor.email}
+                        </a>
+                      </div>
+                    )}
+                    {vendor.phone && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Phone:</span>
+                        <span>{vendor.phone}</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Hourly Rate:</span>
-                      <span className="flex items-center text-green-600 font-medium">
-                        <DollarSign className="mr-1 h-4 w-4" />
-                        {vendor.hourlyRate}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Response Time:</span>
-                      <span className="flex items-center font-medium">
-                        <Clock className="mr-1 h-4 w-4" />
-                        {vendor.responseTime}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Projects Completed:</span>
+                      <span className="text-sm font-medium">Projects:</span>
                       <span className="font-medium">{vendor.projects}</span>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Email:</span>
-                      <a href={`mailto:${vendor.email}`} className="text-blue-600 hover:underline">
-                        {vendor.email}
-                      </a>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Phone:</span>
-                      <span>{vendor.phone}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Website:</span>
-                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" 
-                         className="text-blue-600 hover:underline flex items-center">
-                        Visit Site <ExternalLink className="ml-1 h-3 w-3" />
-                      </a>
-                    </div>
+                    {vendor.website ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Website:</span>
+                        <a href={vendor.website} target="_blank" rel="noopener noreferrer" 
+                           className="text-sky-600 dark:text-sky-400 hover:underline flex items-center">
+                          Visit Site <ExternalLink className="ml-1 h-3 w-3" />
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Website:</span>
+                        <span className="text-muted-foreground">Not provided</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -315,19 +272,27 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                   <CardContent>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{vendor.stats.completionRate}%</div>
+                        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                          {vendor.stats.completionRate !== null ? `${vendor.stats.completionRate}%` : 'N/A'}
+                        </div>
                         <div className="text-sm text-muted-foreground">Completion Rate</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{vendor.stats.onTimeDelivery}%</div>
+                        <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
+                          {vendor.stats.onTimeDelivery !== null ? `${vendor.stats.onTimeDelivery}%` : 'N/A'}
+                        </div>
                         <div className="text-sm text-muted-foreground">On-Time Delivery</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">{vendor.stats.clientRetention}%</div>
+                        <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">
+                          {vendor.stats.clientRetention !== null ? `${vendor.stats.clientRetention}%` : 'N/A'}
+                        </div>
                         <div className="text-sm text-muted-foreground">Client Retention</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-600">{vendor.stats.repeatBusiness}%</div>
+                        <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                          {vendor.stats.repeatBusiness !== null ? `${vendor.stats.repeatBusiness}%` : 'N/A'}
+                        </div>
                         <div className="text-sm text-muted-foreground">Repeat Business</div>
                       </div>
                     </div>
@@ -340,18 +305,20 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                     <CardTitle>Certifications</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {vendor.certifications.map((cert, index) => (
-                        <div key={index} className="border rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Award className="h-5 w-5 text-yellow-500" />
-                            <h4 className="font-medium">{cert.name}</h4>
+                    {vendor.certifications && vendor.certifications.length > 0 ? (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {vendor.certifications.map((cert: string, index: number) => (
+                          <div key={index} className="border rounded-lg p-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Award className="h-5 w-5 text-yellow-500" />
+                              <h4 className="font-medium">{cert}</h4>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground">{cert.issuer}</p>
-                          <p className="text-sm text-muted-foreground">Earned {cert.year}</p>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No certifications listed.</p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -362,28 +329,28 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                     <CardTitle>Areas of Expertise</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {vendor.specialties.map((specialty, index) => (
-                        <div key={index} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">{specialty.name}</h4>
-                            <Badge className={getSpecialtyColor(specialty.level)}>
-                              {specialty.level}
-                            </Badge>
-                          </div>
-                          <div className="grid gap-2 md:grid-cols-2 text-sm text-muted-foreground">
-                            <div className="flex items-center">
-                              <Calendar className="mr-1 h-3 w-3" />
-                              {specialty.years} years experience
-                            </div>
-                            <div className="flex items-center">
-                              <Briefcase className="mr-1 h-3 w-3" />
-                              {specialty.projects} projects completed
+                    {vendor.specialties && vendor.specialties.length > 0 ? (
+                      <div className="space-y-4">
+                        {vendor.specialties.map((specialty: any, index: number) => (
+                          <div key={index} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium">{specialty.name || specialty}</h4>
+                              <Badge variant="outline">{specialty.level || "N/A"}</Badge>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : vendor.categories && vendor.categories.length > 0 ? (
+                      <div className="space-y-4">
+                        {vendor.categories.map((category: string, index: number) => (
+                          <div key={index} className="border rounded-lg p-4">
+                            <h4 className="font-medium">{category}</h4>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No specialties listed.</p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -394,29 +361,25 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                     <CardTitle>Project Portfolio</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {vendor.portfolio.map((project, index) => (
-                        <div key={index} className="border rounded-lg overflow-hidden">
-                          <div className="h-40 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                            <FileText className="h-12 w-12 text-white" />
-                          </div>
-                          <div className="p-4">
-                            <h4 className="font-medium mb-2">{project.title}</h4>
-                            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                              {project.description}
-                            </p>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                              <Badge variant="outline">{project.category}</Badge>
-                              <span>{project.year}</span>
+                    {vendor.portfolio && vendor.portfolio.length > 0 ? (
+                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {vendor.portfolio.map((project: any, index: number) => (
+                          <div key={index} className="border rounded-lg overflow-hidden">
+                            <div className="h-40 bg-gradient-to-r from-sky-500 to-violet-500 flex items-center justify-center">
+                              <FileText className="h-12 w-12 text-white dark:text-white" />
                             </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span>{project.budget}</span>
-                              <span>{project.duration}</span>
+                            <div className="p-4">
+                              <h4 className="font-medium mb-2">{project.title}</h4>
+                              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                                {project.description}
+                              </p>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No portfolio items available.</p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -427,19 +390,22 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                     <CardTitle>Leadership Team</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {vendor.team.map((member, index) => (
-                        <div key={index} className="text-center">
-                          <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <Users className="h-10 w-10 text-white" />
+                    {vendor.team && vendor.team.length > 0 ? (
+                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {vendor.team.map((member: any, index: number) => (
+                          <div key={index} className="text-center">
+                            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-sky-500 to-violet-500 rounded-full flex items-center justify-center">
+                              <Users className="h-10 w-10 text-white dark:text-white" />
+                            </div>
+                            <h4 className="font-medium mb-1">{member.name}</h4>
+                            <p className="text-sm text-muted-foreground mb-1">{member.position}</p>
+                            <p className="text-xs text-muted-foreground">{member.bio}</p>
                           </div>
-                          <h4 className="font-medium mb-1">{member.name}</h4>
-                          <p className="text-sm text-muted-foreground mb-1">{member.position}</p>
-                          <p className="text-xs text-muted-foreground mb-2">{member.experience}</p>
-                          <p className="text-xs text-muted-foreground">{member.bio}</p>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No team information available.</p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -456,24 +422,7 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {vendor.reviews.map((review, index) => (
-                        <div key={index} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <div>
-                              <h4 className="font-medium">{review.author}</h4>
-                              <p className="text-sm text-muted-foreground">{review.project}</p>
-                            </div>
-                            <div className="text-right">
-                              {renderStars(review.rating)}
-                              <p className="text-xs text-muted-foreground">{review.date}</p>
-                            </div>
-                          </div>
-                          <h5 className="font-medium mb-2">{review.title}</h5>
-                          <p className="text-sm text-muted-foreground">{review.comment}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-muted-foreground text-sm">No reviews available yet.</p>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -483,7 +432,7 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Contact Card */}
-            <Card id="contact">
+            <Card id="contact-section">
               <CardHeader>
                 <CardTitle>Get in Touch</CardTitle>
                 <CardDescription>
@@ -491,18 +440,26 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full">
+                <Button className="w-full" onClick={() => setShowMessageDialog(true)}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Send Message
                 </Button>
-                <Button variant="outline" className="w-full">
-                  <Phone className="mr-2 h-4 w-4" />
-                  Call Now
-                </Button>
-                <Button variant="outline" className="w-full">
-                  <Mail className="mr-2 h-4 w-4" />
-                  Email Us
-                </Button>
+                {vendor.phone && (
+                  <Button variant="outline" className="w-full" onClick={() => {
+                    window.location.href = 'tel:' + vendor.phone
+                  }}>
+                    <Phone className="mr-2 h-4 w-4" />
+                    Call Now
+                  </Button>
+                )}
+                {vendor.email && (
+                  <Button variant="outline" className="w-full" onClick={() => {
+                    window.location.href = 'mailto:' + vendor.email
+                  }}>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Email Us
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -513,20 +470,22 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Profile Views</span>
-                  <span className="font-medium">2,847</span>
+                  <span className="text-sm">Projects</span>
+                  <span className="font-medium">{vendor.projects}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Contact Requests</span>
-                  <span className="font-medium">156</span>
+                  <span className="text-sm">Certifications</span>
+                  <span className="font-medium">{vendor.certifications?.length || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Active Bids</span>
-                  <span className="font-medium">23</span>
+                  <span className="text-sm">Categories</span>
+                  <span className="font-medium">{vendor.categories?.length || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Response Rate</span>
-                  <span className="font-medium text-green-600">98%</span>
+                  <span className="text-sm">Status</span>
+                  <Badge className={vendor.verified ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-muted text-muted-foreground"}>
+                    {vendor.verified ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
@@ -540,15 +499,9 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Current Status</span>
-                    <Badge className="bg-green-100 text-green-800">Available</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Next Available</span>
-                    <span className="text-sm font-medium">Immediately</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Project Queue</span>
-                    <span className="text-sm font-medium">3 projects</span>
+                    <Badge className={vendor.verified ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-muted text-muted-foreground"}> 
+                      {vendor.verified ? "Available" : "Unavailable"}
+                    </Badge>
                   </div>
                 </div>
               </CardContent>
@@ -556,6 +509,67 @@ export default function VendorProfile({ params }: { params: { id: string } }) {
           </div>
         </div>
       </div>
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Message to {vendor?.name || 'Vendor'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Your Name</Label>
+              <Input
+                placeholder="Enter your name"
+                value={messageName}
+                onChange={(e) => setMessageName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <Textarea
+                placeholder="Type your message here..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMessageDialog(false)}>Cancel</Button>
+            <Button disabled={!messageName.trim() || !messageText.trim() || sendingMessage} onClick={async () => {
+              setSendingMessage(true)
+              try {
+                const threadRes = await fetch('/api/messages/threads', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ subject: 'Message to ' + (vendor?.name || 'Vendor') }),
+                })
+                if (threadRes.ok) {
+                  const thread = await threadRes.json()
+                  const msgRes = await fetch('/api/messages/threads/' + thread.id + '/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: messageText.trim() }),
+                  })
+                  if (msgRes.ok) {
+                    toast.success('Message sent successfully')
+                    setShowMessageDialog(false)
+                    setMessageName('')
+                    setMessageText('')
+                  } else {
+                    toast.error('Failed to send message')
+                  }
+                } else {
+                  toast.error('Failed to create conversation')
+                }
+              } catch {
+                toast.error('Failed to send message')
+              } finally {
+                setSendingMessage(false)
+              }
+            }}>{sendingMessage ? 'Sending...' : 'Send Message'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   )
 }

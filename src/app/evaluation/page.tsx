@@ -1,7 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { MainLayout } from "@/components/layout/main-layout"
+import { EmptyState } from "@/components/shared/empty-state"
+import { LoadingTable } from "@/components/shared/loading-table"
+import { getStatusColor, getScoreColor, getScoreStars } from "@/lib/status-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,17 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { 
-  Star,
-  Users,
-  FileText,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  TrendingUp,
-  Target,
-  Award
-} from "lucide-react"
+import { Users, Clock, CheckCircle, TrendingUp, Target, Award, ClipboardCheck, CheckCircle2 } from "lucide-react"
+import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface Evaluation {
   id: string
@@ -45,110 +41,44 @@ interface Evaluation {
 }
 
 export default function EvaluationPage() {
+  useEffect(() => { document.title = 'Evaluation Dashboard | RFP Platform' }, [])
+  const router = useRouter()
   const [evaluations, setEvaluations] = useState<Evaluation[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Mock data for demonstration
-  const mockEvaluations: Evaluation[] = [
-    {
-      id: "1",
-      rfpTitle: "IT Managed Services 2024",
-      vendorName: "Tech Solutions Inc",
-      status: "in_progress",
-      averageScore: 3.8,
-      maxScore: 5,
-      evaluatorCount: 2,
-      requiredEvaluators: 3,
-      deadline: "2024-12-20",
-      submissions: [
-        { id: "1", vendor: "Tech Solutions Inc", score: 3.8, status: "in_progress" },
-        { id: "2", vendor: "Global IT Services", score: 4.2, status: "in_progress" },
-        { id: "3", vendor: "Digital Dynamics", score: 3.5, status: "pending" }
-      ]
-    },
-    {
-      id: "2",
-      rfpTitle: "Marketing Campaign Services",
-      vendorName: "Creative Agency Pro",
-      status: "pending",
-      averageScore: 0,
-      maxScore: 5,
-      evaluatorCount: 0,
-      requiredEvaluators: 2,
-      deadline: "2024-12-25",
-      submissions: [
-        { id: "1", vendor: "Creative Agency Pro", score: 0, status: "pending" },
-        { id: "2", vendor: "Marketing Masters", score: 0, status: "pending" }
-      ]
-    },
-    {
-      id: "3",
-      rfpTitle: "Office Equipment Procurement",
-      vendorName: "Office Supplies Co",
-      status: "completed",
-      averageScore: 4.1,
-      maxScore: 5,
-      evaluatorCount: 3,
-      requiredEvaluators: 3,
-      deadline: "2024-12-10",
-      submissions: [
-        { id: "1", vendor: "Office Supplies Co", score: 4.1, status: "completed" },
-        { id: "2", vendor: "Business Essentials", score: 3.9, status: "completed" },
-        { id: "3", vendor: "Workplace Solutions", score: 4.3, status: "completed" }
-      ]
-    }
-  ]
-
   useEffect(() => {
-    setTimeout(() => {
-      setEvaluations(mockEvaluations)
-      setLoading(false)
-    }, 1000)
-  }, [])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-800"
-      case "in_progress":
-        return "bg-blue-100 text-blue-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "finalized":
-        return "bg-purple-100 text-purple-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getScoreColor = (score: number, maxScore: number) => {
-    const percentage = (score / maxScore) * 100
-    if (percentage >= 80) return "text-green-600"
-    if (percentage >= 60) return "text-yellow-600"
-    return "text-red-600"
-  }
-
-  const getScoreStars = (score: number, maxScore: number) => {
-    const stars = []
-    const filledStars = Math.round((score / maxScore) * 5)
-    
-    for (let i = 1; i <= 5; i++) {
-      if (i <= filledStars) {
-        stars.push(<Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />)
-      } else {
-        stars.push(<Star key={i} className="h-4 w-4 text-gray-300" />)
+    const fetchEvaluations = async () => {
+      try {
+        const res = await fetch('/api/evaluations')
+        if (!res.ok) throw new Error('Failed to fetch evaluations')
+        const data = await res.json()
+        const mapped: Evaluation[] = (Array.isArray(data) ? data : []).map((e: any) => ({
+          id: e.id,
+          rfpTitle: e.rfpTitle || 'Untitled RFP',
+          vendorName: `${e.vendorCount || 0} vendor${(e.vendorCount || 0) !== 1 ? 's' : ''}`,
+          status: e.status || 'pending',
+          averageScore: e.averageScore || 0,
+          maxScore: 5,
+          evaluatorCount: e.submissionCount || 0,
+          requiredEvaluators: Math.max(e.submissionCount || 0, 1),
+          deadline: e.deadline || e.createdAt || '',
+          submissions: [],
+        }))
+        setEvaluations(mapped)
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to load evaluations')
+      } finally {
+        setLoading(false)
       }
     }
-    
-    return stars
-  }
+    fetchEvaluations()
+  }, [])
 
   if (loading) {
     return (
       <MainLayout title="Evaluation Dashboard">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading evaluation data...</div>
-        </div>
+        <LoadingTable rows={5} columns={7} />
       </MainLayout>
     )
   }
@@ -240,18 +170,18 @@ export default function EvaluationPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                       <div className="text-sm font-medium">Average Score</div>
-                      <div className={`text-2xl font-bold ${getScoreColor(evaluation.averageScore, evaluation.maxScore)}`}>
+                      <div className={`text-2xl font-bold ${getScoreColor((evaluation.averageScore / evaluation.maxScore) * 100)}`}>
                         {evaluation.averageScore.toFixed(1)}/{evaluation.maxScore}
                       </div>
                       <div className="flex mt-1">
-                        {getScoreStars(evaluation.averageScore, evaluation.maxScore)}
+                        {getScoreStars((evaluation.averageScore / evaluation.maxScore) * 100)}
                       </div>
                     </div>
                     <div>
                       <div className="text-sm font-medium">Evaluator Progress</div>
                       <div className="mt-1">
                         <Progress 
-                          value={(evaluation.evaluatorCount / evaluation.requiredEvaluators) * 100} 
+                          value={evaluation.requiredEvaluators > 0 ? (evaluation.evaluatorCount / evaluation.requiredEvaluators) * 100 : 0} 
                           className="w-full"
                         />
                         <div className="text-sm text-muted-foreground mt-1">
@@ -262,22 +192,19 @@ export default function EvaluationPage() {
                     <div>
                       <div className="text-sm font-medium">Deadline</div>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(evaluation.deadline).toLocaleDateString()}
+                        {evaluation.deadline ? formatDate(evaluation.deadline) : 'N/A'}
                       </div>
                     </div>
                   </div>
                   
                   <div className="flex justify-end">
-                    <Button size="sm">Continue Evaluation</Button>
+                    <Button size="sm" onClick={() => router.push('/evaluation/' + evaluation.id)}>Continue Evaluation</Button>
                   </div>
                 </div>
               ))}
               
               {evaluations.filter(e => e.status === "in_progress").length === 0 && (
-                <div className="text-center py-8">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No active evaluations at the moment.</p>
-                </div>
+                <EmptyState icon={ClipboardCheck} title="No active evaluations" description="Evaluations will appear here once RFPs move to the evaluation phase." />
               )}
             </div>
           </CardContent>
@@ -292,11 +219,12 @@ export default function EvaluationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>RFP</TableHead>
-                  <TableHead>Vendor</TableHead>
+                  <TableHead>Vendors</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Score</TableHead>
                   <TableHead>Evaluators</TableHead>
@@ -318,11 +246,11 @@ export default function EvaluationPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <span className={`font-medium ${getScoreColor(evaluation.averageScore, evaluation.maxScore)}`}>
+                        <span className={`font-medium ${getScoreColor((evaluation.averageScore / evaluation.maxScore) * 100)}`}>
                           {evaluation.averageScore.toFixed(1)}
                         </span>
                         <div className="flex">
-                          {getScoreStars(evaluation.averageScore, evaluation.maxScore)}
+                          {getScoreStars((evaluation.averageScore / evaluation.maxScore) * 100)}
                         </div>
                       </div>
                     </TableCell>
@@ -333,18 +261,26 @@ export default function EvaluationPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {new Date(evaluation.deadline).toLocaleDateString()}
+                        {evaluation.deadline ? formatDate(evaluation.deadline) : 'N/A'}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => router.push('/evaluation/' + evaluation.id)}>
                         {evaluation.status === "pending" ? "Start" : "View"}
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
+                {evaluations.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <p className="text-muted-foreground">No evaluations found.</p>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
 
@@ -368,8 +304,8 @@ export default function EvaluationPage() {
                 .map((evaluation, index) => (
                   <div key={evaluation.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-bold text-yellow-800">#{index + 1}</span>
+                      <div className="w-8 h-8 bg-amber-500/15 dark:bg-amber-500/25 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-bold text-amber-700 dark:text-amber-300">#{index + 1}</span>
                       </div>
                       <div>
                         <div className="font-medium">{evaluation.vendorName}</div>
@@ -377,15 +313,18 @@ export default function EvaluationPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`font-bold ${getScoreColor(evaluation.averageScore, evaluation.maxScore)}`}>
+                      <div className={`font-bold ${getScoreColor((evaluation.averageScore / evaluation.maxScore) * 100)}`}>
                         {evaluation.averageScore.toFixed(1)}/{evaluation.maxScore}
                       </div>
                       <div className="flex justify-end">
-                        {getScoreStars(evaluation.averageScore, evaluation.maxScore)}
+                        {getScoreStars((evaluation.averageScore / evaluation.maxScore) * 100)}
                       </div>
                     </div>
                   </div>
                 ))}
+              {evaluations.filter(e => e.status === "completed").length === 0 && (
+                <EmptyState icon={CheckCircle2} title="No completed evaluations" description="Completed evaluations will appear here." />
+              )}
             </div>
           </CardContent>
         </Card>

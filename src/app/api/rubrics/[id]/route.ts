@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 
 const updateRubricSchema = z.object({
@@ -15,7 +15,7 @@ const updateRubricSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -23,11 +23,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tenantContext = getTenantContext()
+    const { id } = await params
+    const tenantContext = getTenantContext(session)
 
     const rubric = await db.rubricCriterion.findFirst({
       where: {
-        id: params.id,
+        id: id,
         OR: [
           { rfp: { tenantId: tenantContext.tenantId } },
           { section: { rfp: { tenantId: tenantContext.tenantId } } },
@@ -77,6 +78,8 @@ export async function GET(
 
     return NextResponse.json(rubric)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching rubric:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -84,7 +87,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -92,15 +95,16 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const validatedData = updateRubricSchema.parse(body)
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Verify rubric belongs to tenant
     const existingRubric = await db.rubricCriterion.findFirst({
       where: {
-        id: params.id,
+        id: id,
         OR: [
           { rfp: { tenantId: tenantContext.tenantId } },
           { section: { rfp: { tenantId: tenantContext.tenantId } } },
@@ -113,7 +117,7 @@ export async function PUT(
     }
 
     const rubric = await db.rubricCriterion.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
       include: {
         rfp: {
@@ -133,8 +137,10 @@ export async function PUT(
 
     return NextResponse.json(rubric)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Validation Error", details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
     console.error("Error updating rubric:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
@@ -143,7 +149,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -151,12 +157,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tenantContext = getTenantContext()
+    const { id } = await params
+    const tenantContext = getTenantContext(session)
 
     // Verify rubric belongs to tenant
     const existingRubric = await db.rubricCriterion.findFirst({
       where: {
-        id: params.id,
+        id: id,
         OR: [
           { rfp: { tenantId: tenantContext.tenantId } },
           { section: { rfp: { tenantId: tenantContext.tenantId } } },
@@ -169,11 +176,13 @@ export async function DELETE(
     }
 
     await db.rubricCriterion.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({ message: "Rubric criterion deleted successfully" })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting rubric:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

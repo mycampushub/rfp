@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { getTenantContext } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { db } from "@/lib/db"
 import ZAI from "z-ai-web-dev-sdk"
 
 // Mock external APIs for data integration
@@ -57,10 +58,13 @@ export async function GET(request: NextRequest) {
       endpoint: integration.endpoint,
       data: mockData,
       timestamp: new Date().toISOString(),
-      status: "success"
+      status: "success",
+      demo: true
     })
 
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error in data integration:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const tenantContext = getTenantContext()
+    const tenantContext = getTenantContext(session)
 
     // Handle different actions
     switch (action) {
@@ -101,6 +105,8 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error in data integration POST:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -179,8 +185,8 @@ function generateMockData(type: string, query?: string) {
   const data = baseData[type as keyof typeof baseData] || []
   
   if (query) {
-    return data.filter((item: any) => 
-      Object.values(item).some((value: any) => 
+    return data.filter((item: Record<string, unknown>) => 
+      Object.values(item).some((value) => 
         String(value).toLowerCase().includes(query.toLowerCase())
       )
     )
@@ -189,7 +195,7 @@ function generateMockData(type: string, query?: string) {
   return data
 }
 
-async function validateData(type: string, data: any) {
+async function validateData(type: string, data: Record<string, unknown>) {
   // Simulate data validation
   const validationRules = {
     business_registration: {
@@ -237,7 +243,7 @@ async function validateData(type: string, data: any) {
   })
 }
 
-async function enrichData(type: string, data: any) {
+async function enrichData(type: string, data: Record<string, unknown>) {
   // Simulate data enrichment using AI
   try {
     const zai = await ZAI.create()
@@ -307,8 +313,17 @@ async function syncData(type: string, data: any, tenantId: string) {
     recordCount: Array.isArray(data) ? data.length : 1
   }
 
-  // In a real implementation, this would store the sync record in the database
-  console.log("Data sync record:", syncRecord)
+  // Store sync record in ActivityLog
+  await db.activityLog.create({
+    data: {
+      tenantId,
+      actor: "system",
+      action: "integration_sync",
+      targetType: type,
+      targetId: syncRecord.id,
+      metadata: syncRecord as unknown as object,
+    },
+  })
 
   return NextResponse.json({
     success: true,

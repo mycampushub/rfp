@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
+import { EmptyState } from "@/components/shared/empty-state"
+import { LoadingCards } from "@/components/shared/loading-table"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { 
   BarChart, 
   Bar, 
@@ -16,23 +18,9 @@ import {
   Line,
   PieChart,
   Pie,
-  Cell,
-  Area,
-  AreaChart
+  Cell
 } from "recharts"
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Clock, 
-  Users, 
-  FileText,
-  Target,
-  Award,
-  Calendar,
-  Percent,
-  AlertTriangle
-} from "lucide-react"
+import { TrendingUp, DollarSign, Clock, FileText, Target, Award, Percent, AlertTriangle, BarChart3 } from "lucide-react"
 
 interface AnalyticsData {
   rfpMetrics: {
@@ -55,7 +43,7 @@ interface AnalyticsData {
   financialMetrics: {
     totalBudget: number
     totalAwarded: number
-    savings: number
+    budgetRemaining: number
     avgAwardValue: number
   }
   timelineMetrics: {
@@ -77,25 +65,29 @@ interface AnalyticsData {
 }
 
 export default function AnalyticsPage() {
+  useEffect(() => { document.title = 'Analytics | RFP Platform' }, [])
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+
+  const retryFetch = async () => {
+    setFetchError(null)
+    setLoading(true)
+    try {
+      const response = await fetch('/api/analytics?type=full')
+      if (!response.ok) throw new Error('Failed to fetch analytics')
+      const data = await response.json()
+      setData(data)
+    } catch (error) {
+      console.error('Error fetching analytics data:', error)
+      setFetchError('Failed to load analytics data. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchAnalyticsData = async () => {
-      try {
-        const response = await fetch('/api/analytics?type=full')
-        if (response.ok) {
-          const data = await response.json()
-          setData(data)
-        }
-      } catch (error) {
-        console.error('Error fetching analytics data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchAnalyticsData()
+    retryFetch()
   }, [])
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
@@ -103,9 +95,7 @@ export default function AnalyticsPage() {
   if (loading) {
     return (
       <MainLayout title="Analytics & Reporting">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading analytics...</div>
-        </div>
+        <LoadingCards count={4} />
       </MainLayout>
     )
   }
@@ -113,9 +103,16 @@ export default function AnalyticsPage() {
   if (!data) {
     return (
       <MainLayout title="Analytics & Reporting">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">No analytics data available</div>
-        </div>
+        {fetchError ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-4">
+            <AlertTriangle className="h-12 w-12 text-destructive" />
+            <h2 className="text-lg font-semibold">Error Loading Analytics</h2>
+            <p className="text-muted-foreground">{fetchError}</p>
+            <Button onClick={retryFetch} variant="outline">Try Again</Button>
+          </div>
+        ) : (
+          <EmptyState icon={BarChart3} title="No analytics data" description="Analytics will populate as you create and manage RFPs." />
+        )}
       </MainLayout>
     )
   }
@@ -152,7 +149,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {Math.round((data.rfpMetrics.awarded / data.rfpMetrics.total) * 100)}%
+                {Math.round((data.rfpMetrics.awarded / (data.rfpMetrics.total || 1)) * 100)}%
               </div>
               <p className="text-xs text-muted-foreground">
                 {data.rfpMetrics.awarded} awarded
@@ -161,15 +158,15 @@ export default function AnalyticsPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Savings</CardTitle>
+              <CardTitle className="text-sm font-medium">Budget Remaining</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${(data.financialMetrics.savings / 1000000).toFixed(1)}M
+                ${(data.financialMetrics.budgetRemaining / 1000000).toFixed(1)}M
               </div>
               <p className="text-xs text-muted-foreground">
-                vs original budget
+                unallocated from total budget
               </p>
             </CardContent>
           </Card>
@@ -271,7 +268,7 @@ export default function AnalyticsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4 text-blue-600" />
+                    <FileText className="h-4 w-4 text-sky-600 dark:text-sky-400" />
                     <span className="text-sm">Creation to Publish</span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -283,25 +280,25 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Target className="h-4 w-4 text-green-600" />
+                    <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     <span className="text-sm">Evaluation Time</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="font-medium">{data.timelineMetrics.avgEvaluationTime} days</span>
                     {data.timelineMetrics.avgEvaluationTime < 15 && (
-                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      <TrendingUp className="h-4 w-4 text-emerald-500" />
                     )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Award className="h-4 w-4 text-purple-600" />
+                    <Award className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                     <span className="text-sm">Publish to Award</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="font-medium">{data.timelineMetrics.avgPublishToAward} days</span>
                     {data.timelineMetrics.avgPublishToAward < 30 && (
-                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      <TrendingUp className="h-4 w-4 text-emerald-500" />
                     )}
                   </div>
                 </div>
@@ -321,8 +318,8 @@ export default function AnalyticsPage() {
               {data.vendorMetrics.topPerformers.map((vendor, index) => (
                 <div key={vendor.name} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-4">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-blue-800">{index + 1}</span>
+                    <div className="w-8 h-8 bg-sky-500/15 dark:bg-sky-500/25 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-sky-700 dark:text-sky-300">{index + 1}</span>
                     </div>
                     <div>
                       <div className="font-medium">{vendor.name}</div>
@@ -371,14 +368,14 @@ export default function AnalyticsPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Savings Achieved</CardTitle>
+              <CardTitle className="text-lg">Budget Remaining</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">
-                ${(data.financialMetrics.savings / 1000000).toFixed(1)}M
+              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                ${(data.financialMetrics.budgetRemaining / 1000000).toFixed(1)}M
               </div>
               <p className="text-sm text-muted-foreground">
-                {Math.round((data.financialMetrics.savings / data.financialMetrics.totalBudget) * 100)}% savings rate
+                {Math.round((data.financialMetrics.budgetRemaining / (data.financialMetrics.totalBudget || 1)) * 100)}% of total budget unallocated
               </p>
             </CardContent>
           </Card>

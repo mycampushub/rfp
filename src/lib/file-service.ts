@@ -40,7 +40,7 @@ export class FileService {
     const { createVersion = false, parentFileId } = options || {}
 
     // Generate unique file path
-    const fileId = parentFileId || uuidv4()
+    const fileId = uuidv4()
     const fileExtension = metadata.originalName.split(".").pop()
     const fileName = `${fileId}.${fileExtension}`
     const filePath = join(process.cwd(), "vault", fileName)

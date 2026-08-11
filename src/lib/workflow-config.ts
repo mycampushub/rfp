@@ -1,6 +1,3 @@
-import { db } from "@/lib/db"
-import { getTenantContext } from "@/lib/tenant-context"
-
 export interface WorkflowStage {
   id: string
   name: string
@@ -25,10 +22,9 @@ export interface WorkflowConfig {
 }
 
 export class WorkflowConfigManager {
-  static async getWorkflowConfigs(tenantId?: string): Promise<WorkflowConfig[]> {
+  static async getWorkflowConfigs(tenantId: string): Promise<WorkflowConfig[]> {
     try {
-      const tenantContext = getTenantContext()
-      const effectiveTenantId = tenantId || tenantContext.tenantId
+      const effectiveTenantId = tenantId
 
       // In a real implementation, this would fetch from a workflow_configs table
       // For now, we'll return the default configuration
@@ -39,10 +35,9 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async getWorkflowConfig(id: string, tenantId?: string): Promise<WorkflowConfig | null> {
+  static async getWorkflowConfig(id: string, tenantId: string): Promise<WorkflowConfig | null> {
     try {
-      const tenantContext = getTenantContext()
-      const effectiveTenantId = tenantId || tenantContext.tenantId
+      const effectiveTenantId = tenantId
 
       const configs = await this.getWorkflowConfigs(effectiveTenantId)
       return configs.find(config => config.id === id) || null
@@ -52,20 +47,17 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async createWorkflowConfig(config: Omit<WorkflowConfig, "id" | "createdAt" | "updatedAt">): Promise<WorkflowConfig> {
+  static async createWorkflowConfig(config: Omit<WorkflowConfig, "id" | "createdAt" | "updatedAt">, tenantId: string): Promise<WorkflowConfig> {
     try {
-      const tenantContext = getTenantContext()
-
       // In a real implementation, this would save to the database
       const newConfig: WorkflowConfig = {
         ...config,
         id: `workflow-${Date.now()}`,
-        tenantId: tenantContext.tenantId,
+        tenantId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
 
-      // TODO: Save to database
       console.log("Creating workflow config:", newConfig)
 
       return newConfig
@@ -75,14 +67,11 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async updateWorkflowConfig(id: string, updates: Partial<WorkflowConfig>): Promise<WorkflowConfig | null> {
+  static async updateWorkflowConfig(id: string, updates: Partial<WorkflowConfig>, tenantId: string): Promise<WorkflowConfig | null> {
     try {
-      const tenantContext = getTenantContext()
-
-      // TODO: Update in database
       console.log("Updating workflow config:", { id, updates })
 
-      const existingConfig = await this.getWorkflowConfig(id, tenantContext.tenantId)
+      const existingConfig = await this.getWorkflowConfig(id, tenantId)
       if (!existingConfig) {
         return null
       }
@@ -100,11 +89,8 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async deleteWorkflowConfig(id: string): Promise<boolean> {
+  static async deleteWorkflowConfig(id: string, tenantId: string): Promise<boolean> {
     try {
-      const tenantContext = getTenantContext()
-
-      // TODO: Delete from database
       console.log("Deleting workflow config:", id)
 
       return true
@@ -359,7 +345,7 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async getStageStatistics(tenantId?: string): Promise<{
+  static async getStageStatistics(tenantId: string): Promise<{
     totalApprovals: number
     pendingApprovals: number
     overdueApprovals: number
@@ -367,8 +353,7 @@ export class WorkflowConfigManager {
     stageBreakdown: Record<string, { total: number; completed: number; averageTime: number }>
   }> {
     try {
-      const tenantContext = getTenantContext()
-      const effectiveTenantId = tenantId || tenantContext.tenantId
+      const effectiveTenantId = tenantId
 
       // In a real implementation, this would fetch actual statistics from the database
       // For now, we'll return mock data

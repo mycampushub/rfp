@@ -1,9 +1,16 @@
+/**
+ * Versioned Vendors API (v1) — Single Vendor
+ *
+ * This is the versioned API under /api/v1/vendors/[id].
+ * The base routes at /api/vendors/[id] are considered legacy and will be deprecated.
+ *
+ * Consumers should migrate to these v1 endpoints for new integrations.
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { requireAuth, requirePermission } from "@/lib/auth-utils"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { db } from "@/lib/db"
-import { PERMISSIONS } from "@/types/auth"
 import { z } from "zod"
 
 const updateVendorSchema = z.object({
@@ -27,19 +34,19 @@ const updateVendorSchema = z.object({
 })
 
 interface RouteParams {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }>
 }
 
 // GET /api/v1/vendors/[id] - Get single vendor
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await requireAuth()
-    await requirePermission(PERMISSIONS.VIEW_RFP)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const ctx = getTenantContext(session)
+    const { id } = await params
 
-    const vendor = await db.vendor.findUnique({
-      where: { id: params.id },
+    const vendor = await db.vendor.findFirst({
+      where: { id, tenantId: ctx.tenantId },
       include: {
         invitations: {
           include: {
@@ -101,6 +108,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(vendor)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching vendor:", error)
     return NextResponse.json(
       { error: "Failed to fetch vendor" },
@@ -112,15 +121,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/v1/vendors/[id] - Update vendor
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await requireAuth()
-    await requirePermission(PERMISSIONS.EDIT_VENDOR)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const ctx = getTenantContext(session)
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateVendorSchema.parse(body)
 
     // Check if vendor exists
-    const existingVendor = await db.vendor.findUnique({
-      where: { id: params.id }
+    const existingVendor = await db.vendor.findFirst({
+      where: { id, tenantId: ctx.tenantId }
     })
 
     if (!existingVendor) {
@@ -129,10 +140,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       )
     }
-
-    // Update vendor
     const updatedVendor = await db.vendor.update({
-      where: { id: params.id },
+      where: { id, tenantId: ctx.tenantId },
       data: {
         ...(validatedData.name && { name: validatedData.name }),
         ...(validatedData.contactInfo && { contactInfo: validatedData.contactInfo }),
@@ -159,7 +168,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         actor: session.user.id,
         action: "UPDATE_VENDOR",
         targetType: "Vendor",
-        targetId: params.id,
+        targetId: id,
         metadata: {
           changes: validatedData
         }
@@ -168,9 +177,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(updatedVendor)
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.issues },
         { status: 400 }
       )
     }
@@ -186,12 +197,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/v1/vendors/[id] - Delete vendor
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await requireAuth()
-    await requirePermission(PERMISSIONS.DELETE_VENDOR)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const ctx = getTenantContext(session)
+    const { id } = await params
 
     // Check if vendor exists
-    const existingVendor = await db.vendor.findUnique({
-      where: { id: params.id }
+    const existingVendor = await db.vendor.findFirst({
+      where: { id, tenantId: ctx.tenantId }
     })
 
     if (!existingVendor) {
@@ -200,10 +213,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       )
     }
-
-    // Delete vendor (Prisma will handle cascading deletes)
     await db.vendor.delete({
-      where: { id: params.id }
+      where: { id, tenantId: ctx.tenantId }
     })
 
     // Log activity
@@ -213,7 +224,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         actor: session.user.id,
         action: "DELETE_VENDOR",
         targetType: "Vendor",
-        targetId: params.id,
+        targetId: id,
         metadata: {
           vendorName: existingVendor.name
         }
@@ -222,6 +233,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ message: "Vendor deleted successfully" })
   } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting vendor:", error)
     return NextResponse.json(
       { error: "Failed to delete vendor" },

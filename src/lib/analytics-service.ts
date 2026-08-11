@@ -22,7 +22,7 @@ export interface VendorMetrics {
 export interface FinancialMetrics {
   totalBudget: number
   totalAwarded: number
-  savings: number
+  budgetRemaining: number
   avgAwardValue: number
 }
 
@@ -83,25 +83,28 @@ export class AnalyticsService {
   }
 
   private static async getRFPMetrics(tenantId: string): Promise<RFPMetrics> {
-    const rfps = await db.rFP.findMany({
-      where: { tenantId },
-      include: {
-        timeline: true,
-      },
+    const tenantWhere = { tenantId }
+
+    const [total, published, inEvaluation, awarded] = await Promise.all([
+      db.rFP.count({ where: tenantWhere }),
+      db.rFP.count({ where: { ...tenantWhere, status: "published" } }),
+      db.rFP.count({ where: { ...tenantWhere, status: "evaluation" } }),
+      db.rFP.count({ where: { ...tenantWhere, status: "awarded" } }),
+    ])
+
+    // Calculate average cycle time (limited to recent records)
+    const rfpsForCycle = await db.rFP.findMany({
+      where: { ...tenantWhere },
+      include: { timeline: true },
+      take: 1000,
     })
 
-    const total = rfps.length
-    const published = rfps.filter(r => r.status === "published").length
-    const inEvaluation = rfps.filter(r => r.status === "evaluation").length
-    const awarded = rfps.filter(r => r.status === "awarded").length
-
-    // Calculate average cycle time
-    const cycleTimes = rfps
+    const cycleTimes = rfpsForCycle
       .filter(r => r.timeline && r.timeline.awardTarget)
       .map(r => {
         const created = new Date(r.createdAt).getTime()
-        const awarded = new Date(r.timeline.awardTarget!).getTime()
-        return Math.ceil((awarded - created) / (1000 * 60 * 60 * 24)) // days
+        const awardTarget = new Date(r.timeline.awardTarget!).getTime()
+        return Math.ceil((awardTarget - created) / (1000 * 60 * 60 * 24)) // days
       })
 
     const avgCycleTime = cycleTimes.length > 0
@@ -118,39 +121,34 @@ export class AnalyticsService {
   }
 
   private static async getVendorMetrics(tenantId: string): Promise<VendorMetrics> {
-    const vendors = await db.vendor.findMany({
-      where: { tenantId },
-    })
+    const vendorWhere = { tenantId }
 
-    const total = vendors.length
-    const active = vendors.filter(v => v.isActive).length
+    const [total, active] = await Promise.all([
+      db.vendor.count({ where: vendorWhere }),
+      db.vendor.count({ where: { ...vendorWhere, isActive: true } }),
+    ])
 
-    // Calculate response rate
-    const invitations = await db.invitation.findMany({
-      where: {
-        rfp: {
-          tenantId,
-        },
-      },
-    })
+    // Calculate response rate using counts
+    const [totalInvitations, acceptedInvitations] = await Promise.all([
+      db.invitation.count({ where: { rfp: { tenantId } } }),
+      db.invitation.count({ where: { rfp: { tenantId }, status: "accepted" } }),
+    ])
 
-    const respondedInvitations = invitations.filter(i => i.status === "accepted")
-    const avgResponseRate = invitations.length > 0
-      ? Math.round((respondedInvitations.length / invitations.length) * 100)
+    const avgResponseRate = totalInvitations > 0
+      ? Math.round((acceptedInvitations / totalInvitations) * 100)
       : 0
 
-    // Calculate top performers
+    // Calculate top performers (limited set)
     const submissions = await db.submission.findMany({
       where: {
-        rfp: {
-          tenantId,
-        },
+        rfp: { tenantId },
         status: "awarded",
       },
       include: {
-        vendor: true,
+        vendor: { select: { id: true, name: true } },
         consensus: true,
       },
+      take: 1000,
     })
 
     const vendorStats = new Map<string, {
@@ -191,9 +189,16 @@ export class AnalyticsService {
       }
     })
 
+    const vendorNameMap = new Map<string, string>()
+    submissions.forEach(s => {
+      if (s.vendor && !vendorNameMap.has(s.vendorId)) {
+        vendorNameMap.set(s.vendorId, s.vendor.name)
+      }
+    })
+
     const topPerformers = Array.from(vendorStats.entries())
       .map(([vendorId, stats]) => ({
-        name: vendors.find(v => v.id === vendorId)?.name || "Unknown",
+        name: vendorNameMap.get(vendorId) || "Unknown",
         winRate: stats.submissions > 0 ? Math.round((stats.awards / stats.submissions) * 100) : 0,
         avgScore: stats.scoreCount > 0 ? stats.totalScore / stats.scoreCount : 0,
       }))
@@ -209,26 +214,30 @@ export class AnalyticsService {
   }
 
   private static async getFinancialMetrics(tenantId: string): Promise<FinancialMetrics> {
-    const rfps = await db.rFP.findMany({
-      where: { tenantId },
-      select: {
-        budget: true,
-        status: true,
-      },
-    })
+    const tenantWhere = { tenantId }
 
-    const totalBudget = rfps.reduce((sum, rfp) => sum + (rfp.budget || 0), 0)
+    // Use aggregate for sum instead of loading all records
+    const [allBudgetAgg, awardedBudgetAgg, awardedCount] = await Promise.all([
+      db.rFP.aggregate({
+        where: tenantWhere,
+        _sum: { budget: true },
+      }),
+      db.rFP.aggregate({
+        where: { ...tenantWhere, status: "awarded" },
+        _sum: { budget: true },
+      }),
+      db.rFP.count({ where: { ...tenantWhere, status: "awarded" } }),
+    ])
 
-    const awardedRfps = rfps.filter(rfp => rfp.status === "awarded")
-    const totalAwarded = awardedRfps.reduce((sum, rfp) => sum + (rfp.budget || 0), 0)
-
-    const savings = totalBudget - totalAwarded
-    const avgAwardValue = awardedRfps.length > 0 ? totalAwarded / awardedRfps.length : 0
+    const totalBudget = allBudgetAgg._sum.budget || 0
+    const totalAwarded = awardedBudgetAgg._sum.budget || 0
+    const budgetRemaining = totalBudget - totalAwarded
+    const avgAwardValue = awardedCount > 0 ? totalAwarded / awardedCount : 0
 
     return {
       totalBudget,
       totalAwarded,
-      savings,
+      budgetRemaining,
       avgAwardValue,
     }
   }
@@ -239,6 +248,7 @@ export class AnalyticsService {
       include: {
         timeline: true,
       },
+      take: 1000,
     })
 
     const creationToPublishTimes: number[] = []
@@ -322,34 +332,19 @@ export class AnalyticsService {
   }
 
   private static async getCategoryData(tenantId: string): Promise<CategoryData[]> {
-    const rfps = await db.rFP.findMany({
+    // Use groupBy for efficient aggregation instead of loading all records
+    const grouped = await db.rFP.groupBy({
+      by: ['category'],
       where: { tenantId },
-      select: {
-        category: true,
-        budget: true,
-      },
+      _count: true,
+      _sum: { budget: true },
     })
 
-    const categoryStats = new Map<string, { count: number; value: number }>()
-
-    rfps.forEach(rfp => {
-      const category = rfp.category || "Uncategorized"
-      const budget = rfp.budget || 0
-
-      if (!categoryStats.has(category)) {
-        categoryStats.set(category, { count: 0, value: 0 })
-      }
-
-      const stats = categoryStats.get(category)!
-      stats.count++
-      stats.value += budget
-    })
-
-    return Array.from(categoryStats.entries())
-      .map(([category, stats]) => ({
-        category,
-        count: stats.count,
-        value: stats.value,
+    return grouped
+      .map(item => ({
+        category: item.category || "Uncategorized",
+        count: item._count,
+        value: item._sum.budget || 0,
       }))
       .sort((a, b) => b.value - a.value)
   }
@@ -382,7 +377,7 @@ export class AnalyticsService {
       db.submission.count({
         where: {
           rfp: { tenantId },
-          status: { in: ["pending", "in_progress"] }
+          status: { in: ["draft", "submitted"] }
         }
       }),
       db.approvalRequest.count({
@@ -418,19 +413,19 @@ export class AnalyticsService {
       where: {
         rfp: { tenantId },
         status: "accepted",
-        acceptedAt: { not: null },
       },
       select: {
         createdAt: true,
-        acceptedAt: true,
+        updatedAt: true,
       },
+      take: 1000,
     })
 
     if (invitations.length === 0) return 0
 
     const responseTimes = invitations.map(inv => {
       const created = new Date(inv.createdAt).getTime()
-      const accepted = new Date(inv.acceptedAt!).getTime()
+      const accepted = new Date(inv.updatedAt).getTime()
       return Math.ceil((accepted - created) / (1000 * 60 * 60)) // hours
     })
 
