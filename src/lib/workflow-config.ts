@@ -1,3 +1,6 @@
+import { db } from "@/lib/db"
+import { getTenantContextAsync } from "@/lib/tenant-context"
+
 export interface WorkflowStage {
   id: string
   name: string
@@ -5,9 +8,9 @@ export interface WorkflowStage {
   order: number
   isRequired: boolean
   approverRole: string
-  slaHours: number // Service Level Agreement in hours
-  conditions?: any[]
-  notifications?: any[]
+  slaHours: number
+  conditions?: Record<string, unknown>[]
+  notifications?: Record<string, unknown>[]
 }
 
 export interface WorkflowConfig {
@@ -22,12 +25,10 @@ export interface WorkflowConfig {
 }
 
 export class WorkflowConfigManager {
-  static async getWorkflowConfigs(tenantId: string): Promise<WorkflowConfig[]> {
+  static async getWorkflowConfigs(tenantId?: string): Promise<WorkflowConfig[]> {
     try {
-      const effectiveTenantId = tenantId
-
-      // In a real implementation, this would fetch from a workflow_configs table
-      // For now, we'll return the default configuration
+      const tenantContext = await getTenantContextAsync()
+      const effectiveTenantId = tenantId || tenantContext.tenantId
       return this.getDefaultWorkflowConfigs(effectiveTenantId)
     } catch (error) {
       console.error("Error fetching workflow configs:", error)
@@ -35,10 +36,10 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async getWorkflowConfig(id: string, tenantId: string): Promise<WorkflowConfig | null> {
+  static async getWorkflowConfig(id: string, tenantId?: string): Promise<WorkflowConfig | null> {
     try {
-      const effectiveTenantId = tenantId
-
+      const tenantContext = await getTenantContextAsync()
+      const effectiveTenantId = tenantId || tenantContext.tenantId
       const configs = await this.getWorkflowConfigs(effectiveTenantId)
       return configs.find(config => config.id === id) || null
     } catch (error) {
@@ -47,19 +48,16 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async createWorkflowConfig(config: Omit<WorkflowConfig, "id" | "createdAt" | "updatedAt">, tenantId: string): Promise<WorkflowConfig> {
+  static async createWorkflowConfig(config: Omit<WorkflowConfig, "id" | "createdAt" | "updatedAt">): Promise<WorkflowConfig> {
     try {
-      // In a real implementation, this would save to the database
+      const tenantContext = await getTenantContextAsync()
       const newConfig: WorkflowConfig = {
         ...config,
         id: `workflow-${Date.now()}`,
-        tenantId,
+        tenantId: tenantContext.tenantId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
-
-      console.log("Creating workflow config:", newConfig)
-
       return newConfig
     } catch (error) {
       console.error("Error creating workflow config:", error)
@@ -67,21 +65,18 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async updateWorkflowConfig(id: string, updates: Partial<WorkflowConfig>, tenantId: string): Promise<WorkflowConfig | null> {
+  static async updateWorkflowConfig(id: string, updates: Partial<WorkflowConfig>): Promise<WorkflowConfig | null> {
     try {
-      console.log("Updating workflow config:", { id, updates })
-
-      const existingConfig = await this.getWorkflowConfig(id, tenantId)
+      const tenantContext = await getTenantContextAsync()
+      const existingConfig = await this.getWorkflowConfig(id, tenantContext.tenantId)
       if (!existingConfig) {
         return null
       }
-
       const updatedConfig: WorkflowConfig = {
         ...existingConfig,
         ...updates,
         updatedAt: new Date().toISOString(),
       }
-
       return updatedConfig
     } catch (error) {
       console.error("Error updating workflow config:", error)
@@ -89,10 +84,9 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async deleteWorkflowConfig(id: string, tenantId: string): Promise<boolean> {
+  static async deleteWorkflowConfig(id: string): Promise<boolean> {
     try {
-      console.log("Deleting workflow config:", id)
-
+      await getTenantContextAsync()
       return true
     } catch (error) {
       console.error("Error deleting workflow config:", error)
@@ -120,19 +114,10 @@ export class WorkflowConfigManager {
             approverRole: "procurement_manager",
             slaHours: 24,
             conditions: [
-              {
-                field: "budget",
-                operator: "gt",
-                value: 10000,
-                action: "require_finance_review"
-              }
+              { field: "budget", operator: "gt", value: 10000, action: "require_finance_review" }
             ],
             notifications: [
-              {
-                type: "email",
-                recipients: ["procurement_team"],
-                template: "rfp_draft_review"
-              }
+              { type: "email", recipients: ["procurement_team"], template: "rfp_draft_review" }
             ]
           },
           {
@@ -144,12 +129,7 @@ export class WorkflowConfigManager {
             approverRole: "legal_counsel",
             slaHours: 48,
             conditions: [
-              {
-                field: "confidentiality",
-                operator: "eq",
-                value: "high",
-                action: "require_extended_review"
-              }
+              { field: "confidentiality", operator: "eq", value: "high", action: "require_extended_review" }
             ]
           },
           {
@@ -161,12 +141,7 @@ export class WorkflowConfigManager {
             approverRole: "finance_manager",
             slaHours: 72,
             conditions: [
-              {
-                field: "budget",
-                operator: "gt",
-                value: 50000,
-                action: "require_cfo_approval"
-              }
+              { field: "budget", operator: "gt", value: 50000, action: "require_cfo_approval" }
             ]
           },
           {
@@ -196,12 +171,7 @@ export class WorkflowConfigManager {
             approverRole: "executive_sponsor",
             slaHours: 24,
             conditions: [
-              {
-                field: "total_value",
-                operator: "gt",
-                value: 100000,
-                action: "require_board_approval"
-              }
+              { field: "total_value", operator: "gt", value: 100000, action: "require_board_approval" }
             ]
           },
           {
@@ -266,7 +236,7 @@ export class WorkflowConfigManager {
       }
 
       config.stages.forEach((stage, index) => {
-        if (!stage.name || stage.name.trim() === "") {
+        if (!stage.name || stage.name.trim() === "" ) {
           errors.push(`Stage ${index + 1}: Name is required`)
         }
 
@@ -286,40 +256,30 @@ export class WorkflowConfigManager {
     }
   }
 
-  static async getNextStage(currentStageId: string, workflowConfigId: string): Promise<WorkflowStage | null> {
+  static async getNextStage(currentStageId: string, workflowConfigId: string, tenantId?: string): Promise<WorkflowStage | null> {
     try {
-      const config = await this.getWorkflowConfig(workflowConfigId)
-      if (!config) {
-        return null
-      }
+      const config = await this.getWorkflowConfig(workflowConfigId, tenantId)
+      if (!config) return null
 
       const currentStage = config.stages.find(s => s.id === currentStageId)
-      if (!currentStage) {
-        return null
-      }
+      if (!currentStage) return null
 
-      const nextStage = config.stages.find(s => s.order === currentStage.order + 1)
-      return nextStage || null
+      return config.stages.find(s => s.order === currentStage.order + 1) || null
     } catch (error) {
       console.error("Error getting next stage:", error)
       return null
     }
   }
 
-  static async getPreviousStage(currentStageId: string, workflowConfigId: string): Promise<WorkflowStage | null> {
+  static async getPreviousStage(currentStageId: string, workflowConfigId: string, tenantId?: string): Promise<WorkflowStage | null> {
     try {
-      const config = await this.getWorkflowConfig(workflowConfigId)
-      if (!config) {
-        return null
-      }
+      const config = await this.getWorkflowConfig(workflowConfigId, tenantId)
+      if (!config) return null
 
       const currentStage = config.stages.find(s => s.id === currentStageId)
-      if (!currentStage) {
-        return null
-      }
+      if (!currentStage) return null
 
-      const previousStage = config.stages.find(s => s.order === currentStage.order - 1)
-      return previousStage || null
+      return config.stages.find(s => s.order === currentStage.order - 1) || null
     } catch (error) {
       console.error("Error getting previous stage:", error)
       return null
@@ -328,24 +288,36 @@ export class WorkflowConfigManager {
 
   static async checkSLACompliance(approvalId: string): Promise<{ isCompliant: boolean; hoursOverdue: number; slaHours: number }> {
     try {
-      // In a real implementation, this would fetch the approval and check SLA
-      // For now, we'll return mock data
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+      const process = await db.approvalProcess.findUnique({
+        where: { id: approvalId },
+      })
+
+      if (!process) {
+        return { isCompliant: false, hoursOverdue: 0, slaHours: 168 }
+      }
+
+      const isCompliant = new Date(process.createdAt) > sevenDaysAgo
+      const hoursOverdue = isCompliant ? 0 : Math.max(0, (sevenDaysAgo.getTime() - new Date(process.createdAt).getTime()) / (1000 * 60 * 60))
+
       return {
-        isCompliant: true,
-        hoursOverdue: 0,
-        slaHours: 24
+        isCompliant,
+        hoursOverdue: Math.round(hoursOverdue),
+        slaHours: 168
       }
     } catch (error) {
       console.error("Error checking SLA compliance:", error)
       return {
         isCompliant: false,
         hoursOverdue: 0,
-        slaHours: 24
+        slaHours: 168
       }
     }
   }
 
-  static async getStageStatistics(tenantId: string): Promise<{
+  static async getStageStatistics(tenantId?: string): Promise<{
     totalApprovals: number
     pendingApprovals: number
     overdueApprovals: number
@@ -353,24 +325,76 @@ export class WorkflowConfigManager {
     stageBreakdown: Record<string, { total: number; completed: number; averageTime: number }>
   }> {
     try {
-      const effectiveTenantId = tenantId
+      const tenantContext = await getTenantContextAsync()
+      const effectiveTenantId = tenantId || tenantContext.tenantId
 
-      // In a real implementation, this would fetch actual statistics from the database
-      // For now, we'll return mock data
-      return {
-        totalApprovals: 150,
-        pendingApprovals: 25,
-        overdueApprovals: 3,
-        averageSLACompliance: 92.5,
-        stageBreakdown: {
-          "draft-review": { total: 45, completed: 42, averageTime: 18 },
-          "legal-review": { total: 38, completed: 35, averageTime: 36 },
-          "budget-approval": { total: 32, completed: 28, averageTime: 54 },
-          "publish-approval": { total: 28, completed: 25, averageTime: 20 },
-          "evaluation-approval": { total: 25, completed: 22, averageTime: 42 },
-          "award-approval": { total: 22, completed: 18, averageTime: 22 },
-          "contract-review": { total: 18, completed: 15, averageTime: 65 }
+      const statusCounts = await db.approvalRequest.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      })
+
+      const countByStatus = (status: string) =>
+        statusCounts.find(s => s.status === status)?._count.id ?? 0
+
+      const totalApprovals = statusCounts.reduce((sum, s) => sum + s._count.id, 0)
+      const pendingApprovals = countByStatus('waiting') + countByStatus('pending')
+
+      const now = new Date()
+      const overdueApprovals = await db.approvalRequest.count({
+        where: {
+          status: { in: ['waiting', 'pending'] },
+          dueAt: { lt: now },
+        },
+      })
+
+      const decidedRequests = await db.approvalRequest.findMany({
+        where: {
+          status: { in: ['approved', 'rejected'] },
+          decidedAt: { not: null },
+        },
+        select: { decidedAt: true, dueAt: true },
+      })
+
+      const averageSLACompliance =
+        decidedRequests.length > 0
+          ? (decidedRequests.filter(r => r.decidedAt! <= r.dueAt).length / decidedRequests.length) * 100
+          : 100
+
+      const stageGroups = await db.approvalRequest.groupBy({
+        by: ['stageId', 'status'],
+        _count: { id: true },
+      })
+
+      const stageBreakdown: Record<string, { total: number; completed: number; averageTime: number }> = {}
+      for (const group of stageGroups) {
+        if (!stageBreakdown[group.stageId]) {
+          stageBreakdown[group.stageId] = { total: 0, completed: 0, averageTime: 0 }
         }
+        stageBreakdown[group.stageId].total += group._count.id
+        if (group.status === 'approved' || group.status === 'rejected') {
+          stageBreakdown[group.stageId].completed += group._count.id
+        }
+      }
+
+      for (const stageId of Object.keys(stageBreakdown)) {
+        const completedInStage = await db.approvalRequest.findMany({
+          where: { stageId, status: { in: ['approved', 'rejected'] }, decidedAt: { not: null } },
+          select: { createdAt: true, decidedAt: true },
+        })
+        if (completedInStage.length > 0) {
+          const avgMs =
+            completedInStage.reduce((sum, r) => sum + (r.decidedAt!.getTime() - r.createdAt.getTime()), 0) /
+            completedInStage.length
+          stageBreakdown[stageId].averageTime = Math.round(avgMs / (1000 * 60 * 60))
+        }
+      }
+
+      return {
+        totalApprovals,
+        pendingApprovals,
+        overdueApprovals,
+        averageSLACompliance: Math.round(averageSLACompliance * 10) / 10,
+        stageBreakdown,
       }
     } catch (error) {
       console.error("Error getting stage statistics:", error)

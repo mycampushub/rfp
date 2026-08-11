@@ -12,9 +12,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Slider } from "@/components/ui/slider"
-import { Plus, Edit, Trash2, GripVertical, Target, Scale, Eye, Percent, Info } from "lucide-react"
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  GripVertical, 
+  Star,
+  Target,
+  Scale,
+  Settings,
+  Copy,
+  Eye,
+  Percent,
+  Info
+} from "lucide-react"
 import { toast } from "sonner"
 
 interface RubricCriterion {
@@ -152,7 +165,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
         <div className="flex items-center space-x-4">
           <div className="text-sm">
             <span className="font-medium">Total Weight: </span>
-            <span className={totalWeight === 100 ? "text-emerald-600 dark:text-emerald-400" : "text-orange-600 dark:text-orange-400"}>
+            <span className={totalWeight === 100 ? "text-green-600" : "text-orange-600"}>
               {totalWeight.toFixed(1)}%
             </span>
             {totalWeight !== 100 && (
@@ -186,7 +199,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                     placeholder="e.g., Technical Approach, Cost Effectiveness, Experience"
                   />
                   {criterionForm.formState.errors.label && (
-                    <p className="text-sm text-red-600 dark:text-red-400">{criterionForm.formState.errors.label.message}</p>
+                    <p className="text-sm text-red-600">{criterionForm.formState.errors.label.message}</p>
                   )}
                 </div>
 
@@ -236,7 +249,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                     </div>
                   </div>
                   {criterionForm.formState.errors.weight && (
-                    <p className="text-sm text-red-600 dark:text-red-400">{criterionForm.formState.errors.weight.message}</p>
+                    <p className="text-sm text-red-600">{criterionForm.formState.errors.weight.message}</p>
                   )}
                 </div>
 
@@ -251,7 +264,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                       placeholder="1"
                     />
                     {criterionForm.formState.errors.scaleMin && (
-                      <p className="text-sm text-red-600 dark:text-red-400">{criterionForm.formState.errors.scaleMin.message}</p>
+                      <p className="text-sm text-red-600">{criterionForm.formState.errors.scaleMin.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
@@ -264,7 +277,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                       placeholder="5"
                     />
                     {criterionForm.formState.errors.scaleMax && (
-                      <p className="text-sm text-red-600 dark:text-red-400">{criterionForm.formState.errors.scaleMax.message}</p>
+                      <p className="text-sm text-red-600">{criterionForm.formState.errors.scaleMax.message}</p>
                     )}
                   </div>
                 </div>
@@ -354,7 +367,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteCriterion(criterion.id)}
-                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                      className="text-red-600 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -398,7 +411,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                       </div>
                     </div>
                     {criterion.guidance && (
-                      <div className="mt-3 p-2 bg-muted/50 rounded text-xs">
+                      <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
                         <strong>Guidance:</strong> {criterion.guidance}
                       </div>
                     )}
@@ -406,7 +419,7 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                 ))}
               </div>
               
-              <div className="mt-6 p-4 bg-sky-500/10 dark:bg-sky-500/20 rounded-lg">
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <h5 className="font-medium">Total Weight</h5>
@@ -415,11 +428,11 @@ export function ScoringRubricBuilder({ criteria, sections, onCriteriaChange }: S
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className={`text-2xl font-bold ${totalWeight === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>
+                    <div className={`text-2xl font-bold ${totalWeight === 100 ? 'text-green-600' : 'text-orange-600'}`}>
                       {totalWeight.toFixed(1)}%
                     </div>
                     {totalWeight !== 100 && (
-                      <p className="text-xs text-orange-600 dark:text-orange-400">
+                      <p className="text-xs text-orange-600">
                         Should equal 100%
                       </p>
                     )}

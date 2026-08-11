@@ -3,19 +3,23 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import type { Prisma } from "@prisma/client"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const updateQuestionSchema = z.object({
   type: z.enum(["text", "number", "multiple_choice", "checkbox", "file", "date"]).optional(),
   prompt: z.string().optional(),
   required: z.boolean().optional(),
-  constraints: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.unknown())])).optional(),
+  constraints: z.record(z.string(), z.unknown()).optional(),
   order: z.number().optional(),
 })
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -23,12 +27,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const question = await db.question.findFirst({
       where: {
-        id: id,
+        id: params.id,
         section: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -66,7 +69,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -74,16 +77,16 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const body = await request.json()
     const validatedData = updateQuestionSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify question belongs to tenant
     const existingQuestion = await db.question.findFirst({
       where: {
-        id: id,
+        id: params.id,
         section: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -97,8 +100,8 @@ export async function PUT(
     }
 
     const question = await db.question.update({
-      where: { id: id },
-      data: validatedData,
+      where: { id: params.id },
+      data: { ...validatedData, constraints: validatedData.constraints as unknown as Prisma.InputJsonValue },
       include: {
         section: {
           select: {
@@ -123,7 +126,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -131,13 +134,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify question belongs to tenant
     const existingQuestion = await db.question.findFirst({
       where: {
-        id: id,
+        id: params.id,
         section: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -151,7 +154,7 @@ export async function DELETE(
     }
 
     await db.question.delete({
-      where: { id: id },
+      where: { id: params.id },
     })
 
     return NextResponse.json({ message: "Question deleted successfully" })

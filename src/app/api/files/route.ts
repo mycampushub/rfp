@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
+import { PERMISSIONS } from "@/types/auth"
 import { FileService } from "@/lib/file-service"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const createFileSchema = z.object({
   filename: z.string(),
@@ -26,12 +30,12 @@ export async function GET(request: NextRequest) {
     const retention = searchParams.get("retention")
     const legalHold = searchParams.get("legalHold")
     const accessLevel = searchParams.get("accessLevel")
-    const limit = parseInt(searchParams.get("limit") || "50")
-    const offset = parseInt(searchParams.get("offset") || "0")
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100)
+    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
-    const options: any = {
+    const options: Record<string, unknown> = {
       limit,
       offset,
     }
@@ -64,15 +68,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get("file") as File
-    const rawMetadata = formData.get("metadata") as string
-    let metadata: Record<string, unknown> = {}
-    if (rawMetadata) {
-      try {
-        metadata = JSON.parse(rawMetadata)
-      } catch {
-        metadata = {}
-      }
-    }
+    const metadata = formData.get("metadata") ? JSON.parse(formData.get("metadata") as string) : {}
     const createVersion = formData.get("createVersion") === "true"
     const parentFileId = formData.get("parentFileId") as string
 
@@ -80,14 +76,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
+    // File upload validation
+    const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+    const ALLOWED_MIME_TYPES = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "application/zip",
+      "text/plain",
+      "text/csv",
+    ]
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File size exceeds the maximum allowed size of 50MB" },
+        { status: 413 }
+      )
+    }
+
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: `File type "${file.type}" is not allowed. Allowed types: pdf, doc, docx, xls, xlsx, ppt, pptx, jpg, jpeg, png, gif, zip, txt, csv` },
+        { status: 400 }
+      )
+    }
+
     const tenantContext = getTenantContext(session)
+    await requirePermission(PERMISSIONS.MANAGE_FILES)
 
     const fileMetadata = {
       originalName: file.name,
       ...metadata,
     }
 
-    const options: any = {}
+    const options: Record<string, unknown> = {}
     if (createVersion) {
       options.createVersion = true
       if (parentFileId) {

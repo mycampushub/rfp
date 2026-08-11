@@ -7,8 +7,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DollarSign, FileText, Upload, Send, Plus, X, Download } from "lucide-react"
+import { 
+  DollarSign, 
+  Clock, 
+  FileText, 
+  Upload, 
+  Send,
+  Calendar,
+  CheckCircle,
+  AlertCircle,
+  Plus,
+  X,
+  Download
+} from "lucide-react"
 
 interface BidFormProps {
   rfpId: string
@@ -16,7 +29,7 @@ interface BidFormProps {
   organization: string
   budget: string
   deadline: string
-  onSubmit: (bidData: any) => void
+  onSubmit: (bidData: Record<string, unknown>) => void
   onCancel: () => void
 }
 
@@ -269,9 +282,9 @@ export function BidForm({
 
                 <div className="space-y-2">
                   <Label>Attachments</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground/80 mb-2">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-sm text-gray-600 mb-2">
                       Upload supporting documents (PDF, DOC, images)
                     </p>
                     <Input
@@ -294,10 +307,10 @@ export function BidForm({
                         {bidData.attachments.map((file, index) => (
                           <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                             <div className="flex items-center space-x-3">
-                              <FileText className="h-5 w-5 text-muted-foreground" />
+                              <FileText className="h-5 w-5 text-gray-400" />
                               <div>
                                 <p className="font-medium">{file.name}</p>
-                                <p className="text-sm text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                <p className="text-sm text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2">
@@ -308,7 +321,7 @@ export function BidForm({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => removeAttachment(index)}
-                                className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                className="text-red-500 hover:text-red-700"
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -389,7 +402,7 @@ export function BidForm({
                             variant="ghost"
                             size="sm"
                             onClick={() => removeTimelineItem(index)}
-                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            className="text-red-500 hover:text-red-700"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -468,7 +481,7 @@ export function BidForm({
                             variant="ghost"
                             size="sm"
                             onClick={() => removeTeamMember(index)}
-                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            className="text-red-500 hover:text-red-700"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -547,14 +560,14 @@ export function BidForm({
                             variant="ghost"
                             size="sm"
                             onClick={() => removeBudgetItem(index)}
-                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            className="text-red-500 hover:text-red-700"
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ))}
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <span className="font-medium">Total Budget:</span>
                       <span className="font-bold text-lg">${calculateTotalBudget().toLocaleString()}</span>
                     </div>

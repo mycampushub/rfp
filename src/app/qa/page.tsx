@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
-import { EmptyState } from "@/components/shared/empty-state"
-import { LoadingTable } from "@/components/shared/loading-table"
-import { getStatusColor } from "@/lib/status-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,10 +17,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { MessageSquare, Plus, Reply, Eye, CheckCircle, Clock, Filter, Search, User, Globe, Lock, HelpCircle } from "lucide-react"
+import { 
+  MessageSquare, 
+  Plus, 
+  Reply, 
+  Eye, 
+  CheckCircle, 
+  Clock,
+  AlertCircle,
+  Filter,
+  Search,
+  User,
+  Calendar,
+  Globe,
+  Lock
+} from "lucide-react"
 import { Label } from "@/components/ui/label"
-import { toast } from "sonner"
-import { formatDate } from "@/lib/utils"
 
 interface QnAItem {
   id: string
@@ -40,7 +49,6 @@ interface QnAItem {
 }
 
 export default function QnAPage() {
-  useEffect(() => { document.title = 'Q&A Management | RFP Platform' }, [])
   const [qaItems, setQaItems] = useState<QnAItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -49,37 +57,79 @@ export default function QnAPage() {
   const [newQuestion, setNewQuestion] = useState("")
   const [newAnswer, setNewAnswer] = useState("")
   const [selectedQa, setSelectedQa] = useState<QnAItem | null>(null)
-  const [newQuestionRfpId, setNewQuestionRfpId] = useState("")
-  const [activeQaTab, setActiveQaTab] = useState("manage")
+
+  // Mock data for demonstration
+  const mockQaItems: QnAItem[] = [
+    {
+      id: "1",
+      rfpId: "1",
+      rfpTitle: "IT Managed Services 2024",
+      question: "What is the expected timeline for implementation?",
+      answer: "The implementation timeline is expected to be 3-6 months depending on the scope.",
+      isPublic: true,
+      status: "published",
+      vendorName: "Tech Solutions Inc",
+      vendorEmail: "contact@techsolutions.com",
+      createdAt: "2024-11-05T10:30:00Z",
+      answeredAt: "2024-11-05T14:15:00Z"
+    },
+    {
+      id: "2",
+      rfpId: "1",
+      rfpTitle: "IT Managed Services 2024",
+      question: "Are there any specific certifications required?",
+      answer: "ISO 27001 and SOC 2 certifications are required for this engagement.",
+      isPublic: true,
+      status: "published",
+      vendorName: "Global IT Services",
+      vendorEmail: "info@globalit.com",
+      createdAt: "2024-11-06T14:15:00Z",
+      answeredAt: "2024-11-06T16:30:00Z"
+    },
+    {
+      id: "3",
+      rfpId: "2",
+      rfpTitle: "Marketing Campaign Services",
+      question: "Can you provide more details about the target audience?",
+      answer: "",
+      isPublic: false,
+      status: "pending",
+      vendorName: "Creative Agency Pro",
+      vendorEmail: "hello@creativeagency.com",
+      createdAt: "2024-11-07T09:00:00Z"
+    },
+    {
+      id: "4",
+      rfpId: "1",
+      rfpTitle: "IT Managed Services 2024",
+      question: "What are the backup and disaster recovery requirements?",
+      answer: "We require 99.9% uptime with automated daily backups and a disaster recovery site with RTO of 4 hours.",
+      isPublic: true,
+      status: "published",
+      vendorName: "Digital Dynamics",
+      vendorEmail: "contact@digitaldynamics.com",
+      createdAt: "2024-11-08T11:20:00Z",
+      answeredAt: "2024-11-08T15:45:00Z"
+    },
+    {
+      id: "5",
+      rfpId: "3",
+      rfpTitle: "Office Equipment Procurement",
+      question: "Are there any specific brand preferences for the equipment?",
+      answer: "",
+      isPublic: true,
+      status: "pending",
+      vendorName: "Office Supplies Co",
+      vendorEmail: "sales@officesupplies.com",
+      createdAt: "2024-11-09T08:45:00Z"
+    }
+  ]
 
   useEffect(() => {
-    const fetchQaItems = async () => {
-      try {
-        const res = await fetch('/api/qna')
-        if (!res.ok) throw new Error('Failed to fetch Q&A items')
-        const data = await res.json()
-        const mapped: QnAItem[] = (Array.isArray(data) ? data : []).map((item: any) => ({
-          id: item.id,
-          rfpId: item.rfpId || '',
-          rfpTitle: item.rfp?.title || 'Unknown RFP',
-          question: item.questionText || '',
-          answer: item.answerText || undefined,
-          isPublic: item.isPublic ?? true,
-          status: item.status || 'pending',
-          vendorName: item.vendor?.name || undefined,
-          vendorEmail: undefined,
-          createdAt: item.createdAt || '',
-          answeredAt: item.updatedAt || undefined,
-        }))
-        setQaItems(mapped)
-      } catch (err) {
-        console.error(err)
-        toast.error('Failed to load Q&A items')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchQaItems()
+    setTimeout(() => {
+      setQaItems(mockQaItems)
+      setLoading(false)
+    }, 1000)
   }, [])
 
   const filteredQaItems = qaItems.filter(item => {
@@ -96,94 +146,67 @@ export default function QnAPage() {
     return matchesSearch && matchesStatus && matchesPublic
   })
 
-  const handleAnswer = async (qaId: string) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "published":
+        return "bg-green-100 text-green-800"
+      case "answered":
+        return "bg-blue-100 text-blue-800"
+      case "pending":
+        return "bg-yellow-100 text-yellow-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const handleAnswer = (qaId: string) => {
     if (!newAnswer.trim()) return
-    try {
-      const res = await fetch(`/api/qna/${qaId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answerText: newAnswer, status: 'answered' }),
-      })
-      if (!res.ok) throw new Error('Failed to answer question')
-      setQaItems(prev => prev.map(item => 
-        item.id === qaId 
-          ? { 
-              ...item, 
-              answer: newAnswer,
-              status: "answered" as const,
-              answeredAt: new Date().toISOString()
-            }
-          : item
-      ))
-      setNewAnswer("")
-      setSelectedQa(null)
-      toast.success('Answer submitted successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to submit answer')
-    }
+    
+    setQaItems(prev => prev.map(item => 
+      item.id === qaId 
+        ? { 
+            ...item, 
+            answer: newAnswer,
+            status: "answered",
+            answeredAt: new Date().toISOString()
+          }
+        : item
+    ))
+    setNewAnswer("")
+    setSelectedQa(null)
   }
 
-  const handlePublish = async (qaId: string) => {
-    try {
-      const res = await fetch(`/api/qna/${qaId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'published' }),
-      })
-      if (!res.ok) throw new Error('Failed to publish question')
-      setQaItems(prev => prev.map(item => 
-        item.id === qaId 
-          ? { ...item, status: "published" as const }
-          : item
-      ))
-      toast.success('Question published successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to publish question')
-    }
+  const handlePublish = (qaId: string) => {
+    setQaItems(prev => prev.map(item => 
+      item.id === qaId 
+        ? { ...item, status: "published" }
+        : item
+    ))
   }
 
-  const handleAddQuestion = async () => {
-    if (!newQuestion.trim()) {
-      toast.error('Please fill in all required fields')
-      return
+  const handleAddQuestion = () => {
+    if (!newQuestion.trim()) return
+    
+    const newQaItem: QnAItem = {
+      id: `qa-${Date.now()}`,
+      rfpId: "1", // This should come from context
+      rfpTitle: "IT Managed Services 2024",
+      question: newQuestion,
+      isPublic: true,
+      status: "pending",
+      createdAt: new Date().toISOString()
     }
     
-    try {
-      const res = await fetch('/api/qna', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          rfpId: newQuestionRfpId || qaItems[0]?.rfpId || '', 
-          questionText: newQuestion,
-          isPublic: true,
-        }),
-      })
-      if (!res.ok) throw new Error('Failed to add question')
-      const created = await res.json()
-      const mapped: QnAItem = {
-        id: created.id,
-        rfpId: created.rfpId || '',
-        rfpTitle: created.rfp?.title || qaItems[0]?.rfpTitle || 'Unknown RFP',
-        question: created.questionText || newQuestion,
-        isPublic: created.isPublic ?? true,
-        status: 'pending',
-        createdAt: created.createdAt || new Date().toISOString(),
-      }
-      setQaItems(prev => [mapped, ...prev])
-      setNewQuestion("")
-      toast.success('Question added successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to add question')
-    }
+    setQaItems(prev => [newQaItem, ...prev])
+    setNewQuestion("")
   }
 
   if (loading) {
     return (
       <MainLayout title="Q&A Management">
-        <LoadingTable rows={5} columns={6} />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading Q&A items...</div>
+        </div>
       </MainLayout>
     )
   }
@@ -200,7 +223,7 @@ export default function QnAPage() {
             </p>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => setActiveQaTab('add')}>
+            <Button variant="outline">
               <Plus className="mr-2 h-4 w-4" />
               Add Question
             </Button>
@@ -271,7 +294,6 @@ export default function QnAPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-8"
-                    aria-label="Search questions"
                   />
                 </div>
               </div>
@@ -301,7 +323,7 @@ export default function QnAPage() {
         </Card>
 
         {/* Q&A Management */}
-        <Tabs value={activeQaTab} onValueChange={setActiveQaTab} className="space-y-4">
+        <Tabs defaultValue="manage" className="space-y-4">
           <TabsList>
             <TabsTrigger value="manage">Manage Q&A</TabsTrigger>
             <TabsTrigger value="add">Add Question</TabsTrigger>
@@ -316,7 +338,6 @@ export default function QnAPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -357,9 +378,9 @@ export default function QnAPage() {
                         <TableCell>
                           <div className="flex items-center space-x-1">
                             {qa.isPublic ? (
-                              <Globe className="h-3 w-3 text-sky-600 dark:text-sky-400" />
+                              <Globe className="h-3 w-3 text-blue-600" />
                             ) : (
-                              <Lock className="h-3 w-3 text-muted-foreground/80" />
+                              <Lock className="h-3 w-3 text-gray-600" />
                             )}
                             <span className="text-xs">
                               {qa.isPublic ? "Public" : "Private"}
@@ -368,7 +389,7 @@ export default function QnAPage() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
-                            {formatDate(qa.createdAt)}
+                            {new Date(qa.createdAt).toLocaleDateString()}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -404,17 +425,19 @@ export default function QnAPage() {
                     ))}
                   </TableBody>
                 </Table>
-                </div>
                 
                 {filteredQaItems.length === 0 && (
-                  <EmptyState icon={HelpCircle} title="No questions found" description="Start by asking a question about an RFP." action={{ label: "Add Question", onClick: () => setActiveQaTab('add') }} />
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No questions found matching your filters.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Answer Modal */}
             {selectedQa && (
-              <Card className="border-2 border-sky-500/30">
+              <Card className="border-2 border-blue-200">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Reply className="mr-2 h-4 w-4" />
@@ -424,11 +447,11 @@ export default function QnAPage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Question</Label>
-                    <p className="text-foreground/80">{selectedQa.question}</p>
+                    <p className="text-gray-700">{selectedQa.question}</p>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <span>From: {selectedQa.vendorName || "Anonymous"}</span>
                       <span>RFP: {selectedQa.rfpTitle}</span>
-                      <span>{formatDate(selectedQa.createdAt)}</span>
+                      <span>{new Date(selectedQa.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
                   
@@ -444,7 +467,7 @@ export default function QnAPage() {
                   </div>
 
                   <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => { setSelectedQa(null); setNewAnswer("") }}>
+                    <Button variant="outline" onClick={() => setSelectedQa(null)}>
                       Cancel
                     </Button>
                     <Button onClick={() => handleAnswer(selectedQa.id)}>
@@ -465,19 +488,6 @@ export default function QnAPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rfp-select">RFP (optional)</Label>
-                  <Select value={newQuestionRfpId} onValueChange={setNewQuestionRfpId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select RFP" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from(new Set(qaItems.map(q => ({ id: q.rfpId, title: q.rfpTitle })))).map(rfp => (
-                        <SelectItem key={rfp.id} value={rfp.id}>{rfp.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="new-question">Question</Label>
                   <Textarea

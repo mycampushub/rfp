@@ -38,14 +38,14 @@ export async function getTenantContextAsync(): Promise<TenantContext> {
   return getTenantContext(session)
 }
 
-export function createTenantAwareQuery<T extends Record<string, any>>(
+export function createTenantAwareQuery<T extends Record<string, unknown>>(
   baseQuery: T,
   tenantContext: TenantContext
-): T {
+): T & { where: { tenantId: string } } {
   return {
     ...baseQuery,
     where: {
-      ...baseQuery.where,
+      ...(baseQuery.where as Record<string, unknown>),
       tenantId: tenantContext.tenantId,
     },
   }

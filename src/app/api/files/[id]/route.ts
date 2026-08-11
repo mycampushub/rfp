@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { FileService } from "@/lib/file-service"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const updateFileSchema = z.object({
   retention: z.string().optional(),
@@ -13,7 +16,7 @@ const updateFileSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -21,20 +24,19 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const { searchParams } = new URL(request.url)
     const version = searchParams.get("version") ? parseInt(searchParams.get("version")!) : undefined
     const download = searchParams.get("download") === "true"
 
-    const result = await FileService.getFile(id, tenantContext.tenantId, version)
+    const result = await FileService.getFile(params.id, tenantContext.tenantId, version)
 
     if (download) {
       return new NextResponse(result.content, {
         headers: {
           "Content-Type": result.file.mime || "application/octet-stream",
-          "Content-Disposition": `attachment; filename="${result.file.metadata?.originalName || result.file.path}"`,
+          "Content-Disposition": `attachment; filename="${(result.file.metadata as Record<string, unknown>)?.originalName || result.file.path}"`,
         },
       })
     }
@@ -44,8 +46,8 @@ export async function GET(
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching file:", error)
-    if (error.message === "File not found" || error.message === "Version not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 })
+    if ((error as Error).message === "File not found" || (error as Error).message === "Version not found") {
+      return NextResponse.json({ error: (error as Error).message }, { status: 404 })
     }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
@@ -53,7 +55,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -61,11 +63,11 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const body = await request.json()
     const validatedData = updateFileSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("file:manage")
 
     // For now, we'll just update the metadata in the database
     // In a real implementation, you might want to use the FileService for this
@@ -73,7 +75,7 @@ export async function PUT(
     
     const existingFile = await db.file.findFirst({
       where: {
-        id: id,
+        id: params.id,
         tenantId: tenantContext.tenantId,
       },
     })
@@ -83,12 +85,12 @@ export async function PUT(
     }
 
     const file = await db.file.update({
-      where: { id: id },
+      where: { id: params.id },
       data: {
         ...validatedData,
         metadata: {
-          ...existingFile.metadata,
-          ...validatedData.metadata,
+          ...(existingFile.metadata as Record<string, unknown> || {}),
+          ...(validatedData.metadata || {}),
           lastModifiedBy: tenantContext.userId,
           lastModifiedAt: new Date().toISOString(),
         },
@@ -109,7 +111,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -117,24 +119,24 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const { searchParams } = new URL(request.url)
     const permanent = searchParams.get("permanent") === "true"
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("file:manage")
 
-    await FileService.deleteFile(id, tenantContext.tenantId, tenantContext.userId, permanent)
+    await FileService.deleteFile(params.id, tenantContext.tenantId, tenantContext.userId, permanent)
 
     return NextResponse.json({ message: "File deleted successfully" })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting file:", error)
-    if (error.message === "File not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 })
+    if ((error as Error).message === "File not found") {
+      return NextResponse.json({ error: (error as Error).message }, { status: 404 })
     }
-    if (error.message === "Cannot delete file under legal hold") {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    if ((error as Error).message === "Cannot delete file under legal hold") {
+      return NextResponse.json({ error: (error as Error).message }, { status: 400 })
     }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

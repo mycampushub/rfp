@@ -1,11 +1,23 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { getStatusColor } from "@/lib/status-utils"
-import { Clock, Users, CheckCircle, AlertCircle, MessageSquare, Eye, Star, FileText, BarChart3 } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  DollarSign, 
+  Clock, 
+  Users, 
+  Calendar,
+  CheckCircle,
+  AlertCircle,
+  MessageSquare,
+  Download,
+  Eye,
+  Star,
+  FileText,
+  BarChart3
+} from "lucide-react"
 
 interface Bid {
   id: string
@@ -36,6 +48,18 @@ interface BidListProps {
 }
 
 export function BidList({ bids, onViewBid, onMessageBid, onAcceptBid, onRejectBid }: BidListProps) {
+  const getStatusColor = (status: string) => {
+    const colors = {
+      draft: "bg-gray-100 text-gray-800",
+      submitted: "bg-blue-100 text-blue-800",
+      reviewed: "bg-yellow-100 text-yellow-800",
+      accepted: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800",
+      withdrawn: "bg-purple-100 text-purple-800"
+    }
+    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+  }
+
   const getStatusIcon = (status: string) => {
     const icons = {
       draft: Clock,
@@ -59,7 +83,7 @@ export function BidList({ bids, onViewBid, onMessageBid, onAcceptBid, onRejectBi
                 ? "text-yellow-500 fill-current" 
                 : star === Math.ceil(rating) && rating % 1 !== 0 
                 ? "text-yellow-500 fill-current" 
-                : "text-muted-foreground/50"
+                : "text-gray-300"
             }`}
           />
         ))}
@@ -75,6 +99,10 @@ export function BidList({ bids, onViewBid, onMessageBid, onAcceptBid, onRejectBi
     }).format(amount)
   }
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "-"
+    return new Date(dateString).toLocaleDateString()
+  }
 
   return (
     <div className="space-y-4">
@@ -142,7 +170,7 @@ export function BidList({ bids, onViewBid, onMessageBid, onAcceptBid, onRejectBi
                     {/* Key Info */}
                     <div className="grid gap-4 md:grid-cols-4">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        <div className="text-2xl font-bold text-green-600">
                           {formatCurrency(bid.amount, bid.currency)}
                         </div>
                         <div className="text-sm text-muted-foreground">Bid Amount</div>
@@ -264,14 +292,14 @@ export function BidList({ bids, onViewBid, onMessageBid, onAcceptBid, onRejectBi
                         {bid.status === "accepted" && (
                           <div className="flex items-center space-x-2 pt-4 border-t">
                             <CheckCircle className="h-5 w-5 text-green-500" />
-                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">This bid has been accepted</span>
+                            <span className="text-green-600 font-medium">This bid has been accepted</span>
                           </div>
                         )}
 
                         {bid.status === "rejected" && (
                           <div className="flex items-center space-x-2 pt-4 border-t">
                             <AlertCircle className="h-5 w-5 text-red-500" />
-                            <span className="text-red-600 dark:text-red-400 font-medium">This bid has been rejected</span>
+                            <span className="text-red-600 font-medium">This bid has been rejected</span>
                           </div>
                         )}
                       </div>

@@ -5,7 +5,8 @@ import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-import NotificationService from "@/lib/notification-service"
+
+export const dynamic = "force-dynamic"
 
 const updateApprovalSchema = z.object({
   status: z.enum(["pending", "approved", "rejected"]),
@@ -14,7 +15,7 @@ const updateApprovalSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -22,12 +23,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const approval = await db.approval.findFirst({
       where: {
-        id: id,
+        id: params.id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -65,35 +65,31 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params
-    const { ctx } = await requirePermission('approval:edit')
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
     const body = await request.json()
     const validatedData = updateApprovalSchema.parse(body)
 
+    const tenantContext = getTenantContext(session)
+
     // Verify approval belongs to tenant
     const existingApproval = await db.approval.findFirst({
       where: {
-        id: id,
+        id: params.id,
         rfp: {
-          tenantId: ctx.tenantId,
+          tenantId: tenantContext.tenantId,
         },
       },
     })
 
     if (!existingApproval) {
       return NextResponse.json({ error: "Approval not found" }, { status: 404 })
-    }
-
-    // Verify the acting user is the assigned approver for approve/reject actions
-    if (validatedData.status !== "pending" && existingApproval.approverId !== ctx.userId) {
-      return NextResponse.json(
-        { error: "Only the assigned approver can process this approval" },
-        { status: 403 }
-      )
     }
 
     const updateData: Record<string, unknown> = {
@@ -105,7 +101,7 @@ export async function PUT(
     }
 
     const approval = await db.approval.update({
-      where: { id: id },
+      where: { id: params.id },
       data: updateData,
       include: {
         rfp: {
@@ -125,13 +121,8 @@ export async function PUT(
       },
     })
 
-    // Send notification about approval decision to RFP owner
-    await NotificationService.send({
-      userId: ctx.userId,
-      type: `approval_${approval.status}`,
-      title: `Approval ${approval.status}`,
-      message: `An approval has been ${approval.status}`,
-    })
+    // TODO: Send notification for approval decision
+    // This would integrate with a notification system
 
     return NextResponse.json(approval)
   } catch (error) {
@@ -147,7 +138,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -155,13 +146,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
+    await requirePermission("approval:manage")
 
     // Verify approval belongs to tenant
     const existingApproval = await db.approval.findFirst({
       where: {
-        id: id,
+        id: params.id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -173,7 +164,7 @@ export async function DELETE(
     }
 
     await db.approval.delete({
-      where: { id: id },
+      where: { id: params.id },
     })
 
     return NextResponse.json({ message: "Approval deleted successfully" })

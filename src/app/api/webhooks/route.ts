@@ -3,8 +3,11 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
+
+export const dynamic = "force-dynamic"
 
 const createWebhookSchema = z.object({
   url: z.string().url(),
@@ -21,6 +24,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
+    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -32,27 +37,14 @@ export async function GET(request: NextRequest) {
       whereClause.status = status
     }
 
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const skip = (page - 1) * limit
-
-    const [webhooks, total] = await Promise.all([
-      db.webhookEndpoint.findMany({
-        where: whereClause,
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        skip,
-      }),
-      db.webhookEndpoint.count({ where: whereClause }),
-    ])
-
-    // Omit secrets from list response
-    const safeWebhooks = webhooks.map(({ secret: _s, ...w }) => w)
-
-    return NextResponse.json({
-      data: safeWebhooks,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    const webhooks = await db.webhookEndpoint.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
     })
+
+    return NextResponse.json(webhooks)
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -72,6 +64,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createWebhookSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("admin:webhooks")
 
     // Generate secret if not provided
     const secret = validatedData.secret || uuidv4()
@@ -84,10 +77,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Omit secret from response
-    const { secret: _secret, ...webhookData } = webhook
-
-    return NextResponse.json(webhookData, { status: 201 })
+    return NextResponse.json(webhook, { status: 201 })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })

@@ -1,8 +1,7 @@
 import { db } from "@/lib/db"
-import { AuditLogger } from "@/lib/audit-logger"
+import type { Prisma } from "@prisma/client"
+import { randomUUID } from "crypto"
 import { DEFAULT_ROLES } from "@/types/auth"
-import bcrypt from "bcryptjs"
-import crypto from "crypto"
 
 export class TenantService {
   static async createTenant(data: {
@@ -11,7 +10,6 @@ export class TenantService {
     plan?: string
     adminEmail: string
     adminName: string
-    adminPassword?: string
   }) {
     const tenant = await db.tenant.create({
       data: {
@@ -46,16 +44,16 @@ export class TenantService {
       )
     )
 
-    // Create admin user with hashed password
-    const rawPassword = data.adminPassword || crypto.randomBytes(16).toString("hex")
-    const hashedPassword = await bcrypt.hash(rawPassword, 12)
+    // Create admin user (password should be changed on first login)
+    const adminRole = roles.find(r => r.name === "Tenant Admin")
+    const tempPassword = randomUUID()
     const adminUser = await db.user.create({
       data: {
         tenantId: tenant.id,
         email: data.adminEmail,
         name: data.adminName,
-        password: hashedPassword,
-        roleIds: [roles.find(r => r.name === "Tenant Admin")!.id],
+        password: tempPassword,
+        roleIds: [adminRole!.id] as Prisma.JsonArray,
         isActive: true,
       },
     })
@@ -85,34 +83,24 @@ export class TenantService {
     })
   }
 
-  static async updateTenantSettings(tenantId: string, newSettings: any) {
-    const tenant = await db.tenant.findUnique({
-      where: { id: tenantId },
-      select: { settings: true },
-    })
+  static async updateTenantSettings(tenantId: string, settings: Record<string, unknown>) {
     return await db.tenant.update({
       where: { id: tenantId },
       data: {
         settings: {
-          ...(tenant?.settings && typeof tenant.settings === "object" ? tenant.settings : {}),
-          ...newSettings,
-        },
+          ...settings,
+        } as Prisma.InputJsonValue,
       },
     })
   }
 
-  static async updateTenantBranding(tenantId: string, newBranding: any) {
-    const tenant = await db.tenant.findUnique({
-      where: { id: tenantId },
-      select: { branding: true },
-    })
+  static async updateTenantBranding(tenantId: string, branding: Record<string, unknown>) {
     return await db.tenant.update({
       where: { id: tenantId },
       data: {
         branding: {
-          ...(tenant?.branding && typeof tenant.branding === "object" ? tenant.branding : {}),
-          ...newBranding,
-        },
+          ...branding,
+        } as Prisma.InputJsonValue,
       },
     })
   }
@@ -156,7 +144,7 @@ export class TenantService {
     return !!user
   }
 
-  static async getUserPermissions(userId: string, tenantId: string) {
+  static async getUserPermissions(userId: string, tenantId: string): Promise<string[]> {
     const user = await db.user.findUnique({
       where: { id: userId },
       include: {
@@ -168,16 +156,20 @@ export class TenantService {
       return []
     }
 
+    const roleIds = (user.roleIds as string[] | null) || []
     const roles = await db.role.findMany({
       where: {
         id: {
-          in: user.roleIds || [],
+          in: roleIds,
         },
         tenantId,
       },
     })
 
-    return roles.flatMap(role => role.permissions || [])
+    return roles.flatMap(role => {
+      const perms = role.permissions as string[] | null
+      return perms || []
+    })
   }
 
   static async hasPermission(userId: string, tenantId: string, permission: string) {
@@ -185,31 +177,28 @@ export class TenantService {
     return userPermissions.includes(permission)
   }
 
-  /**
-   * @deprecated Use AuditLogger.log() directly instead.
-   */
   static async createAuditLog(
     tenantId: string,
     actor: string,
     action: string,
     targetType: string,
     targetId: string,
-    metadata?: any,
-    _ip?: string
+    metadata?: Record<string, unknown>,
+    ip?: string
   ) {
-    return AuditLogger.log({
-      action,
-      targetType,
-      targetId,
-      metadata,
-      userId: actor,
-      tenantId,
+    return await db.activityLog.create({
+      data: {
+        tenantId,
+        actor,
+        action,
+        targetType,
+        targetId,
+        metadata: metadata as Prisma.InputJsonValue | undefined,
+        ip,
+      },
     })
   }
 
-  /**
-   * @deprecated Use AuditLogger.getAuditLogs() directly instead.
-   */
   static async getAuditLogs(tenantId: string, options?: {
     limit?: number
     offset?: number
@@ -218,14 +207,45 @@ export class TenantService {
     startDate?: Date
     endDate?: Date
   }) {
-    return AuditLogger.getAuditLogs(tenantId, {
-      userId: options?.actor,
-      targetType: options?.targetType,
-      startDate: options?.startDate,
-      endDate: options?.endDate,
-    }, {
-      limit: options?.limit || 50,
-      offset: options?.offset || 0,
-    })
+    const timestampFilter: Prisma.DateTimeFilter = {}
+    if (options?.startDate) {
+      timestampFilter.gte = options.startDate
+    }
+    if (options?.endDate) {
+      timestampFilter.lte = options.endDate
+    }
+
+    const where: Prisma.ActivityLogWhereInput = { tenantId }
+
+    if (options?.actor) {
+      where.actor = options.actor
+    }
+    if (options?.targetType) {
+      where.targetType = options.targetType
+    }
+    if (options?.startDate || options?.endDate) {
+      where.timestamp = timestampFilter
+    }
+
+    const [logs, total] = await Promise.all([
+      db.activityLog.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { timestamp: "desc" },
+        take: options?.limit || 50,
+        skip: options?.offset || 0,
+      }),
+      db.activityLog.count({ where }),
+    ])
+
+    return { logs, total }
   }
 }

@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useDebounce } from "@/hooks/use-debounce"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +8,23 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
-import { Search, SlidersHorizontal, X, MapPin, DollarSign, Calendar, RotateCcw } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { 
+  Search, 
+  Filter, 
+  SlidersHorizontal, 
+  X,
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  DollarSign,
+  Calendar,
+  Star,
+  Briefcase,
+  Users,
+  Clock,
+  RotateCcw
+} from "lucide-react"
 
 interface SearchFiltersProps {
   onFiltersChange: (filters: SearchFilters) => void
@@ -52,12 +66,6 @@ export function AdvancedSearch({
   })
 
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
-
-  // Debounce the query so onSearch isn't fired on every keystroke
-  const debouncedQuery = useDebounce(filters.query, 300)
-  useEffect(() => {
-    onSearch(debouncedQuery)
-  }, [debouncedQuery, onSearch])
 
   const categories = [
     "IT Services", "Marketing", "Construction", "Software Development", 
@@ -106,7 +114,7 @@ export function AdvancedSearch({
     { value: "rating", label: "Vendor Rating" }
   ]
 
-  const updateFilter = (key: keyof SearchFilters, value: any) => {
+  const updateFilter = (key: keyof SearchFilters, value: SearchFilters[keyof SearchFilters]) => {
     const newFilters = { ...filters, [key]: value }
     setFilters(newFilters)
     onFiltersChange(newFilters)
@@ -114,7 +122,7 @@ export function AdvancedSearch({
 
   const handleSearch = (query: string) => {
     updateFilter("query", query)
-    // onSearch is called via debounced effect above
+    onSearch(query)
   }
 
   const toggleCategory = (category: string) => {
@@ -373,7 +381,7 @@ export function AdvancedSearch({
                         <span>{category}</span>
                         <button
                           onClick={() => toggleCategory(category)}
-                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
+                          className="ml-1 hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -384,7 +392,7 @@ export function AdvancedSearch({
                         <span>Location: {filters.location}</span>
                         <button
                           onClick={() => updateFilter("location", "")}
-                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
+                          className="ml-1 hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -395,7 +403,7 @@ export function AdvancedSearch({
                         <span>Budget: {budgetRanges.find(r => r.value === filters.budgetRange)?.label}</span>
                         <button
                           onClick={() => updateFilter("budgetRange", "")}
-                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
+                          className="ml-1 hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -406,7 +414,7 @@ export function AdvancedSearch({
                         <span>Experience: {experienceLevels.find(l => l.value === filters.experience)?.label}</span>
                         <button
                           onClick={() => updateFilter("experience", "")}
-                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
+                          className="ml-1 hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -417,7 +425,7 @@ export function AdvancedSearch({
                         <span>Rating: {filters.rating}+ Stars</span>
                         <button
                           onClick={() => updateFilter("rating", 0)}
-                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
+                          className="ml-1 hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -428,7 +436,7 @@ export function AdvancedSearch({
                         <span>Posted: {postedWithinOptions.find(o => o.value === filters.postedWithin)?.label}</span>
                         <button
                           onClick={() => updateFilter("postedWithin", "")}
-                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
+                          className="ml-1 hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -439,7 +447,7 @@ export function AdvancedSearch({
                         <span>Status: {status}</span>
                         <button
                           onClick={() => toggleStatus(status)}
-                          className="ml-1 hover:text-red-500 dark:hover:text-red-400"
+                          className="ml-1 hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>

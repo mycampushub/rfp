@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import type { Prisma } from "@prisma/client"
 import { writeFile, readFile, unlink } from "fs/promises"
 import { join } from "path"
 import { createHash } from "crypto"
@@ -40,7 +41,7 @@ export class FileService {
     const { createVersion = false, parentFileId } = options || {}
 
     // Generate unique file path
-    const fileId = uuidv4()
+    const fileId = parentFileId || uuidv4()
     const fileExtension = metadata.originalName.split(".").pop()
     const fileName = `${fileId}.${fileExtension}`
     const filePath = join(process.cwd(), "vault", fileName)
@@ -72,7 +73,10 @@ export class FileService {
 
       const newVersion = existingFile.version + 1
 
-      // Update existing file record
+      // NOTE: Known limitation — updating the existing record's path loses
+      // the on-disk pointer to the previous version. The old path is
+      // preserved in metadata so that a future migration to per-version
+      // File records can reconstruct the chain.
       const updatedFile = await db.file.update({
         where: { id: parentFileId },
         data: {
@@ -82,20 +86,22 @@ export class FileService {
           size: file.size,
           mime: file.type,
           metadata: {
-            ...existingFile.metadata,
+            ...(existingFile.metadata as Record<string, unknown> || {}),
             ...metadata,
+            previousVersionPath: existingFile.path,
+            previousVersion: existingFile.version,
             versions: [
-              ...(existingFile.metadata?.versions || []),
+              ...((existingFile.metadata as Record<string, unknown> | null)?.versions as FileVersion[] || []),
               {
                 version: existingFile.version,
                 path: existingFile.path,
                 sha256: existingFile.sha256,
                 size: existingFile.size,
                 createdAt: existingFile.createdAt,
-                createdBy: existingFile.metadata?.uploadedBy,
+                createdBy: (existingFile.metadata as Record<string, unknown> | null)?.uploadedBy,
               },
             ],
-          },
+          } as unknown as Prisma.InputJsonValue,
         },
       })
 
@@ -143,7 +149,7 @@ export class FileService {
 
     // If specific version requested, get that version
     if (version && version !== file.version) {
-      const versionData = file.metadata?.versions?.find((v: any) => v.version === version)
+      const versionData = ((file.metadata as Record<string, unknown> | null)?.versions as FileVersion[] || []).find((v: FileVersion) => v.version === version)
       if (!versionData) {
         throw new Error("Version not found")
       }
@@ -190,11 +196,11 @@ export class FileService {
         {
           path: file.path,
         },
-        ...(file.metadata?.versions || []),
+        ...((file.metadata as Record<string, unknown> | null)?.versions as FileVersion[] || []),
       ]
 
       for (const version of versions) {
-        const filePath = join(process.cwd(), "vault", version.path)
+        const filePath = join(process.cwd(), "vault", (version as FileVersion).path)
         const fs = await import("fs")
         if (fs.existsSync(filePath)) {
           await unlink(filePath)
@@ -209,9 +215,9 @@ export class FileService {
       await db.file.update({
         where: { id: fileId },
         data: {
-          retention: "deleted",
+          retention: "deleted" as string,
           metadata: {
-            ...file.metadata,
+            ...(file.metadata as Record<string, unknown> || {}),
             deletedBy: userId,
             deletedAt: new Date().toISOString(),
           },
@@ -231,13 +237,13 @@ export class FileService {
       offset?: number
     }
   ) {
-    const where: any = {
+    const where: Prisma.FileWhereInput = {
       tenantId,
     }
 
     if (options?.category) {
       where.metadata = {
-        path: ["category"],
+        path: "category",
         equals: options.category,
       }
     }
@@ -284,16 +290,16 @@ export class FileService {
           {
             retention: "deleted",
             metadata: {
-              path: ["deletedAt"],
-              lt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+              path: "deletedAt",
+              string_lt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
             },
           },
         ],
         legalHold: false,
-      },
+      } as Prisma.FileWhereInput,
     })
 
-    const cleanupResults = []
+    const cleanupResults: Array<{fileId: string; status: string; error?: string}> = []
     
     for (const file of filesToCleanup) {
       try {
@@ -302,11 +308,11 @@ export class FileService {
           {
             path: file.path,
           },
-          ...(file.metadata?.versions || []),
+          ...((file.metadata as Record<string, unknown> | null)?.versions as FileVersion[] || []),
         ]
 
         for (const version of versions) {
-          const filePath = join(process.cwd(), "vault", version.path)
+          const filePath = join(process.cwd(), "vault", (version as FileVersion).path)
           const fs = await import("fs")
           if (fs.existsSync(filePath)) {
             await unlink(filePath)
@@ -325,7 +331,7 @@ export class FileService {
         cleanupResults.push({
           fileId: file.id,
           status: "error",
-          error: error.message,
+          error: (error as Error).message,
         })
       }
     }
@@ -343,7 +349,18 @@ export class FileService {
       },
     })
 
-    const integrityResults = []
+    const integrityResults: Array<{
+      fileId: string
+      path: string
+      isIntact: boolean
+      hashMatch?: boolean
+      sizeMatch?: boolean
+      currentHash?: string
+      currentSize?: number
+      expectedHash?: string
+      expectedSize?: number
+      error?: string
+    }> = []
 
     for (const file of files) {
       try {
@@ -360,19 +377,19 @@ export class FileService {
           fileId: file.id,
           path: file.path,
           isIntact,
-          hashMatch: currentHash === file.sha256,
-          sizeMatch: currentSize === file.size,
-          currentHash,
-          currentSize,
-          expectedHash: file.sha256,
-          expectedSize: file.size,
+          hashMatch: currentHash === (file.sha256 || undefined),
+          sizeMatch: currentSize === (file.size || undefined),
+          currentHash: currentHash || undefined,
+          currentSize: currentSize || undefined,
+          expectedHash: file.sha256 || undefined,
+          expectedSize: file.size || undefined,
         })
       } catch (error) {
         integrityResults.push({
           fileId: file.id,
           path: file.path,
           isIntact: false,
-          error: error.message,
+          error: (error as Error).message,
         })
       }
     }

@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const updateWebhookSchema = z.object({
   url: z.string().url().optional(),
@@ -11,6 +14,11 @@ const updateWebhookSchema = z.object({
   secret: z.string().optional(),
   status: z.enum(["active", "inactive"]).optional(),
 })
+
+function stripSecret<T extends Record<string, unknown>>(obj: T): Omit<T, 'secret'> {
+  const { secret: _secret, ...rest } = obj
+  return rest
+}
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +35,7 @@ export async function GET(
 
     const webhook = await db.webhookEndpoint.findFirst({
       where: {
-        id: id,
+        id,
         tenantId: tenantContext.tenantId,
       },
     })
@@ -36,7 +44,7 @@ export async function GET(
       return NextResponse.json({ error: "Webhook not found" }, { status: 404 })
     }
 
-    return NextResponse.json(webhook)
+    return NextResponse.json(stripSecret(webhook as unknown as Record<string, unknown>))
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -54,19 +62,16 @@ export async function PUT(
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
     const { id } = await params
+    const tenantContext = getTenantContext(session)
+    await requirePermission("admin:webhooks")
 
     const body = await request.json()
     const validatedData = updateWebhookSchema.parse(body)
 
-    const tenantContext = getTenantContext(session)
-
-    // Verify webhook belongs to tenant
     const existingWebhook = await db.webhookEndpoint.findFirst({
-      where: {
-        id: id,
-        tenantId: tenantContext.tenantId,
-      },
+      where: { id, tenantId: tenantContext.tenantId },
     })
 
     if (!existingWebhook) {
@@ -74,11 +79,11 @@ export async function PUT(
     }
 
     const webhook = await db.webhookEndpoint.update({
-      where: { id: id },
+      where: { id },
       data: validatedData,
     })
 
-    return NextResponse.json(webhook)
+    return NextResponse.json(stripSecret(webhook as unknown as Record<string, unknown>))
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -97,18 +102,15 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
-          const { id } = await params
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
+    await requirePermission("admin:webhooks")
 
-    // Verify webhook belongs to tenant
     const existingWebhook = await db.webhookEndpoint.findFirst({
-      where: {
-        id: id,
-        tenantId: tenantContext.tenantId,
-      },
+      where: { id, tenantId: tenantContext.tenantId },
     })
 
     if (!existingWebhook) {
@@ -116,7 +118,7 @@ export async function DELETE(
     }
 
     await db.webhookEndpoint.delete({
-      where: { id: id },
+      where: { id },
     })
 
     return NextResponse.json({ message: "Webhook deleted successfully" })

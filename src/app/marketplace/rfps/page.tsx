@@ -1,7 +1,7 @@
 "use client"
 
 import { MainLayout } from "@/components/layout/main-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -20,52 +20,101 @@ import {
   Briefcase
 } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect } from "react"
-import { toast } from "sonner"
-import { LoadingCards } from "@/components/shared/loading-table"
+import { useState } from "react"
 
 export default function MarketplaceRFPs() {
-  useEffect(() => { document.title = 'Marketplace RFPs | RFP Platform' }, [])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedBudget, setSelectedBudget] = useState("all")
   const [selectedLocation, setSelectedLocation] = useState("all")
-  const [rfps, setRfps] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [sortValue, setSortValue] = useState("newest")
-  const [currentPage, setCurrentPage] = useState(1)
 
-  useEffect(() => {
-    async function fetchRFPs() {
-      try {
-        const res = await fetch("/api/v1/rfps?limit=100")
-        if (!res.ok) throw new Error("Failed to fetch")
-        const json = await res.json()
-        setRfps((json.data || []).map((rfp: any) => ({
-          id: rfp.id,
-          title: rfp.title,
-          organization: rfp.title,
-          description: rfp.description || "",
-          budget: rfp.budget ? `$${rfp.budget.toLocaleString()}` : "Not specified",
-          budgetNum: rfp.budget || 0,
-          deadline: rfp.timeline?.submissionDeadline
-            ? new Date(rfp.timeline.submissionDeadline).toISOString().split("T")[0]
-            : "TBD",
-          category: rfp.category || "Uncategorized",
-          location: rfp.location || "Not specified",
-          bids: rfp._count?.submissions ?? 0,
-          featured: false,
-          postedDate: new Date(rfp.createdAt).toISOString().split("T")[0],
-          complexity: rfp.settings?.complexity || "Medium"
-        })))
-      } catch {
-        toast.error("Failed to load RFPs")
-      } finally {
-        setLoading(false)
-      }
+  // Mock data for RFPs
+  const rfps = [
+    {
+      id: "1",
+      title: "Enterprise Cloud Migration Services",
+      organization: "TechCorp Inc.",
+      description: "Seeking experienced cloud service provider for large-scale migration of on-premise infrastructure to AWS/Azure.",
+      budget: "$500,000 - $750,000",
+      deadline: "2024-12-30",
+      category: "IT Services",
+      location: "Remote",
+      bids: 12,
+      featured: true,
+      postedDate: "2024-11-15",
+      complexity: "High"
+    },
+    {
+      id: "2",
+      title: "Digital Marketing Campaign",
+      organization: "Global Retail Co.",
+      description: "Looking for creative agency to design and execute comprehensive digital marketing campaign for Q1 2025.",
+      budget: "$100,000 - $200,000",
+      deadline: "2024-12-25",
+      category: "Marketing",
+      location: "New York, NY",
+      bids: 8,
+      featured: true,
+      postedDate: "2024-11-20",
+      complexity: "Medium"
+    },
+    {
+      id: "3",
+      title: "Office Building Renovation",
+      organization: "Property Management LLC",
+      description: "Complete renovation of 50,000 sq ft office building including modernization of all systems and interiors.",
+      budget: "$250,000 - $400,000",
+      deadline: "2025-01-15",
+      category: "Construction",
+      location: "Chicago, IL",
+      bids: 15,
+      featured: false,
+      postedDate: "2024-11-10",
+      complexity: "High"
+    },
+    {
+      id: "4",
+      title: "Mobile App Development",
+      organization: "StartupXYZ",
+      description: "Need experienced mobile development team to build cross-platform e-commerce mobile application.",
+      budget: "$80,000 - $120,000",
+      deadline: "2024-12-20",
+      category: "Software Development",
+      location: "Remote",
+      bids: 6,
+      featured: false,
+      postedDate: "2024-11-18",
+      complexity: "Medium"
+    },
+    {
+      id: "5",
+      title: "Financial Consulting Services",
+      organization: "Investment Firm",
+      description: "Seeking financial consultants for portfolio optimization and risk assessment services.",
+      budget: "$150,000 - $300,000",
+      deadline: "2025-01-10",
+      category: "Consulting",
+      location: "Boston, MA",
+      bids: 4,
+      featured: false,
+      postedDate: "2024-11-12",
+      complexity: "High"
+    },
+    {
+      id: "6",
+      title: "Brand Identity Design",
+      organization: "Fashion Brand",
+      description: "Looking for creative designers to develop complete brand identity including logo, colors, and brand guidelines.",
+      budget: "$25,000 - $50,000",
+      deadline: "2024-12-15",
+      category: "Design",
+      location: "Los Angeles, CA",
+      bids: 9,
+      featured: false,
+      postedDate: "2024-11-22",
+      complexity: "Low"
     }
-    fetchRFPs()
-  }, [])
+  ]
 
   const categories = [
     "all", "IT Services", "Marketing", "Construction", "Software Development", 
@@ -87,40 +136,27 @@ export default function MarketplaceRFPs() {
   ]
 
   const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      "IT Services": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
-      "Marketing": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-      "Construction": "bg-orange-500/15 text-orange-700 dark:text-orange-400",
-      "Software Development": "bg-violet-500/15 text-violet-700 dark:text-violet-400",
-      "Consulting": "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400",
-      "Design": "bg-pink-500/15 text-pink-700 dark:text-pink-400",
-      "Engineering": "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-      "Legal": "bg-red-500/15 text-red-700 dark:text-red-400",
-      "Healthcare": "bg-teal-500/15 text-teal-700 dark:text-teal-400"
+    const colors = {
+      "IT Services": "bg-blue-100 text-blue-800",
+      "Marketing": "bg-green-100 text-green-800",
+      "Construction": "bg-orange-100 text-orange-800",
+      "Software Development": "bg-purple-100 text-purple-800",
+      "Consulting": "bg-indigo-100 text-indigo-800",
+      "Design": "bg-pink-100 text-pink-800",
+      "Engineering": "bg-yellow-100 text-yellow-800",
+      "Legal": "bg-red-100 text-red-800",
+      "Healthcare": "bg-teal-100 text-teal-800"
     }
-    return colors[category] || "bg-muted text-muted-foreground"
+    return colors[category as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
 
   const getComplexityColor = (complexity: string) => {
-    const colors: Record<string, string> = {
-      "Low": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-      "Medium": "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-      "High": "bg-red-500/15 text-red-700 dark:text-red-400"
+    const colors = {
+      "Low": "bg-green-100 text-green-800",
+      "Medium": "bg-yellow-100 text-yellow-800",
+      "High": "bg-red-100 text-red-800"
     }
-    return colors[complexity] || "bg-muted text-muted-foreground"
-  }
-
-  const matchesBudget = (rfp: any) => {
-    if (selectedBudget === "all") return true
-    const b = rfp.budgetNum || 0
-    switch (selectedBudget) {
-      case "0-50k": return b > 0 && b <= 50000
-      case "50k-100k": return b > 50000 && b <= 100000
-      case "100k-250k": return b > 100000 && b <= 250000
-      case "250k-500k": return b > 250000 && b <= 500000
-      case "500k+": return b > 500000
-      default: return true
-    }
+    return colors[complexity as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
 
   const filteredRFPs = rfps.filter(rfp => {
@@ -130,39 +166,8 @@ export default function MarketplaceRFPs() {
     const matchesCategory = selectedCategory === "all" || rfp.category === selectedCategory
     const matchesLocation = selectedLocation === "all" || rfp.location === selectedLocation
     
-    return matchesSearch && matchesCategory && matchesLocation && matchesBudget(rfp)
+    return matchesSearch && matchesCategory && matchesLocation
   })
-
-  const sortedRfps = [...filteredRFPs].sort((a, b) => {
-    switch (sortValue) {
-      case 'newest': return (b.postedDate || '').localeCompare(a.postedDate || '')
-      case 'deadline': return (a.deadline || '').localeCompare(b.deadline || '')
-      case 'budget-high': return (b.budgetNum || 0) - (a.budgetNum || 0)
-      case 'budget-low': return (a.budgetNum || 0) - (b.budgetNum || 0)
-      case 'bids': return (b.bids || 0) - (a.bids || 0)
-      default: return 0
-    }
-  })
-
-  const ITEMS_PER_PAGE = 12
-  const totalPages = Math.ceil(sortedRfps.length / ITEMS_PER_PAGE)
-  const paginatedRfps = sortedRfps.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-
-  if (loading) {
-    return (
-      <MainLayout title="Browse RFPs">
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold">Browse RFPs</h1>
-              <p className="text-muted-foreground mt-1">Loading...</p>
-            </div>
-          </div>
-          <LoadingCards count={6} />
-        </div>
-      </MainLayout>
-    )
-  }
 
   return (
     <MainLayout title="Browse RFPs">
@@ -264,7 +269,7 @@ export default function MarketplaceRFPs() {
           </p>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-muted-foreground">Sort by:</span>
-            <Select value={sortValue} onValueChange={(v) => { setSortValue(v); setCurrentPage(1) }}>
+            <Select defaultValue="newest">
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -281,7 +286,7 @@ export default function MarketplaceRFPs() {
 
         {/* RFP Listings */}
         <div className="space-y-4">
-          {paginatedRfps.map((rfp) => (
+          {filteredRFPs.map((rfp) => (
             <Card key={rfp.id} className="hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -289,7 +294,7 @@ export default function MarketplaceRFPs() {
                     <div className="flex items-center space-x-2 mb-2">
                       <h3 className="text-xl font-semibold">{rfp.title}</h3>
                       {rfp.featured && (
-                        <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                        <Badge className="bg-yellow-100 text-yellow-800">
                           <Star className="mr-1 h-3 w-3" />
                           Featured
                         </Badge>
@@ -351,7 +356,7 @@ export default function MarketplaceRFPs() {
           ))}
         </div>
 
-        {sortedRfps.length === 0 && (
+        {filteredRFPs.length === 0 && (
           <Card>
             <CardContent className="text-center py-12">
               <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -372,28 +377,25 @@ export default function MarketplaceRFPs() {
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
         <div className="flex justify-center">
           <div className="flex space-x-2">
-            <Button variant="outline" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>
+            <Button variant="outline" disabled>
               Previous
             </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <Button
-                key={page}
-                variant="outline"
-                className={page === currentPage ? 'bg-primary text-primary-foreground' : ''}
-                onClick={() => setCurrentPage(page)}
-              >
-                {page}
-              </Button>
-            ))}
-            <Button variant="outline" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+            <Button variant="outline" className="bg-primary text-primary-foreground">
+              1
+            </Button>
+            <Button variant="outline">
+              2
+            </Button>
+            <Button variant="outline">
+              3
+            </Button>
+            <Button variant="outline">
               Next
             </Button>
           </div>
         </div>
-        )}
       </div>
     </MainLayout>
   )

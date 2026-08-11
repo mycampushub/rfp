@@ -1,18 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Calendar, Users, FileText, MessageSquare, Settings, Clock, User, Building, Building2, FileX, AlertCircle, Eye } from "lucide-react"
-import { toast } from "sonner"
-import { EmptyState } from "@/components/shared/empty-state"
-import { getStatusColor } from "@/lib/status-utils"
-import { formatDate } from "@/lib/utils"
+import { 
+  Calendar, 
+  DollarSign, 
+  Users, 
+  FileText, 
+  MessageSquare, 
+  Star, 
+  CheckSquare,
+  Settings,
+  Clock,
+  User,
+  Mail,
+  Phone,
+  Building,
+  AlertCircle
+} from "lucide-react"
 
 interface RFP {
   id: string
@@ -61,165 +71,142 @@ interface RFP {
   }>
 }
 
-interface SubmissionItem {
-  id: string
-  status: string
-  submittedAt: string | null
-  createdAt: string
-  vendor: { id: string; name: string } | null
-  _count?: { answers: number; scores: number }
-}
-
 export default function RFPDetailPage() {
   const params = useParams()
-  useEffect(() => { document.title = 'RFP Details | RFP Platform' }, [])
-  const router = useRouter()
   const [rfp, setRfp] = useState<RFP | null>(null)
   const [loading, setLoading] = useState(true)
-  const [publishing, setPublishing] = useState(false)
-  const [submissions, setSubmissions] = useState<SubmissionItem[]>([])
-  const [submissionsLoading, setSubmissionsLoading] = useState(false)
 
   useEffect(() => {
-    async function fetchRfp() {
-      try {
-        setLoading(true)
-        const res = await fetch(`/api/rfps/${params.id}`)
-        if (!res.ok) {
-          if (res.status === 404) {
-            setRfp(null)
-            return
-          }
-          throw new Error(`Failed to fetch RFP (${res.status})`)
+    // Mock data for demonstration
+    const mockRfp: RFP = {
+      id: params.id as string,
+      title: "IT Managed Services 2024",
+      status: "published",
+      category: "IT Services",
+      budget: "$250,000",
+      confidentiality: "internal",
+      description: "Comprehensive IT managed services including 24/7 support, infrastructure management, and strategic technology consulting.",
+      publishAt: "2024-11-01T00:00:00Z",
+      closeAt: "2024-12-15T23:59:59Z",
+      createdAt: "2024-10-15T10:00:00Z",
+      updatedAt: "2024-11-01T09:00:00Z",
+      timeline: {
+        qnaStart: "2024-11-01T00:00:00Z",
+        qnaEnd: "2024-11-15T23:59:59Z",
+        submissionDeadline: "2024-12-15T23:59:59Z",
+        evaluationStart: "2024-12-16T00:00:00Z",
+        awardTarget: "2024-12-31T23:59:59Z"
+      },
+      team: [
+        {
+          id: "1",
+          name: "John Smith",
+          email: "john.smith@company.com",
+          role: "RFP Owner"
+        },
+        {
+          id: "2", 
+          name: "Sarah Johnson",
+          email: "sarah.johnson@company.com",
+          role: "Evaluator"
+        },
+        {
+          id: "3",
+          name: "Mike Chen",
+          email: "mike.chen@company.com", 
+          role: "Editor"
         }
-        const data = await res.json()
-
-        // Map API response to UI shape
-        const mapped: RFP = {
-          id: data.id,
-          title: data.title,
-          status: data.status,
-          category: data.category || undefined,
-          budget: data.budget != null ? `$${data.budget.toLocaleString()}` : undefined,
-          confidentiality: data.confidentiality || "internal",
-          description: data.description || undefined,
-          publishAt: data.publishAt || undefined,
-          closeAt: data.timeline?.submissionDeadline || data.closeAt || undefined,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt,
-          timeline: data.timeline
-            ? {
-                qnaStart: data.timeline.qnaStart || undefined,
-                qnaEnd: data.timeline.qnaEnd || undefined,
-                submissionDeadline: data.timeline.submissionDeadline || undefined,
-                evaluationStart: data.timeline.evaluationStart || undefined,
-                awardTarget: data.timeline.awardTarget || undefined,
-              }
-            : undefined,
-          team: (data.teams || []).map((t: { id: string; user?: { id?: string; name?: string; email?: string }; role?: string }) => ({
-            id: t.id,
-            name: t.user?.name || "Unknown",
-            email: t.user?.email || "",
-            role: t.role || "member",
-          })),
-          vendors: (data.invitations || []).map((inv: { id: string; vendor?: { id?: string; name?: string; email?: string }; email?: string; status?: string }) => ({
-            id: inv.vendor?.id || inv.id,
-            name: inv.vendor?.name || inv.email || "Unknown Vendor",
-            email: inv.vendor?.email || inv.email || "",
-            status: inv.status || "pending",
-          })),
-          sections: (data.sections || []).map((s: { id: string; title?: string; description?: string; questions?: unknown[] }) => ({
-            id: s.id,
-            title: s.title || "Untitled",
-            description: s.description || undefined,
-            questionCount: s.questions?.length || 0,
-          })),
-          qa: (data.qna || []).map((q: { id: string; questionText?: string; answerText?: string; isPublic?: boolean; vendor?: { name?: string }; createdAt?: string }) => ({
-            id: q.id,
-            question: q.questionText || "",
-            answer: q.answerText || undefined,
-            isPublic: q.isPublic ?? true,
-            vendor: q.vendor?.name || undefined,
-            createdAt: q.createdAt || "",
-          })),
+      ],
+      vendors: [
+        {
+          id: "1",
+          name: "Tech Solutions Inc",
+          email: "contact@techsolutions.com",
+          status: "invited"
+        },
+        {
+          id: "2",
+          name: "Global IT Services",
+          email: "info@globalit.com",
+          status: "accepted"
+        },
+        {
+          id: "3",
+          name: "Digital Dynamics",
+          email: "hello@digitaldynamics.com",
+          status: "submitted"
         }
-
-        setRfp(mapped)
-        fetchSubmissions()
-      } catch (error) {
-        console.error("Error fetching RFP:", error)
-        toast.error("Failed to load RFP details")
-        setRfp(null)
-      } finally {
-        setLoading(false)
-      }
+      ],
+      sections: [
+        {
+          id: "1",
+          title: "Company Overview",
+          description: "Information about your company and experience",
+          questionCount: 5
+        },
+        {
+          id: "2",
+          title: "Technical Approach",
+          description: "Detailed technical solution and methodology",
+          questionCount: 8
+        },
+        {
+          id: "3",
+          title: "Pricing and Commercial Terms",
+          description: "Cost breakdown and commercial conditions",
+          questionCount: 6
+        }
+      ],
+      qa: [
+        {
+          id: "1",
+          question: "What is the expected timeline for implementation?",
+          answer: "The implementation timeline is expected to be 3-6 months depending on the scope.",
+          isPublic: true,
+          vendor: "Tech Solutions Inc",
+          createdAt: "2024-11-05T10:30:00Z"
+        },
+        {
+          id: "2",
+          question: "Are there any specific certifications required?",
+          answer: "ISO 27001 and SOC 2 certifications are required for this engagement.",
+          isPublic: true,
+          vendor: "Global IT Services",
+          createdAt: "2024-11-06T14:15:00Z"
+        }
+      ]
     }
-    fetchRfp()
+
+    setTimeout(() => {
+      setRfp(mockRfp)
+      setLoading(false)
+    }, 1000)
   }, [params.id])
 
-  const handlePublish = async () => {
-    if (!rfp) return
-    try {
-      setPublishing(true)
-      const res = await fetch(`/api/rfps/${rfp.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "published" }),
-      })
-      if (!res.ok) throw new Error(`Failed to publish RFP (${res.status})`)
-      toast.success("RFP published successfully!")
-      setRfp({ ...rfp, status: "published" })
-    } catch (error) {
-      console.error("Error publishing RFP:", error)
-      toast.error("Failed to publish RFP")
-    } finally {
-      setPublishing(false)
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "published":
+        return "bg-green-100 text-green-800"
+      case "draft":
+        return "bg-gray-100 text-gray-800"
+      case "evaluation":
+        return "bg-blue-100 text-blue-800"
+      case "closed":
+        return "bg-red-100 text-red-800"
+      case "awarded":
+        return "bg-purple-100 text-purple-800"
+      case "archived":
+        return "bg-yellow-100 text-yellow-800"
+      default:
+        return "bg-gray-100 text-gray-800"
     }
-  }
-
-  const fetchSubmissions = async () => {
-    try {
-      setSubmissionsLoading(true)
-      const res = await fetch(`/api/v1/submissions?rfpId=${params.id}&limit=50`)
-      if (res.ok) {
-        const json = await res.json()
-        setSubmissions(json.data || [])
-      }
-    } catch (err) {
-      console.error("Error fetching submissions:", err)
-      toast.error('Failed to load submissions')
-    } finally {
-      setSubmissionsLoading(false)
-    }
-  }
-
-  const handleEdit = () => {
-    router.push('/rfps/' + rfp.id + '/edit')
   }
 
   if (loading) {
     return (
       <MainLayout title="RFP Details">
-        <div className="space-y-6">
-          <div className="flex justify-between items-start">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-3">
-                <Skeleton className="h-8 w-64" />
-                <Skeleton className="h-6 w-24" />
-              </div>
-              <Skeleton className="h-4 w-96" />
-            </div>
-            <div className="flex space-x-2">
-              <Skeleton className="h-10 w-24" />
-              <Skeleton className="h-10 w-24" />
-            </div>
-          </div>
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading RFP details...</div>
         </div>
       </MainLayout>
     )
@@ -228,12 +215,9 @@ export default function RFPDetailPage() {
   if (!rfp) {
     return (
       <MainLayout title="RFP Details">
-        <EmptyState 
-          icon={FileX}
-          title="RFP not found"
-          description="The RFP you're looking for doesn't exist or has been removed."
-          action={{ label: "Back to RFPs", onClick: () => router.push('/rfps') }}
-        />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">RFP not found</div>
+        </div>
       </MainLayout>
     )
   }
@@ -255,18 +239,12 @@ export default function RFPDetailPage() {
               <span>•</span>
               <span>Budget: {rfp.budget || "Not specified"}</span>
               <span>•</span>
-              <span>Created: {formatDate(rfp.createdAt)}</span>
+              <span>Created: {new Date(rfp.createdAt).toLocaleDateString()}</span>
             </div>
           </div>
           <div className="flex space-x-2">
-            {(rfp.status === "draft" || rfp.status === "published") && (
-              <Button variant="outline" onClick={handleEdit}>Edit RFP</Button>
-            )}
-            {rfp.status === "draft" && (
-              <Button onClick={handlePublish} disabled={publishing}>
-                {publishing ? "Publishing..." : "Publish"}
-              </Button>
-            )}
+            <Button variant="outline">Edit RFP</Button>
+            <Button>Publish</Button>
           </div>
         </div>
 
@@ -277,14 +255,14 @@ export default function RFPDetailPage() {
               <CardTitle>Description</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-foreground/80">{rfp.description}</p>
+              <p className="text-gray-700">{rfp.description}</p>
             </CardContent>
           </Card>
         )}
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="flex flex-wrap gap-1">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="teams">Teams</TabsTrigger>
@@ -308,20 +286,20 @@ export default function RFPDetailPage() {
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Published:</span>
                     <span className="text-sm">
-                      {rfp.publishAt ? formatDate(rfp.publishAt) : "Not published"}
+                      {rfp.publishAt ? new Date(rfp.publishAt).toLocaleDateString() : "Not published"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Submission Deadline:</span>
-                    <span className="text-sm text-red-600 dark:text-red-400">
-                      {rfp.closeAt ? formatDate(rfp.closeAt) : "Not set"}
+                    <span className="text-sm text-red-600">
+                      {rfp.closeAt ? new Date(rfp.closeAt).toLocaleDateString() : "Not set"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Q&A Period:</span>
                     <span className="text-sm">
                       {rfp.timeline?.qnaStart && rfp.timeline.qnaEnd 
-                        ? `${formatDate(rfp.timeline.qnaStart)} - ${formatDate(rfp.timeline.qnaEnd)}`
+                        ? `${new Date(rfp.timeline.qnaStart).toLocaleDateString()} - ${new Date(rfp.timeline.qnaEnd).toLocaleDateString()}`
                         : "Not set"
                       }
                     </span>
@@ -329,7 +307,7 @@ export default function RFPDetailPage() {
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Award Target:</span>
                     <span className="text-sm">
-                      {rfp.timeline?.awardTarget ? formatDate(rfp.timeline.awardTarget) : "Not set"}
+                      {rfp.timeline?.awardTarget ? new Date(rfp.timeline.awardTarget).toLocaleDateString() : "Not set"}
                     </span>
                   </div>
                 </CardContent>
@@ -371,35 +349,31 @@ export default function RFPDetailPage() {
                 <CardDescription>Important dates and milestones for this RFP</CardDescription>
               </CardHeader>
               <CardContent>
-                {rfp.timeline ? (
-                  <div className="space-y-4">
-                    {Object.entries(rfp.timeline).map(([key, value]) => {
-                      if (!value) return null
-                      
-                      const labels: Record<string, string> = {
-                        qnaStart: "Q&A Start",
-                        qnaEnd: "Q&A End", 
-                        submissionDeadline: "Submission Deadline",
-                        evaluationStart: "Evaluation Start",
-                        awardTarget: "Award Target"
-                      }
-                      
-                      return (
-                        <div key={key} className="flex items-center space-x-3">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex-1">
-                            <div className="font-medium">{labels[key]}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {new Date(value).toLocaleString()}
-                            </div>
+                <div className="space-y-4">
+                  {rfp.timeline && Object.entries(rfp.timeline).map(([key, value]) => {
+                    if (!value) return null
+                    
+                    const labels: Record<string, string> = {
+                      qnaStart: "Q&A Start",
+                      qnaEnd: "Q&A End", 
+                      submissionDeadline: "Submission Deadline",
+                      evaluationStart: "Evaluation Start",
+                      awardTarget: "Award Target"
+                    }
+                    
+                    return (
+                      <div key={key} className="flex items-center space-x-3">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="font-medium">{labels[key]}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(value).toLocaleString()}
                           </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <EmptyState icon={Clock} title="No timeline events" />
-                )}
+                      </div>
+                    )
+                  })}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -411,26 +385,22 @@ export default function RFPDetailPage() {
                 <CardDescription>People involved in this RFP process</CardDescription>
               </CardHeader>
               <CardContent>
-                {rfp.team.length > 0 ? (
-                  <div className="space-y-4">
-                    {rfp.team.map((member) => (
-                      <div key={member.id} className="flex items-center space-x-4 p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3 flex-1">
-                          <div className="w-8 h-8 bg-muted-foreground/20 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{member.name}</div>
-                            <div className="text-sm text-muted-foreground">{member.email}</div>
-                          </div>
+                <div className="space-y-4">
+                  {rfp.team.map((member) => (
+                    <div key={member.id} className="flex items-center space-x-4 p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3 flex-1">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4" />
                         </div>
-                        <Badge variant="outline">{member.role}</Badge>
+                        <div>
+                          <div className="font-medium">{member.name}</div>
+                          <div className="text-sm text-muted-foreground">{member.email}</div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState icon={Users} title="No team members" />
-                )}
+                      <Badge variant="outline">{member.role}</Badge>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -442,25 +412,21 @@ export default function RFPDetailPage() {
                 <CardDescription>Content sections and requirements</CardDescription>
               </CardHeader>
               <CardContent>
-                {rfp.sections.length > 0 ? (
-                  <div className="space-y-3">
-                    {rfp.sections.map((section) => (
-                      <div key={section.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <div className="font-medium">{section.title}</div>
-                          {section.description && (
-                            <div className="text-sm text-muted-foreground">{section.description}</div>
-                          )}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {section.questionCount} questions
-                        </div>
+                <div className="space-y-3">
+                  {rfp.sections.map((section) => (
+                    <div key={section.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{section.title}</div>
+                        {section.description && (
+                          <div className="text-sm text-muted-foreground">{section.description}</div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState icon={FileText} title="No sections" />
-                )}
+                      <div className="text-sm text-muted-foreground">
+                        {section.questionCount} questions
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -472,26 +438,22 @@ export default function RFPDetailPage() {
                 <CardDescription>Vendors invited to participate in this RFP</CardDescription>
               </CardHeader>
               <CardContent>
-                {rfp.vendors.length > 0 ? (
-                  <div className="space-y-4">
-                    {rfp.vendors.map((vendor) => (
-                      <div key={vendor.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Building className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <div className="font-medium">{vendor.name}</div>
-                            <div className="text-sm text-muted-foreground">{vendor.email}</div>
-                          </div>
+                <div className="space-y-4">
+                  {rfp.vendors.map((vendor) => (
+                    <div key={vendor.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div className="font-medium">{vendor.name}</div>
+                          <div className="text-sm text-muted-foreground">{vendor.email}</div>
                         </div>
-                        <Badge className={getStatusColor(vendor.status)}>
-                          {vendor.status}
-                        </Badge>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState icon={Building2} title="No vendors" />
-                )}
+                      <Badge className={getStatusColor(vendor.status)}>
+                        {vendor.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -503,36 +465,32 @@ export default function RFPDetailPage() {
                 <CardDescription>Vendor questions and official responses</CardDescription>
               </CardHeader>
               <CardContent>
-                {rfp.qa.length > 0 ? (
-                  <div className="space-y-4">
-                    {rfp.qa.map((qa) => (
-                      <div key={qa.id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">{qa.vendor || "Anonymous"}</span>
-                            <Badge variant={qa.isPublic ? "default" : "secondary"}>
-                              {qa.isPublic ? "Public" : "Private"}
-                            </Badge>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(qa.createdAt)}
-                          </span>
+                <div className="space-y-4">
+                  {rfp.qa.map((qa) => (
+                    <div key={qa.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">{qa.vendor || "Anonymous"}</span>
+                          <Badge variant={qa.isPublic ? "default" : "secondary"}>
+                            {qa.isPublic ? "Public" : "Private"}
+                          </Badge>
                         </div>
-                        <div className="mb-3">
-                          <p className="text-sm font-medium">Q: {qa.question}</p>
-                        </div>
-                        {qa.answer && (
-                          <div className="bg-muted/50 p-3 rounded">
-                            <p className="text-sm"><strong>A:</strong> {qa.answer}</p>
-                          </div>
-                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(qa.createdAt).toLocaleDateString()}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState icon={MessageSquare} title="No questions" />
-                )}
+                      <div className="mb-3">
+                        <p className="text-sm font-medium">Q: {qa.question}</p>
+                      </div>
+                      {qa.answer && (
+                        <div className="bg-gray-50 p-3 rounded">
+                          <p className="text-sm"><strong>A:</strong> {qa.answer}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -544,52 +502,10 @@ export default function RFPDetailPage() {
                 <CardDescription>Track and evaluate vendor proposals</CardDescription>
               </CardHeader>
               <CardContent>
-                {submissionsLoading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-4 w-40" />
-                          <Skeleton className="h-3 w-28" />
-                        </div>
-                        <Skeleton className="h-6 w-20" />
-                      </div>
-                    ))}
-                  </div>
-                ) : submissions.length === 0 ? (
-                  <div className="text-center py-8">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No submissions yet. Submissions will appear here when vendors submit their proposals.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {submissions.map((sub) => (
-                      <div key={sub.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          <Building className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <div className="font-medium truncate">{sub.vendor?.name || "Unknown Vendor"}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {sub.submittedAt
-                                ? formatDate(sub.submittedAt)
-                                : formatDate(sub.createdAt)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2 shrink-0">
-                          <Badge className={getStatusColor(sub.status)}>{sub.status}</Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.push(`/submissions/${sub.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="text-center py-8">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No submissions yet. Submissions will appear here when vendors submit their proposals.</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

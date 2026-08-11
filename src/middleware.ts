@@ -6,44 +6,9 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request })
   const { pathname } = request.nextUrl
 
-  // X32: Security headers on all responses
-  const response = NextResponse.next()
-  response.headers.set("X-Frame-Options", "DENY")
-  response.headers.set("X-Content-Type-Options", "nosniff")
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
-  response.headers.set("X-XSS-Protection", "1; mode=block")
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-  // HSTS — only in production
-  if (process.env.NODE_ENV === "production") {
-    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-  }
-
-  // X10: Rate limit API routes
-  if (pathname.startsWith("/api/")) {
-    const { rateLimit } = await import("@/lib/rate-limiter")
-    const identifier = token?.sub || request.ip || "anonymous"
-    const rl = rateLimit(`api:${identifier}:${pathname}`, 100, 60_000) // 100 req/min
-    if (!rl.success) {
-      return NextResponse.json(
-        { error: "Too many requests" },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
-            "X-RateLimit-Remaining": "0",
-          },
-        }
-      )
-    }
-    response.headers.set("X-RateLimit-Remaining", String(rl.remaining))
-  }
-
   // Public routes that don't require authentication
-  const publicRoutes = [
-    "/", "/auth/signin", "/auth/signup", "/auth/error", "/api/health", "/submit",
-    "/about", "/careers", "/blog", "/contact", "/help", "/api-docs", "/status", "/privacy", "/terms"
-  ]
-  const isPublicRoute = publicRoutes.some(route =>
+  const publicRoutes = ["/", "/auth/signin", "/auth/signup", "/api/health", "/submit"]
+  const isPublicRoute = publicRoutes.some(route => 
     pathname === route || pathname.startsWith(route + "/")
   )
 
@@ -52,7 +17,7 @@ export async function middleware(request: NextRequest) {
 
   // If accessing a public route or auth route, allow through
   if (isPublicRoute || isAuthRoute) {
-    return response
+    return NextResponse.next()
   }
 
   // If no token and accessing protected route, redirect to signin
@@ -66,18 +31,26 @@ export async function middleware(request: NextRequest) {
   const adminRoutes = ["/admin"]
   const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route))
   if (isAdminRoute) {
-    const roleNames = (token.roleNames as string[]) || []
-    const isAdmin = roleNames.some((name: string) => /admin/i.test(name))
-    if (!isAdmin) {
+    const roleIds: string[] = Array.isArray(token.roleIds) ? token.roleIds as string[] : []
+    const hasAdminRole = roleIds.some((id: string) => 
+      id === 'admin' || id === 'system_admin' || id.startsWith('admin_')
+    )
+    if (!hasAdminRole) {
       return NextResponse.redirect(new URL("/dashboard", request.url))
     }
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 }

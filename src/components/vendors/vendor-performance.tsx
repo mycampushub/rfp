@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
@@ -13,8 +14,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { TrendingUp, TrendingDown, Clock, DollarSign, FileText, Star, Target, AlertTriangle, CheckCircle, Calendar, BarChart3, PieChart } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Award, 
+  Clock, 
+  DollarSign,
+  FileText,
+  Star,
+  Target,
+  AlertTriangle,
+  CheckCircle,
+  Calendar,
+  BarChart3,
+  PieChart
+} from "lucide-react"
 
 interface PerformanceMetric {
   id: string
@@ -58,95 +72,146 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [vendorRes, submissionsRes] = await Promise.all([
-          fetch(`/api/vendors/${vendorId}`),
-          fetch(`/api/submissions?vendorId=${vendorId}`),
-        ])
-
-        if (!vendorRes.ok) throw new Error('Failed to fetch vendor')
-        if (!submissionsRes.ok) throw new Error('Failed to fetch submissions')
-
-        const vendor = await vendorRes.json()
-        const submissions = await submissionsRes.json() as Array<{
-          id: string
-          rfp: { id: string; title: string; status: string; closeAt: string | null; budget: number | null }
-          status: string
-          createdAt: string
-          submittedAt: string | null
-          scorePercentage: number
-        }>
-
-        // Derive metrics from vendor data
-        const vendorRating = vendor.rating || 0
-        const awardedCount = submissions.filter(s => s.status === 'awarded').length
-        const derivedMetrics: PerformanceMetric[] = [
-          { id: "1", name: "Vendor Rating", value: vendorRating * 20, target: 80, unit: "%", trend: vendorRating >= 4 ? "up" : "stable", change: 0 },
-          { id: "2", name: "Response Count", value: vendor._count?.submissions || 0, target: 5, unit: "", trend: "stable", change: 0 },
-          { id: "3", name: "Invitations Received", value: vendor._count?.invitations || 0, target: 10, unit: "", trend: "stable", change: 0 },
-          { id: "4", name: "Win Rate", value: awardedCount, target: Math.max(vendor._count?.submissions || 1, 1), unit: "", trend: awardedCount > 0 ? "up" : "stable", change: 0 },
-        ]
-
-        // Map submissions to Project interface
-        const projectMap: Record<string, string> = {
-          awarded: 'completed',
-          submitted: 'in_progress',
-          reviewed: 'in_progress',
-          rejected: 'cancelled',
-          draft: 'on_hold',
-        }
-
-        const projects: Project[] = submissions.map(sub => ({
-          id: sub.id,
-          name: sub.rfp.title || 'Untitled RFP',
-          status: (projectMap[sub.status] || 'on_hold') as Project['status'],
-          startDate: sub.createdAt,
-          endDate: sub.rfp.closeAt ?? undefined,
-          budget: sub.rfp.budget ?? 0,
-          score: Math.round(sub.scorePercentage || 0),
-          feedback: sub.status === 'awarded' ? 'Contract awarded' : sub.status === 'rejected' ? 'Not selected' : '',
-        }))
-
-        // Derive compliance from vendor certifications
-        const certs = (vendor.certifications || []) as string[]
-        const compliance: ComplianceItem[] = certs.map((cert, idx) => ({
-          id: `cert-${idx}`,
-          type: "certification" as const,
-          name: cert,
-          status: "compliant" as const,
-          lastUpdated: vendor.updatedAt || new Date().toISOString(),
-        }))
-
-        setMetrics(derivedMetrics)
-        setProjects(projects)
-        setCompliance(compliance)
-      } catch (err) { console.error("Failed to fetch vendor performance data:", err); setMetrics([])
-        setProjects([])
-        setCompliance([]) } finally {
-        setLoading(false)
+    // Mock data - in real app, this would come from API
+    const mockMetrics: PerformanceMetric[] = [
+      {
+        id: "1",
+        name: "On-Time Delivery",
+        value: 92,
+        target: 90,
+        unit: "%",
+        trend: "up",
+        change: 5
+      },
+      {
+        id: "2",
+        name: "Budget Adherence",
+        value: 88,
+        target: 95,
+        unit: "%",
+        trend: "down",
+        change: -3
+      },
+      {
+        id: "3",
+        name: "Quality Score",
+        value: 94,
+        target: 90,
+        unit: "%",
+        trend: "up",
+        change: 2
+      },
+      {
+        id: "4",
+        name: "Response Time",
+        value: 24,
+        target: 48,
+        unit: "hours",
+        trend: "up",
+        change: -12
+      },
+      {
+        id: "5",
+        name: "Customer Satisfaction",
+        value: 4.6,
+        target: 4.5,
+        unit: "/5",
+        trend: "stable",
+        change: 0
       }
-    }
-    if (vendorId) fetchData()
-    else { setLoading(false) }
+    ]
+
+    const mockProjects: Project[] = [
+      {
+        id: "1",
+        name: "IT Infrastructure Upgrade",
+        status: "completed",
+        startDate: "2024-01-15",
+        endDate: "2024-03-30",
+        budget: 250000,
+        actualCost: 245000,
+        score: 92,
+        feedback: "Excellent work, delivered ahead of schedule"
+      },
+      {
+        id: "2",
+        name: "Security Assessment",
+        status: "completed",
+        startDate: "2024-02-01",
+        endDate: "2024-02-28",
+        budget: 50000,
+        actualCost: 52000,
+        score: 88,
+        feedback: "Good quality, slight budget overrun"
+      },
+      {
+        id: "3",
+        name: "Cloud Migration",
+        status: "in_progress",
+        startDate: "2024-03-01",
+        budget: 180000,
+        score: 0,
+        feedback: "In progress, on track"
+      }
+    ]
+
+    const mockCompliance: ComplianceItem[] = [
+      {
+        id: "1",
+        type: "certification",
+        name: "ISO 27001",
+        status: "compliant",
+        expiryDate: "2025-12-31",
+        lastUpdated: "2024-01-15"
+      },
+      {
+        id: "2",
+        type: "audit",
+        name: "SOC 2 Type II",
+        status: "compliant",
+        expiryDate: "2024-12-31",
+        lastUpdated: "2024-01-20"
+      },
+      {
+        id: "3",
+        type: "training",
+        name: "Security Awareness Training",
+        status: "pending",
+        lastUpdated: "2024-01-10"
+      },
+      {
+        id: "4",
+        type: "document",
+        name: "Business Continuity Plan",
+        status: "non_compliant",
+        lastUpdated: "2024-01-05"
+      }
+    ]
+
+    setTimeout(() => {
+      setMetrics(mockMetrics)
+      setProjects(mockProjects)
+      setCompliance(mockCompliance)
+      setLoading(false)
+    }, 1000)
   }, [vendorId])
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
       case "compliant":
-        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+        return "bg-green-100 text-green-800"
       case "in_progress":
       case "pending":
-        return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+        return "bg-yellow-100 text-yellow-800"
       case "on_hold":
-        return "bg-orange-500/15 text-orange-700 dark:text-orange-400"
+        return "bg-orange-100 text-orange-800"
       case "cancelled":
       case "non_compliant":
       case "expired":
-        return "bg-red-500/15 text-red-700 dark:text-red-400"
+        return "bg-red-100 text-red-800"
       default:
-        return "bg-muted text-muted-foreground"
+        return "bg-gray-100 text-gray-800"
     }
   }
 
@@ -172,11 +237,11 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "up":
-        return <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        return <TrendingUp className="h-4 w-4 text-green-600" />
       case "down":
-        return <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+        return <TrendingDown className="h-4 w-4 text-red-600" />
       default:
-        return <Target className="h-4 w-4 text-muted-foreground" />
+        return <Target className="h-4 w-4 text-gray-600" />
     }
   }
 
@@ -204,8 +269,8 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-32 bg-muted rounded-lg animate-pulse"></div>
-        <div className="h-64 bg-muted rounded-lg animate-pulse"></div>
+        <div className="h-32 bg-gray-100 rounded-lg animate-pulse"></div>
+        <div className="h-64 bg-gray-100 rounded-lg animate-pulse"></div>
       </div>
     )
   }
@@ -221,10 +286,10 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${
-              overallScore >= 90 ? 'text-emerald-600 dark:text-emerald-400' :
-              overallScore >= 80 ? 'text-sky-600 dark:text-sky-400' :
-              overallScore >= 70 ? 'text-amber-600 dark:text-amber-400' :
-              'text-red-600 dark:text-red-400'
+              overallScore >= 90 ? 'text-green-600' :
+              overallScore >= 80 ? 'text-blue-600' :
+              overallScore >= 70 ? 'text-yellow-600' :
+              'text-red-600'
             }`}>
               {overallScore}%
             </div>
@@ -243,9 +308,9 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${
-              budgetVariance <= 5 ? 'text-emerald-600 dark:text-emerald-400' :
-              budgetVariance <= 10 ? 'text-amber-600 dark:text-amber-400' :
-              'text-red-600 dark:text-red-400'
+              budgetVariance <= 5 ? 'text-green-600' :
+              budgetVariance <= 10 ? 'text-yellow-600' :
+              'text-red-600'
             }`}>
               {budgetVariance > 0 ? '+' : ''}{budgetVariance}%
             </div>
@@ -276,7 +341,7 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            <div className="text-2xl font-bold text-green-600">
               {Math.round((compliance.filter(c => c.status === "compliant").length / compliance.length) * 100)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -322,7 +387,7 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                   />
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Current: {metric.value}{metric.unit}</span>
-                    <span className={metric.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : metric.trend === "down" ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>
+                    <span className={metric.trend === "up" ? "text-green-600" : metric.trend === "down" ? "text-red-600" : "text-gray-600"}>
                       {metric.change > 0 ? '+' : ''}{metric.change}{metric.unit}
                     </span>
                   </div>
@@ -377,8 +442,8 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                           <div>
                             <div className="font-medium">{project.name}</div>
                             <div className="text-sm text-muted-foreground">
-                              {formatDate(project.startDate)}
-                              {project.endDate && ` - ${formatDate(project.endDate)}`}
+                              {new Date(project.startDate).toLocaleDateString()}
+                              {project.endDate && ` - ${new Date(project.endDate).toLocaleDateString()}`}
                             </div>
                           </div>
                         </TableCell>
@@ -396,7 +461,7 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                         <TableCell>
                           {budgetVariance !== null ? (
                             <div className="flex items-center space-x-2">
-                              <span className={budgetVariance <= 5 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                              <span className={budgetVariance <= 5 ? 'text-green-600' : 'text-red-600'}>
                                 {budgetVariance > 0 ? '+' : ''}{budgetVariance}%
                               </span>
                               <span className="text-sm text-muted-foreground">
@@ -409,10 +474,10 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                           {project.score > 0 ? (
                             <div className="flex items-center space-x-2">
                               <div className={`font-bold ${
-                                project.score >= 90 ? 'text-emerald-600 dark:text-emerald-400' :
-                                project.score >= 80 ? 'text-sky-600 dark:text-sky-400' :
-                                project.score >= 70 ? 'text-amber-600 dark:text-amber-400' :
-                                'text-red-600 dark:text-red-400'
+                                project.score >= 90 ? 'text-green-600' :
+                                project.score >= 80 ? 'text-blue-600' :
+                                project.score >= 70 ? 'text-yellow-600' :
+                                'text-red-600'
                               }`}>
                                 {project.score}%
                               </div>
@@ -472,12 +537,12 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                         {item.expiryDate ? (
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4" />
-                            <span>{formatDate(item.expiryDate)}</span>
+                            <span>{new Date(item.expiryDate).toLocaleDateString()}</span>
                           </div>
                         ) : "-"}
                       </TableCell>
                       <TableCell>
-                        {formatDate(item.lastUpdated)}
+                        {new Date(item.lastUpdated).toLocaleDateString()}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -510,9 +575,9 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                         <span className="capitalize">{status.replace("_", " ")}</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <div className="w-20 bg-muted-foreground/20 rounded-full h-2">
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
                           <div 
-                            className="bg-sky-500 h-2 rounded-full"
+                            className="bg-blue-600 h-2 rounded-full"
                             style={{ width: `${(count / projects.length) * 100}%` }}
                           />
                         </div>
@@ -539,8 +604,8 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                       <div className="text-sm text-muted-foreground">Last 6 months</div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">+8%</span>
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="text-green-600 font-medium">+8%</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -549,8 +614,8 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                       <div className="text-sm text-muted-foreground">Last 6 months</div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">+5%</span>
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="text-green-600 font-medium">+5%</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between p-3 border rounded-lg">
@@ -559,8 +624,8 @@ export function VendorPerformance({ vendorId }: VendorPerformanceProps) {
                       <div className="text-sm text-muted-foreground">Last 6 months</div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
-                      <span className="text-red-600 dark:text-red-400 font-medium">-3%</span>
+                      <TrendingDown className="h-4 w-4 text-red-600" />
+                      <span className="text-red-600 font-medium">-3%</span>
                     </div>
                   </div>
                 </div>

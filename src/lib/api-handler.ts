@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
+import { getServerSession, type Session } from "next-auth"
 import { authOptions } from "./auth"
-import { Permission } from "@/types/auth"
+import { Permission, PERMISSIONS } from "@/types/auth"
 import { db } from "./db"
-import { type TenantContext, AuthError, PermissionError } from "./tenant-context"
+import { AuthError, PermissionError, getTenantContext } from "./tenant-context"
 
-export type { AuthError, PermissionError, TenantContext }
+export type { AuthError, PermissionError }
+export { getTenantContext }
 
-/**
- * Wrap a route handler with authentication + tenant context.
- * Returns proper 401/403/500 error responses.
- */
+export type TenantContext = {
+  tenantId: string
+  userId: string
+  userEmail: string
+}
+
 export async function withAuth(
   request: NextRequest,
-  handler: (
-    session: Awaited<ReturnType<typeof getServerSession>>,
-    ctx: TenantContext
-  ) => Promise<NextResponse>
+  handler: (session: Session, ctx: TenantContext) => Promise<NextResponse>
 ): Promise<NextResponse> {
   try {
     const session = await getServerSession(authOptions)
@@ -24,9 +24,9 @@ export async function withAuth(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const ctx = {
-      tenantId: session.user.tenantId as string,
-      userId: session.user.id as string,
-      userEmail: session.user.email as string,
+      tenantId: session.user.tenantId,
+      userId: session.user.id,
+      userEmail: session.user.email ?? "",
     }
     return await handler(session, ctx)
   } catch (error) {
@@ -41,25 +41,22 @@ export async function withAuth(
   }
 }
 
-/**
- * Check if the current session user has a specific permission.
- */
 export async function checkPermission(
-  session: Awaited<ReturnType<typeof getServerSession>>,
+  session: Session | null,
   permission: Permission
 ): Promise<boolean> {
   if (!session?.user) return false
-  const roleIds = (session.user.roleIds || []) as string[]
+  const roleIds = session.user.roleIds || []
   if (roleIds.length === 0) return false
   const roles = await db.role.findMany({ where: { id: { in: roleIds } } })
-  const userPermissions = roles.flatMap(role => role.permissions || [])
+  const userPermissions = roles.flatMap(role => {
+    const perms = role.permissions
+    return Array.isArray(perms) ? perms.filter((p): p is string => typeof p === "string") : []
+  })
   return userPermissions.includes(permission)
 }
 
-/**
- * Require a specific permission — throws PermissionError if missing.
- */
-export async function requirePermission(session: Awaited<ReturnType<typeof getServerSession>>, permission: Permission): Promise<void> {
+export async function requirePermission(session: Session | null, permission: Permission): Promise<void> {
   const has = await checkPermission(session, permission)
   if (!has) {
     throw new PermissionError(`Permission denied: ${permission}`)

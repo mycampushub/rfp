@@ -3,8 +3,6 @@ export interface User {
   email: string
   name?: string
   tenantId: string
-  /** Application-level type is string[]; DB stores as Json (Prisma reads it back as unknown,
-   *  so `as string[]` casts are required in auth callbacks). */
   roleIds: string[]
 }
 
@@ -19,8 +17,8 @@ export interface Tenant {
   name: string
   region?: string
   plan: string
-  settings?: any
-  branding?: any
+  settings?: Record<string, unknown>
+  branding?: Record<string, unknown>
 }
 
 export interface SessionUser {
@@ -28,14 +26,12 @@ export interface SessionUser {
   email: string
   name?: string
   tenantId: string
-  /** Stored as Json in the User model; cast via `as string[]` in session callback. */
   roleIds: string[]
 }
 
 export interface JWT {
   sub: string
   tenantId: string
-  /** Stored as Json in the User model; cast via `as string[]` in JWT callback. */
   roleIds: string[]
   iat?: number
   exp?: number
@@ -67,17 +63,54 @@ export const PERMISSIONS = {
   VIEW_SCORES: "score:view",
   FINALIZE_SCORES: "score:finalize",
   
+  // Evaluation
+  VIEW_EVALUATIONS: "evaluation:view",
+  MANAGE_EVALUATIONS: "evaluation:manage",
+
+  // Submissions
+  VIEW_SUBMISSION: "submission:view",
+  CREATE_SUBMISSION: "submission:create",
+  EDIT_SUBMISSION: "submission:edit",
+  DELETE_SUBMISSION: "submission:delete",
+
+  // Files
+  MANAGE_FILES: "file:manage",
+
+  // Announcements
+  MANAGE_ANNOUNCEMENTS: "announcement:manage",
+
   // Approvals
   CREATE_APPROVAL: "approval:create",
   EDIT_APPROVAL: "approval:edit",
   VIEW_APPROVALS: "approval:view",
-  
+  MANAGE_APPROVALS: "approval:manage",
+
+  // Messages
+  CREATE_MESSAGE: "message:create",
+  MANAGE_MESSAGES: "message:manage",
+
+  // Bids
+  CREATE_BID: "bid:create",
+
+  // Vendor Management
+  MANAGE_VENDORS: "vendor:manage",
+
+  // Analytics
+  VIEW_ANALYTICS: "analytics:view",
+
+  // Calendar
+  MANAGE_CALENDAR: "calendar:manage",
+
   // Admin
   MANAGE_USERS: "admin:users",
   MANAGE_ROLES: "admin:roles",
   MANAGE_TENANT: "admin:tenant",
   VIEW_AUDIT_LOGS: "admin:audit",
-  
+  MANAGE_WEBHOOKS: "admin:webhooks",
+
+  // Integrations
+  MANAGE_INTEGRATIONS: "admin:integrations",
+
   // System
   SYSTEM_ADMIN: "system:admin"
 } as const

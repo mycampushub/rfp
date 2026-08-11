@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { signIn } from "next-auth/react"
+import { signIn, getSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -55,11 +55,11 @@ function SignInContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-500/10 to-violet-500/15 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Welcome Back</h1>
-          <p className="text-muted-foreground/80">Sign in to your RFP Platform account</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to your RFP Platform account</p>
         </div>
         
         <Card>
@@ -81,9 +81,9 @@ function SignInContent() {
               )}
               
               {message === "signup-success" && (
-                <Alert className="border-emerald-500/30 dark:border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/20">
-                  <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <AlertDescription className="text-emerald-700 dark:text-emerald-300">
+                <Alert className="border-green-200 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
                     Account created successfully! Please sign in.
                   </AlertDescription>
                 </Alert>
@@ -131,9 +131,9 @@ function SignInContent() {
                 {loading ? "Signing in..." : "Sign In"}
               </Button>
               
-              <div className="text-center text-sm text-muted-foreground/80">
+              <div className="text-center text-sm text-gray-600">
                 Don't have an account?{" "}
-                <Link href="/auth/signup" className="text-sky-600 dark:text-sky-400 hover:underline font-medium">
+                <Link href="/auth/signup" className="text-blue-600 hover:underline font-medium">
                   Sign up here
                 </Link>
               </div>

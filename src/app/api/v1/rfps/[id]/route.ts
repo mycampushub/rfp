@@ -1,23 +1,11 @@
-/**
- * Versioned RFPs API (v1) — Single RFP
- *
- * This is the versioned API under /api/v1/rfps/[id].
- * The base routes at /api/rfps/[id] are considered legacy and will be deprecated.
- *
- * Key differences from the base /api/rfps/[id] routes:
- *   - GET returns a richer response including teams, sections with rubric criteria,
- *     submissions with scores, Q&A threads, addenda, and approvals.
- *   - Uses PATCH (not PUT) for partial updates, with explicit timeline handling.
- *   - DELETE cascades and logs activity to the audit trail.
- *
- * Consumers should migrate to these v1 endpoints for new integrations.
- */
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requireAuth, requirePermission } from "@/lib/auth-utils"
 import { db } from "@/lib/db"
+import { PERMISSIONS } from "@/types/auth"
+import { AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const updateRFPSchema = z.object({
   title: z.string().min(1).optional(),
@@ -37,19 +25,19 @@ const updateRFPSchema = z.object({
 })
 
 interface RouteParams {
-  params: Promise<{ id: string }>
+  params: {
+    id: string
+  }
 }
 
 // GET /api/v1/rfps/[id] - Get single RFP
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const ctx = getTenantContext(session)
-    const { id } = await params
+    await requireAuth()
+    await requirePermission(PERMISSIONS.VIEW_RFP)
 
-    const rfp = await db.rFP.findFirst({
-      where: { id: id, tenantId: ctx.tenantId },
+    const rfp = await db.rFP.findUnique({
+      where: { id: params.id },
       include: {
         timeline: true,
         teams: {
@@ -140,17 +128,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/v1/rfps/[id] - Update RFP
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const ctx = getTenantContext(session)
-    const { id } = await params
+    const session = await requireAuth()
+    await requirePermission(PERMISSIONS.EDIT_RFP)
 
     const body = await request.json()
     const validatedData = updateRFPSchema.parse(body)
 
     // Check if RFP exists and user has access
-    const existingRFP = await db.rFP.findFirst({
-      where: { id: id, tenantId: ctx.tenantId },
+    const existingRFP = await db.rFP.findUnique({
+      where: { id: params.id },
       include: { timeline: true }
     })
 
@@ -177,7 +163,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       if (existingRFP.timeline) {
         // Update existing timeline
         await db.rFP_Timeline.update({
-          where: { rfpId: id },
+          where: { rfpId: params.id },
           data: {
             ...(validatedData.timeline.qnaStart && { qnaStart: new Date(validatedData.timeline.qnaStart) }),
             ...(validatedData.timeline.qnaEnd && { qnaEnd: new Date(validatedData.timeline.qnaEnd) }),
@@ -190,7 +176,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Create new timeline
         await db.rFP_Timeline.create({
           data: {
-            rfpId: id,
+            rfpId: params.id,
             qnaStart: validatedData.timeline.qnaStart ? new Date(validatedData.timeline.qnaStart) : null,
             qnaEnd: validatedData.timeline.qnaEnd ? new Date(validatedData.timeline.qnaEnd) : null,
             submissionDeadline: validatedData.timeline.submissionDeadline ? new Date(validatedData.timeline.submissionDeadline) : null,
@@ -202,7 +188,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const updatedRFP = await db.rFP.update({
-      where: { id: id, tenantId: ctx.tenantId },
+      where: { id: params.id },
       data: updateData,
       include: {
         timeline: true,
@@ -219,11 +205,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: session.user.tenantId,
-        actor: session.user.id,
+        tenantId: session.tenantId,
+        actor: session.id,
         action: "UPDATE_RFP",
         targetType: "RFP",
-        targetId: id,
+        targetId: params.id,
         metadata: {
           changes: validatedData
         }
@@ -252,14 +238,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/v1/rfps/[id] - Delete RFP
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const ctx = getTenantContext(session)
-    const { id } = await params
+    const session = await requireAuth()
+    await requirePermission(PERMISSIONS.DELETE_RFP)
 
     // Check if RFP exists
-    const existingRFP = await db.rFP.findFirst({
-      where: { id: id, tenantId: ctx.tenantId }
+    const existingRFP = await db.rFP.findUnique({
+      where: { id: params.id }
     })
 
     if (!existingRFP) {
@@ -271,17 +255,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Delete RFP (Prisma will handle cascading deletes)
     await db.rFP.delete({
-      where: { id: id, tenantId: ctx.tenantId }
+      where: { id: params.id }
     })
 
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: session.user.tenantId,
-        actor: session.user.id,
+        tenantId: session.tenantId,
+        actor: session.id,
         action: "DELETE_RFP",
         targetType: "RFP",
-        targetId: id,
+        targetId: params.id,
         metadata: {
           rfpTitle: existingRFP.title
         }

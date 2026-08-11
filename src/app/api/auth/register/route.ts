@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
+import { rateLimit } from "@/lib/rate-limit"
+
+export const dynamic = "force-dynamic"
 
 const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -20,6 +23,13 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit registration attempts
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+    const rateLimitResult = await rateLimit(`register:${ip}`, { maxRequests: 5, windowMs: 60 * 60 * 1000 })
+    if (!rateLimitResult.success) {
+      return NextResponse.json({ error: "Too many registration attempts. Please try again later." }, { status: 429 })
+    }
+
     // Check if user is already authenticated
     const session = await getServerSession(authOptions)
     if (session) {
@@ -29,24 +39,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = registerSchema.parse(body)
 
+    // Check if user already exists
+    const existingUser = await db.user.findFirst({
+      where: {
+        email: validatedData.email
+      }
+    })
+
+    if (existingUser) {
+      return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
+    }
+
     // Hash the password
     const hashedPassword = await bcrypt.hash(validatedData.password, 12)
 
-    // Wrap multi-step writes in a transaction
-    const result = await db.$transaction(async (tx) => {
-      // Check if user already exists
-      const existingUser = await tx.user.findFirst({
-        where: {
-          email: validatedData.email
-        }
-      })
-
-      if (existingUser) {
-        throw new Error('CONFLICT')
+    // Create or get tenant using the provided businessId
+    let tenant = await db.tenant.findFirst({
+      where: {
+        id: validatedData.businessId
       }
+    })
 
-      // Always create a new tenant for registration (never join an existing one)
-      const tenant = await tx.tenant.create({
+    if (!tenant) {
+      // Create new tenant with the provided businessId as the ID
+      tenant = await db.tenant.create({
         data: {
           id: validatedData.businessId,
           name: validatedData.company,
@@ -62,56 +78,73 @@ export async function POST(request: NextRequest) {
           }
         }
       })
+    }
 
-      // Find or create a basic 'Member' role (NOT Tenant Admin)
-      let userRole = await tx.role.findFirst({
-        where: {
-          tenantId: tenant.id,
-          name: "Member"
-        }
-      })
-
-      if (!userRole) {
-        userRole = await tx.role.create({
-          data: {
-            tenantId: tenant.id,
-            name: "Member",
-            permissions: [
-              "rfp:view",
-              "submission:view",
-              "approval:view"
-            ]
-          }
-        })
+    // Create or find default admin role
+    let userRole = await db.role.findFirst({
+      where: {
+        tenantId: tenant.id,
+        name: "Tenant Admin"
       }
+    })
 
-      // Create user with hashed password and real role ID
-      const user = await tx.user.create({
+    if (!userRole) {
+      userRole = await db.role.create({
         data: {
           tenantId: tenant.id,
-          email: validatedData.email,
-          name: `${validatedData.firstName} ${validatedData.lastName}`,
-          password: hashedPassword,
-          roleIds: [userRole.id],
-          isActive: true
+          name: "Tenant Admin",
+          permissions: [
+            "admin:users",
+            "admin:roles", 
+            "rfp:create",
+            "rfp:edit",
+            "rfp:view",
+            "rfp:delete",
+            "rfp:publish",
+            "vendor:invite",
+            "vendor:view",
+            "vendor:create",
+            "vendor:edit",
+            "vendor:delete",
+            "submission:view",
+            "score:create",
+            "score:edit",
+            "score:view",
+            "score:finalize",
+            "approval:create",
+            "approval:edit",
+            "approval:view",
+            "admin:tenant",
+            "admin:audit"
+          ]
         }
       })
+    }
 
-      return { user, tenant }
+    // Create user with hashed password and real role ID
+    const user = await db.user.create({
+      data: {
+        tenantId: tenant.id,
+        email: validatedData.email,
+        name: `${validatedData.firstName} ${validatedData.lastName}`,
+        password: hashedPassword,
+        roleIds: [userRole.id],
+        isActive: true
+      }
     })
 
     return NextResponse.json({
       success: true,
       message: "User registered successfully",
       user: {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.name,
-        tenantId: result.tenant.id
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        tenantId: tenant.id
       },
       tenant: {
-        id: result.tenant.id,
-        name: result.tenant.name
+        id: tenant.id,
+        name: tenant.name
       }
     }, { status: 201 })
 
@@ -121,9 +154,6 @@ export async function POST(request: NextRequest) {
         error: "Validation Error", 
         details: error.issues 
       }, { status: 400 })
-    }
-    if (error instanceof Error && error.message === 'CONFLICT') {
-      return NextResponse.json({ error: "User with this email already exists" }, { status: 409 })
     }
 
     console.error("Registration error:", error)

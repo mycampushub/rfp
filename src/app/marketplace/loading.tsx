@@ -1,12 +1,14 @@
-import { MainLayout } from '@/components/layout/main-layout'
-import { Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function MarketplaceLoading() {
   return (
-    <MainLayout>
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <div className="p-6 space-y-6">
+      <Skeleton className="h-8 w-48" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-48 rounded-lg" />
+        ))}
       </div>
-    </MainLayout>
+    </div>
   )
 }

@@ -12,8 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { 
   Plus, 
   Minus, 
-  ArrowUp, 
-  ArrowDown,
+  GripVertical, 
   FileText, 
   MessageSquare, 
   Hash,
@@ -21,25 +20,52 @@ import {
   File,
   X
 } from "lucide-react"
-import { type RFPQuestion, type RFPSection } from "./types"
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
-type Question = RFPQuestion
-type Section = RFPSection
+interface Question {
+  id: string
+  type: "text" | "number" | "multiple_choice" | "checkbox" | "file" | "date"
+  prompt: string
+  required: boolean
+  constraints?: Record<string, unknown>
+  order: number
+  options?: string[]
+}
+
+interface Section {
+  id: string
+  title: string
+  description?: string
+  isRequired: boolean
+  order: number
+  questions: Question[]
+}
 
 interface SectionBuilderProps {
   sections: Section[]
   onSectionsChange: (sections: Section[]) => void
 }
 
-function QuestionItem({ question, onUpdate, onRemove, onMoveUp, onMoveDown, isFirst, isLast }: { 
+function SortableQuestion({ question, onUpdate, onRemove }: { 
   question: Question; 
   onUpdate: (question: Question) => void; 
   onRemove: (id: string) => void 
-  onMoveUp: () => void
-  onMoveDown: () => void
-  isFirst: boolean
-  isLast: boolean
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: question.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
   const questionTypes = [
     { value: "text", label: "Text", icon: MessageSquare },
     { value: "number", label: "Number", icon: Hash },
@@ -56,32 +82,14 @@ function QuestionItem({ question, onUpdate, onRemove, onMoveUp, onMoveDown, isFi
   }
 
   return (
-    <div className="border rounded-lg p-4 bg-card">
+    <div ref={setNodeRef} style={style} className="border rounded-lg p-4 bg-white">
       <div className="flex items-start space-x-3">
-        {/* Reorder buttons */}
-        <div className="flex flex-col gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={onMoveUp}
-            disabled={isFirst}
-            aria-label="Move question up"
-          >
-            <ArrowUp className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={onMoveDown}
-            disabled={isLast}
-            aria-label="Move question down"
-          >
-            <ArrowDown className="h-4 w-4" />
-          </Button>
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab p-1 hover:bg-gray-100 rounded"
+        >
+          <GripVertical className="h-4 w-4 text-gray-400" />
         </div>
         
         <div className="flex-1 space-y-3">
@@ -134,9 +142,9 @@ function QuestionItem({ question, onUpdate, onRemove, onMoveUp, onMoveDown, isFi
                 <Label className="text-xs">Type</Label>
                 <Select
                   value={question.type}
-                  onValueChange={(value: any) => onUpdate({ 
+                  onValueChange={(value) => onUpdate({ 
                     ...question, 
-                    type: value,
+                    type: value as Question["type"],
                     options: value === "multiple_choice" ? ["Option 1", "Option 2"] : undefined
                   })}
                 >
@@ -193,6 +201,13 @@ function QuestionItem({ question, onUpdate, onRemove, onMoveUp, onMoveDown, isFi
 
 export function SectionBuilder({ sections, onSectionsChange }: SectionBuilderProps) {
   const [activeSection, setActiveSection] = useState(0)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   const addSection = () => {
     const newSection: Section = {
@@ -254,22 +269,12 @@ export function SectionBuilder({ sections, onSectionsChange }: SectionBuilderPro
     updateSection(sectionIndex, { questions: newQuestions })
   }
 
-  const moveQuestionUp = (sectionIndex: number, questionIndex: number) => {
-    if (questionIndex <= 0) return
-    const section = sections[sectionIndex]
-    const newQuestions = [...section.questions]
-    const [moved] = newQuestions.splice(questionIndex, 1)
-    newQuestions.splice(questionIndex - 1, 0, moved)
-    updateSection(sectionIndex, { questions: newQuestions })
-  }
-
-  const moveQuestionDown = (sectionIndex: number, questionIndex: number) => {
-    const section = sections[sectionIndex]
-    if (questionIndex >= section.questions.length - 1) return
-    const newQuestions = [...section.questions]
-    const [moved] = newQuestions.splice(questionIndex, 1)
-    newQuestions.splice(questionIndex + 1, 0, moved)
-    updateSection(sectionIndex, { questions: newQuestions })
+  // TODO: Migrate this handler to use @dnd-kit's DragEndEvent API
+  // instead of react-beautiful-dnd properties (source/destination).
+  const handleDragEnd = (_event: unknown) => {
+    // The original logic used react-beautiful-dnd's source/destination API.
+    // This needs to be rewritten for @dnd-kit's active/over API.
+    return
   }
 
   return (
@@ -381,27 +386,29 @@ export function SectionBuilder({ sections, onSectionsChange }: SectionBuilderPro
                       </Button>
                     </div>
 
-                    <div className="space-y-3">
-                      {section.questions.map((question, questionIndex) => (
-                        <QuestionItem
-                          key={question.id}
-                          question={question}
-                          onUpdate={(updatedQuestion) => updateQuestion(sectionIndex, questionIndex, updatedQuestion)}
-                          onRemove={(questionId) => removeQuestion(sectionIndex, questionId)}
-                          onMoveUp={() => moveQuestionUp(sectionIndex, questionIndex)}
-                          onMoveDown={() => moveQuestionDown(sectionIndex, questionIndex)}
-                          isFirst={questionIndex === 0}
-                          isLast={questionIndex === section.questions.length - 1}
-                        />
-                      ))}
-                      
-                      {section.questions.length === 0 && (
-                        <div className="text-center py-8 border-2 border-dashed border-border rounded-lg">
-                          <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground">No questions yet. Add your first question to get started.</p>
-                        </div>
-                      )}
-                    </div>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className="space-y-3">
+                        {section.questions.map((question, questionIndex) => (
+                          <SortableQuestion
+                            key={question.id}
+                            question={question}
+                            onUpdate={(updatedQuestion) => updateQuestion(sectionIndex, questionIndex, updatedQuestion)}
+                            onRemove={(questionId) => removeQuestion(sectionIndex, questionId)}
+                          />
+                        ))}
+                        
+                        {section.questions.length === 0 && (
+                          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                            <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No questions yet. Add your first question to get started.</p>
+                          </div>
+                        )}
+                      </div>
+                    </DndContext>
                   </div>
                 </CardContent>
               </Card>

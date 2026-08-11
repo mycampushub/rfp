@@ -5,29 +5,23 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
-import {
-  LayoutDashboard,
-  FileText,
-  Users,
-  MessageSquare,
-  Star,
-  CheckSquare,
-  Settings,
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Users, 
+  MessageSquare, 
+  Star, 
+  CheckSquare, 
+  Settings, 
   BarChart3,
-  ChevronDown,
-  ChevronRight,
   LogOut,
   Bell,
   Calendar,
   Store,
   Search,
   User,
-  TrendingUp,
-  Menu,
-  ShieldCheck
+  TrendingUp
 } from "lucide-react"
-import { useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 
 const navItems = [
@@ -113,44 +107,19 @@ const navItems = [
     href: "/settings",
     icon: Settings,
   },
-  {
-    title: "Admin",
-    href: "/admin",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Vendor Portal",
-    href: "/vendor-dashboard",
-    icon: Store,
-    children: [
-      { title: "Vendor Dashboard", href: "/vendor-dashboard", icon: LayoutDashboard },
-      { title: "Users", href: "/vendor-dashboard/users", icon: Users },
-      { title: "Notifications", href: "/vendor-dashboard/notifications", icon: Bell },
-    ]
-  },
 ]
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+interface SidebarProps {
+  className?: string
+  onNavigate?: () => void
+}
+
+export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
 
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/marketplace"]))
-
-  const handleNavClick = () => {
-    onNavigate?.()
-  }
-
-  const toggleExpand = (href: string) => {
-    setExpandedItems(prev => {
-      const next = new Set(prev)
-      if (next.has(href)) next.delete(href)
-      else next.add(href)
-      return next
-    })
-  }
-
   return (
-    <ScrollArea className="h-full">
+    <nav aria-label="Main navigation" className={cn("pb-12 w-64", className)}>
       <div className="space-y-4 py-4">
         <div className="px-3 py-2">
           <div className="flex items-center mb-6">
@@ -159,22 +128,22 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <div className="space-y-1">
             {navItems.map((item) => {
               const isActive = pathname === item.href
-
+              
               if (item.children) {
                 const isChildActive = item.children.some(child => pathname === child.href)
-                const isExpanded = expandedItems.has(item.href)
                 return (
                   <div key={item.href} className="space-y-1">
                     <Button
                       variant={isChildActive ? "secondary" : "ghost"}
                       className="w-full justify-start"
-                      onClick={() => toggleExpand(item.href)}
+                      asChild
                     >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {item.title}
-                      {isExpanded ? <ChevronDown className="ml-auto h-4 w-4" /> : <ChevronRight className="ml-auto h-4 w-4" />}
+                      <Link href={item.href}>
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {item.title}
+                      </Link>
                     </Button>
-                    {isExpanded && (
+                    {isChildActive && (
                       <div className="ml-4 space-y-1">
                         {item.children.map((child) => {
                           const childIsActive = pathname === child.href
@@ -185,7 +154,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                               className="w-full justify-start text-sm"
                               asChild
                             >
-                              <Link href={child.href} onClick={handleNavClick}>
+                              <Link href={child.href}>
                                 <child.icon className="mr-2 h-3 w-3" />
                                 {child.title}
                               </Link>
@@ -197,7 +166,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   </div>
                 )
               }
-
+              
               return (
                 <Button
                   key={item.href}
@@ -205,7 +174,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   className="w-full justify-start"
                   asChild
                 >
-                  <Link href={item.href} onClick={handleNavClick}>
+                  <Link href={item.href}>
                     <item.icon className="mr-2 h-4 w-4" />
                     {item.title}
                   </Link>
@@ -215,21 +184,21 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         </div>
       </div>
-
+      
       {session && (
         <div className="px-3 py-2 border-t">
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground">
               Signed in as:
             </div>
-            <div className="text-sm font-medium truncate">
+            <div className="text-sm font-medium">
               {session.user.email}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
+            <Button 
+              variant="outline" 
+              size="sm" 
               className="w-full justify-start"
-              onClick={() => { handleNavClick(); signOut() }}
+              onClick={() => { signOut(); onNavigate?.() }}
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
@@ -237,31 +206,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         </div>
       )}
-    </ScrollArea>
-  )
-}
-
-export function SidebarMobileTrigger() {
-  return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation menu">
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Toggle navigation</span>
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-64 p-0">
-        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-        <SidebarContent />
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-export function Sidebar({ className }: { className?: string }) {
-  return (
-    <div className={cn("pb-12 w-64", className)}>
-      <SidebarContent />
-    </div>
+    </nav>
   )
 }

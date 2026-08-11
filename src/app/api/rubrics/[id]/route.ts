@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const updateRubricSchema = z.object({
   label: z.string().optional(),
@@ -15,7 +18,7 @@ const updateRubricSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -23,12 +26,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const rubric = await db.rubricCriterion.findFirst({
       where: {
-        id: id,
+        id: params.id,
         OR: [
           { rfp: { tenantId: tenantContext.tenantId } },
           { section: { rfp: { tenantId: tenantContext.tenantId } } },
@@ -87,7 +89,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -95,16 +97,16 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const body = await request.json()
     const validatedData = updateRubricSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify rubric belongs to tenant
     const existingRubric = await db.rubricCriterion.findFirst({
       where: {
-        id: id,
+        id: params.id,
         OR: [
           { rfp: { tenantId: tenantContext.tenantId } },
           { section: { rfp: { tenantId: tenantContext.tenantId } } },
@@ -117,7 +119,7 @@ export async function PUT(
     }
 
     const rubric = await db.rubricCriterion.update({
-      where: { id: id },
+      where: { id: params.id },
       data: validatedData,
       include: {
         rfp: {
@@ -149,7 +151,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -157,13 +159,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify rubric belongs to tenant
     const existingRubric = await db.rubricCriterion.findFirst({
       where: {
-        id: id,
+        id: params.id,
         OR: [
           { rfp: { tenantId: tenantContext.tenantId } },
           { section: { rfp: { tenantId: tenantContext.tenantId } } },
@@ -176,7 +178,7 @@ export async function DELETE(
     }
 
     await db.rubricCriterion.delete({
-      where: { id: id },
+      where: { id: params.id },
     })
 
     return NextResponse.json({ message: "Rubric criterion deleted successfully" })

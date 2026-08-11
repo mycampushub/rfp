@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { AnalyticsService } from "@/lib/analytics-service"
+
+export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +18,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type")
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("analytics:view")
 
     switch (type) {
       case "full":

@@ -3,7 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const updateInvitationSchema = z.object({
   status: z.enum(["pending", "accepted", "declined", "expired"]).optional(),
@@ -12,7 +15,7 @@ const updateInvitationSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -20,12 +23,11 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const invitation = await db.invitation.findFirst({
       where: {
-        id: id,
+        id: params.id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -62,24 +64,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateInvitationSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify invitation belongs to tenant
     const existingInvitation = await db.invitation.findFirst({
       where: {
-        id: id,
+        id: params.id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -91,7 +93,7 @@ export async function PUT(
     }
 
     const invitation = await db.invitation.update({
-      where: { id: id },
+      where: { id: params.id },
       data: validatedData,
       include: {
         rfp: {
@@ -124,21 +126,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
-          const { id } = await params
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify invitation belongs to tenant
     const existingInvitation = await db.invitation.findFirst({
       where: {
-        id: id,
+        id: params.id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -150,7 +152,7 @@ export async function DELETE(
     }
 
     await db.invitation.delete({
-      where: { id: id },
+      where: { id: params.id },
     })
 
     return NextResponse.json({ message: "Invitation deleted successfully" })

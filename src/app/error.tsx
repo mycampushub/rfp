@@ -1,36 +1,26 @@
 "use client"
 
-import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
 
-export default function GlobalError({
+export default function Error({
   error,
   reset,
 }: {
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    console.error("[GlobalErrorBoundary]", error)
-  }, [error])
-
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-4">
-      <div className="rounded-full bg-destructive/10 p-6">
-        <AlertTriangle className="h-10 w-10 text-destructive" />
-      </div>
-      <div className="text-center max-w-md">
-        <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
-        <p className="text-sm text-muted-foreground mb-6">
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="text-center space-y-4 max-w-md px-4">
+        <AlertTriangle className="h-12 w-12 mx-auto text-destructive" />
+        <h2 className="text-2xl font-bold">Something went wrong</h2>
+        <p className="text-muted-foreground">
           {error.message || "An unexpected error occurred. Please try again."}
         </p>
-        <div className="flex gap-3 justify-center">
-          <Button variant="outline" onClick={() => (window.location.href = "/")}>
-            Go Home
-          </Button>
-          <Button onClick={reset}>Try Again</Button>
-        </div>
+        <Button onClick={reset} variant="outline">
+          Try Again
+        </Button>
       </div>
     </div>
   )

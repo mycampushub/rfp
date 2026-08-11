@@ -4,8 +4,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TrendingUp, TrendingDown, Users, Briefcase, MapPin, BarChart3, Activity, Target, Zap, RefreshCw } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Users, 
+  Briefcase, 
+  DollarSign,
+  Star,
+  Eye,
+  Calendar,
+  MapPin,
+  BarChart3,
+  PieChart,
+  Activity,
+  Target,
+  Zap,
+  Award,
+  Clock,
+  ArrowUpRight,
+  ArrowDownRight,
+  RefreshCw
+} from "lucide-react"
 
 interface AnalyticsData {
   overview: {
@@ -84,16 +103,20 @@ export function AnalyticsDashboard({
   }
 
   const getTrendColor = (trend: number) => {
-    return trend >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+    return trend >= 0 ? "text-green-600" : "text-red-600"
   }
 
   const getImpactColor = (impact: string) => {
     const colors = {
-      high: "bg-red-500/15 text-red-700 dark:text-red-400",
-      medium: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-      low: "bg-sky-500/15 text-sky-700 dark:text-sky-400"
+      high: "bg-red-100 text-red-800",
+      medium: "bg-yellow-100 text-yellow-800",
+      low: "bg-blue-100 text-blue-800"
     }
-    return colors[impact as keyof typeof colors] || "bg-muted text-muted-foreground"
+    return colors[impact as keyof typeof colors] || "bg-gray-100 text-gray-800"
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString()
   }
 
   if (isLoading) {
@@ -111,8 +134,8 @@ export function AnalyticsDashboard({
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="space-y-2">
-                  <div className="h-4 bg-muted-foreground/20 rounded w-3/4"></div>
-                  <div className="h-8 bg-muted-foreground/20 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
                 </div>
               </CardContent>
             </Card>
@@ -139,7 +162,7 @@ export function AnalyticsDashboard({
                 key={range}
                 variant={timeRange === range ? "default" : "outline"}
                 size="sm"
-                onClick={() => onTimeRangeChange(range as any)}
+                onClick={() => onTimeRangeChange(range as AnalyticsDashboardProps["timeRange"])}
               >
                 {range}
               </Button>
@@ -332,9 +355,9 @@ export function AnalyticsDashboard({
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <div className="flex-1 bg-muted-foreground/20 rounded-full h-2">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
                           <div 
-                            className="bg-sky-500 h-2 rounded-full" 
+                            className="bg-blue-600 h-2 rounded-full" 
                             style={{ width: `${Math.min((metric.value / metric.target) * 100, 100)}%` }}
                           />
                         </div>
@@ -359,7 +382,7 @@ export function AnalyticsDashboard({
               <CardContent>
                 <div className="space-y-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
+                    <div className="text-4xl font-bold text-green-600">
                       {data.trends.revenueGrowth >= 0 ? '+' : ''}{data.trends.revenueGrowth}%
                     </div>
                     <p className="text-sm text-muted-foreground">Overall Growth Rate</p>
@@ -367,7 +390,7 @@ export function AnalyticsDashboard({
                   
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
+                      <div className="text-2xl font-bold text-blue-600">
                         {formatNumber(data.overview.totalRfps)}
                       </div>
                       <p className="text-sm text-muted-foreground">Total RFPs</p>
@@ -377,7 +400,7 @@ export function AnalyticsDashboard({
                     </div>
                     
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                      <div className="text-2xl font-bold text-green-600">
                         {formatNumber(data.overview.totalVendors)}
                       </div>
                       <p className="text-sm text-muted-foreground">Total Vendors</p>
@@ -405,7 +428,7 @@ export function AnalyticsDashboard({
                 {data.topCategories.map((category, index) => (
                   <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
-                      <div className="text-2xl font-bold text-muted-foreground">
+                      <div className="text-2xl font-bold text-gray-400">
                         #{index + 1}
                       </div>
                       <div>
@@ -482,7 +505,7 @@ export function AnalyticsDashboard({
               <CardContent>
                 <div className="space-y-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">
+                    <div className="text-4xl font-bold text-green-600">
                       {data.overview.successRate}%
                     </div>
                     <p className="text-sm text-muted-foreground">Overall Success Rate</p>
@@ -490,14 +513,14 @@ export function AnalyticsDashboard({
                   
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
+                      <div className="text-2xl font-bold text-blue-600">
                         {data.overview.averageResponseTime}
                       </div>
                       <p className="text-sm text-muted-foreground">Avg Response Time</p>
                     </div>
                     
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">
+                      <div className="text-2xl font-bold text-purple-600">
                         {formatCurrency(data.overview.averageBidAmount)}
                       </div>
                       <p className="text-sm text-muted-foreground">Avg Bid Amount</p>
@@ -522,21 +545,21 @@ export function AnalyticsDashboard({
                       <Zap className="h-4 w-4 text-yellow-500" />
                       <span className="font-medium">High Activity</span>
                     </div>
-                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                    <Badge className="bg-green-100 text-green-800">
                       Active
                     </Badge>
                   </div>
                   
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                      <div className="text-2xl font-bold text-orange-600">
                         {formatNumber(data.overview.activeRfps)}
                       </div>
                       <p className="text-sm text-muted-foreground">Active RFPs</p>
                     </div>
                     
                     <div className="text-center p-4 border rounded-lg">
-                      <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
+                      <div className="text-2xl font-bold text-indigo-600">
                         {formatNumber(data.overview.activeVendors)}
                       </div>
                       <p className="text-sm text-muted-foreground">Active Vendors</p>

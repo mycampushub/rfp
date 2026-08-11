@@ -3,8 +3,11 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
+
+export const dynamic = "force-dynamic"
 
 const createInvitationSchema = z.object({
   rfpId: z.string(),
@@ -23,6 +26,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const rfpId = searchParams.get("rfpId")
     const status = searchParams.get("status")
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
+    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -39,39 +44,29 @@ export async function GET(request: NextRequest) {
       whereClause.status = status
     }
 
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const skip = (page - 1) * limit
-
-    const [invitations, total] = await Promise.all([
-      db.invitation.findMany({
-        where: whereClause,
-        include: {
-          rfp: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-            },
-          },
-          vendor: {
-            select: {
-              id: true,
-              name: true,
-            },
+    const invitations = await db.invitation.findMany({
+      where: whereClause,
+      include: {
+        rfp: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
           },
         },
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        skip,
-      }),
-      db.invitation.count({ where: whereClause }),
-    ])
-
-    return NextResponse.json({
-      data: invitations,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
     })
+
+    return NextResponse.json(invitations)
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -91,6 +86,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createInvitationSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify RFP belongs to tenant
     const rfp = await db.rFP.findFirst({
@@ -141,6 +137,9 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+
+    // TODO: Send invitation email
+    // This would integrate with an email service
 
     return NextResponse.json(invitation, { status: 201 })
   } catch (error) {

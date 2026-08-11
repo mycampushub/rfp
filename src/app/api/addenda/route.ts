@@ -3,8 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-import NotificationService from "@/lib/notification-service"
+
+export const dynamic = "force-dynamic"
 
 const createAddendumSchema = z.object({
   rfpId: z.string(),
@@ -23,6 +25,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const rfpId = searchParams.get("rfpId")
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
+    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -36,43 +40,33 @@ export async function GET(request: NextRequest) {
       whereClause.rfpId = rfpId
     }
 
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const skip = (page - 1) * limit
-
-    const [addenda, total] = await Promise.all([
-      db.addendum.findMany({
-        where: whereClause,
-        include: {
-          rfp: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-            },
+    const addenda = await db.addendum.findMany({
+      where: whereClause,
+      include: {
+        rfp: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
           },
-          acknowledgments: {
-            include: {
-              vendor: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+        },
+        acknowledgments: {
+          include: {
+            vendor: {
+              select: {
+                id: true,
+                name: true,
               },
             },
           },
         },
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        skip,
-      }),
-      db.addendum.count({ where: whereClause }),
-    ])
-
-    return NextResponse.json({
-      data: addenda,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
     })
+
+    return NextResponse.json(addenda)
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -92,6 +86,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createAddendumSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify RFP belongs to tenant
     const rfp = await db.rFP.findFirst({
@@ -131,20 +126,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send notification to invited vendors
-    const invitations = await db.invitation.findMany({
-      where: { rfpId: validatedData.rfpId },
-      select: { vendorId: true },
-      take: 500,
-    })
-    for (const inv of invitations) {
-      await NotificationService.send({
-        userId: inv.vendorId,
-        type: "addendum_created",
-        title: "New Addendum",
-        message: `A new addendum has been added to RFP: ${addendum.title}`,
-      })
-    }
+    // TODO: Send notification for new addendum
+    // This would integrate with a notification system
 
     return NextResponse.json(addendum, { status: 201 })
   } catch (error) {

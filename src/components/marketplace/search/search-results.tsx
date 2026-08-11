@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { 
   Search, 
   TrendingUp, 
@@ -40,7 +41,7 @@ interface SearchResult {
 
 interface SearchResultsProps {
   query: string
-  filters?: any
+  filters?: Record<string, unknown>
   results: SearchResult[]
   isLoading?: boolean
   onLoadMore?: () => void
@@ -72,19 +73,19 @@ export function SearchResults({
   }
 
   const getTypeColor = (type: string) => {
-    return type === "rfp" ? "bg-sky-500/15 text-sky-700 dark:text-sky-400" : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+    return type === "rfp" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
   }
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      "IT Services": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
-      "Marketing": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-      "Construction": "bg-orange-500/15 text-orange-700 dark:text-orange-400",
-      "Software Development": "bg-violet-500/15 text-violet-700 dark:text-violet-400",
-      "Consulting": "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400",
-      "Design": "bg-pink-500/15 text-pink-700 dark:text-pink-400"
+      "IT Services": "bg-blue-100 text-blue-800",
+      "Marketing": "bg-green-100 text-green-800",
+      "Construction": "bg-orange-100 text-orange-800",
+      "Software Development": "bg-purple-100 text-purple-800",
+      "Consulting": "bg-indigo-100 text-indigo-800",
+      "Design": "bg-pink-100 text-pink-800"
     }
-    return colors[category as keyof typeof colors] || "bg-muted text-muted-foreground"
+    return colors[category as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
 
   const renderStars = (rating: number) => {
@@ -98,7 +99,7 @@ export function SearchResults({
                 ? "text-yellow-500 fill-current" 
                 : star === Math.ceil(rating) && rating % 1 !== 0 
                 ? "text-yellow-500 fill-current" 
-                : "text-muted-foreground/50"
+                : "text-gray-300"
             }`}
           />
         ))}
@@ -110,31 +111,12 @@ export function SearchResults({
   const highlightText = (text: string, highlight: string) => {
     if (!highlight) return text
     
-    const lowerHighlight = highlight.toLowerCase()
-    const lowerText = text.toLowerCase()
-    const parts: string[] = []
-    let lastIndex = 0
-    let searchFrom = 0
-    
-    while (searchFrom < lowerText.length) {
-      const idx = lowerText.indexOf(lowerHighlight, searchFrom)
-      if (idx === -1) break
-      
-      if (idx > lastIndex) {
-        parts.push(text.slice(lastIndex, idx))
-      }
-      parts.push(text.slice(idx, idx + highlight.length))
-      lastIndex = idx + highlight.length
-      searchFrom = lastIndex
-    }
-    
-    if (lastIndex < text.length) {
-      parts.push(text.slice(lastIndex))
-    }
+    const regex = new RegExp(`(${highlight})`, 'gi')
+    const parts = text.split(regex)
     
     return parts.map((part, index) => 
-      part.toLowerCase() === lowerHighlight ? (
-        <mark key={index} className="bg-amber-200/80 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200 rounded px-1">
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 text-yellow-800 rounded px-1">
           {part}
         </mark>
       ) : (
@@ -150,10 +132,10 @@ export function SearchResults({
           <Card key={i}>
             <CardContent className="p-6">
               <div className="space-y-4">
-                <div className="h-6 bg-muted-foreground/20 rounded w-3/4"></div>
-                <div className="h-4 bg-muted-foreground/20 rounded w-1/2"></div>
-                <div className="h-4 bg-muted-foreground/20 rounded w-full"></div>
-                <div className="h-4 bg-muted-foreground/20 rounded w-2/3"></div>
+                <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 rounded w-full"></div>
+                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
               </div>
             </CardContent>
           </Card>
@@ -223,13 +205,13 @@ export function SearchResults({
                           {result.type === "rfp" ? "RFP" : "Vendor"}
                         </Badge>
                         {result.featured && (
-                          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                          <Badge className="bg-yellow-100 text-yellow-800">
                             <Star className="mr-1 h-3 w-3" />
                             Featured
                           </Badge>
                         )}
                         {result.verified && (
-                          <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-400">
+                          <Badge className="bg-blue-100 text-blue-800">
                             Verified
                           </Badge>
                         )}
@@ -286,7 +268,7 @@ export function SearchResults({
                     {result.budget && (
                       <div>
                         <span className="text-xs text-muted-foreground">Budget</span>
-                        <div className="flex items-center text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                        <div className="flex items-center text-sm font-medium text-green-600">
                           <DollarSign className="mr-1 h-3 w-3" />
                           {result.budget}
                         </div>

@@ -3,14 +3,18 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import type { Prisma } from "@prisma/client"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+
+export const dynamic = "force-dynamic"
 
 const createQuestionSchema = z.object({
   sectionId: z.string(),
   type: z.enum(["text", "number", "multiple_choice", "checkbox", "file", "date"]),
   prompt: z.string(),
   required: z.boolean().default(false),
-  constraints: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.unknown())])).optional(),
+  constraints: z.record(z.string(), z.unknown()).optional(),
   order: z.number(),
 })
 
@@ -23,6 +27,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const sectionId = searchParams.get("sectionId")
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
+    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -50,38 +56,28 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const skip = (page - 1) * limit
-
-    const [questions, total] = await Promise.all([
-      db.question.findMany({
-        where: whereClause,
-        include: {
-          section: {
-            select: {
-              id: true,
-              title: true,
-              rfp: {
-                select: {
-                  id: true,
-                  title: true,
-                },
+    const questions = await db.question.findMany({
+      where: whereClause,
+      include: {
+        section: {
+          select: {
+            id: true,
+            title: true,
+            rfp: {
+              select: {
+                id: true,
+                title: true,
               },
             },
           },
         },
-        orderBy: { order: "asc" },
-        take: limit,
-        skip,
-      }),
-      db.question.count({ where: whereClause }),
-    ])
-
-    return NextResponse.json({
-      data: questions,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      },
+      orderBy: { order: "asc" },
+      take: limit,
+      skip: offset,
     })
+
+    return NextResponse.json(questions)
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -101,6 +97,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createQuestionSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("rfp:edit")
 
     // Verify section belongs to tenant
     const section = await db.section.findFirst({
@@ -119,6 +116,7 @@ export async function POST(request: NextRequest) {
     const question = await db.question.create({
       data: {
         ...validatedData,
+        constraints: validatedData.constraints as unknown as Prisma.InputJsonValue,
       },
       include: {
         section: {

@@ -3,8 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-import NotificationService from "@/lib/notification-service"
+
+export const dynamic = "force-dynamic"
 
 const createApprovalSchema = z.object({
   rfpId: z.string(),
@@ -24,6 +26,8 @@ export async function GET(request: NextRequest) {
     const stage = searchParams.get("stage")
     const status = searchParams.get("status")
     const approverId = searchParams.get("approverId")
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
+    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -46,40 +50,30 @@ export async function GET(request: NextRequest) {
       whereClause.approverId = approverId
     }
 
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const skip = (page - 1) * limit
-
-    const [approvals, total] = await Promise.all([
-      db.approval.findMany({
-        where: whereClause,
-        include: {
-          rfp: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-            },
-          },
-          approver: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
+    const approvals = await db.approval.findMany({
+      where: whereClause,
+      include: {
+        rfp: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
           },
         },
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        skip,
-      }),
-      db.approval.count({ where: whereClause }),
-    ])
-
-    return NextResponse.json({
-      data: approvals,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+        approver: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
     })
+
+    return NextResponse.json(approvals)
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -99,6 +93,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createApprovalSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission("approval:manage")
 
     // Verify RFP belongs to tenant
     const rfp = await db.rFP.findFirst({
@@ -156,13 +151,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send notification to the approver
-    await NotificationService.send({
-      userId: approval.approverId,
-      type: "approval_requested",
-      title: "Approval Requested",
-      message: `New approval request for RFP stage ${approval.stage}`,
-    })
+    // TODO: Send notification for new approval request
+    // This would integrate with a notification system
 
     return NextResponse.json(approval, { status: 201 })
   } catch (error) {

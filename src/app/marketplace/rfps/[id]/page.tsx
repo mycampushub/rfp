@@ -21,176 +21,115 @@ import {
   Download,
   Share2,
   BookmarkPlus,
-  BookmarkCheck,
   ExternalLink
 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 import Link from "next/link"
-import { useState, useEffect } from "react"
-import { toast } from "sonner"
-import { use } from "react"
-import { getStatusColor } from "@/lib/status-utils"
+import { useState } from "react"
 
-export default function RFPDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
-  const [rfp, setRfp] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [submittingBid, setSubmittingBid] = useState(false)
-  const [bidAmount, setBidAmount] = useState("")
-  const [bidProposal, setBidProposal] = useState("")
-  const [showBidForm, setShowBidForm] = useState(false)
-  const [activeTab, setActiveTab] = useState("overview")
-  const [isSaved, setIsSaved] = useState(false)
-  const [showQuestionDialog, setShowQuestionDialog] = useState(false)
-  const [questionText, setQuestionText] = useState("")
-  const [submittingQuestion, setSubmittingQuestion] = useState(false)
-
-  useEffect(() => {
-    async function fetchRFP() {
-      try {
-        const res = await fetch(`/api/v1/rfps/${id}`)
-        if (!res.ok) throw new Error("Failed to fetch")
-        const data = await res.json()
-        setRfp({
-          id: data.id,
-          title: data.title,
-          organization: data.title,
-          description: data.description || "No description available.",
-          budget: data.budget ? `$${data.budget.toLocaleString()}` : "Not specified",
-          deadline: data.timeline?.submissionDeadline
-            ? new Date(data.timeline.submissionDeadline).toISOString().split("T")[0]
-            : "TBD",
-          category: data.category || "Uncategorized",
-          location: "Remote",
-          bids: data._count?.submissions ?? 0,
-          featured: false,
-          postedDate: new Date(data.createdAt).toISOString().split("T")[0],
-          complexity: "Medium",
-          status: data.status || "active",
-          requirements: [],
-          deliverables: [],
-          timeline: data.timeline ? [
-            data.timeline.qnaStart && { phase: "Q&A Period", duration: "Varies", start: new Date(data.timeline.qnaStart).toISOString().split("T")[0] },
-            data.timeline.submissionDeadline && { phase: "Submission Deadline", duration: "Varies", start: new Date(data.timeline.submissionDeadline).toISOString().split("T")[0] },
-            data.timeline.evaluationStart && { phase: "Evaluation", duration: "Varies", start: new Date(data.timeline.evaluationStart).toISOString().split("T")[0] },
-            data.timeline.awardTarget && { phase: "Award Target", duration: "Varies", start: new Date(data.timeline.awardTarget).toISOString().split("T")[0] },
-          ].filter(Boolean) : [],
-          evaluationCriteria: [],
-          attachments: [],
-          similarRFPs: [],
-          organizationInfo: {
-            name: data.title,
-            description: "",
-            website: "",
-          }
-        })
-      } catch {
-        toast.error("Failed to load RFP details")
-      } finally {
-        setLoading(false)
+export default function RFPDetail({ params }: { params: { id: string } }) {
+  // Mock data for the RFP
+  const rfp = {
+    id: params.id,
+    title: "Enterprise Cloud Migration Services",
+    organization: "TechCorp Inc.",
+    description: "TechCorp Inc. is seeking an experienced cloud service provider to lead a large-scale migration of our on-premise infrastructure to cloud platforms (AWS/Azure). This project involves migrating 200+ servers, 50+ databases, and critical business applications while ensuring minimal downtime and maintaining security compliance.",
+    budget: "$500,000 - $750,000",
+    deadline: "2024-12-30",
+    category: "IT Services",
+    location: "Remote",
+    bids: 12,
+    featured: true,
+    postedDate: "2024-11-15",
+    complexity: "High",
+    status: "active",
+    organizationInfo: {
+      name: "TechCorp Inc.",
+      size: "1000-5000 employees",
+      industry: "Technology",
+      founded: "2010",
+      description: "Leading technology company specializing in enterprise software solutions and cloud services.",
+      website: "https://techcorp.example.com",
+      location: "San Francisco, CA"
+    },
+    requirements: [
+      "Minimum 5 years of experience in cloud migration projects",
+      "Certified AWS Solutions Architect or Azure Solutions Architect Expert",
+      "Experience with enterprise-level migrations (200+ servers)",
+      "Strong background in security and compliance",
+      "Proven track record of successful cloud migrations",
+      "Experience with hybrid cloud environments"
+    ],
+    deliverables: [
+      "Comprehensive migration strategy and roadmap",
+      "Detailed risk assessment and mitigation plan",
+      "Complete infrastructure migration",
+      "Data migration and validation",
+      "Application refactoring where necessary",
+      "Security implementation and compliance validation",
+      "Documentation and knowledge transfer",
+      "Post-migration support and optimization"
+    ],
+    timeline: [
+      { phase: "Planning & Assessment", duration: "2-3 weeks", start: "2025-01-15" },
+      { phase: "Infrastructure Setup", duration: "3-4 weeks", start: "2025-02-05" },
+      { phase: "Data Migration", duration: "4-6 weeks", start: "2025-03-05" },
+      { phase: "Application Migration", duration: "6-8 weeks", start: "2025-04-10" },
+      { phase: "Testing & Validation", duration: "2-3 weeks", start: "2025-06-05" },
+      { phase: "Go-Live & Support", duration: "4 weeks", start: "2025-06-26" }
+    ],
+    evaluationCriteria: [
+      { criterion: "Technical Expertise", weight: 30, description: "Experience with similar projects and technical capabilities" },
+      { criterion: "Cost Effectiveness", weight: 25, description: "Value for money and competitive pricing" },
+      { criterion: "Project Timeline", weight: 20, description: "Realistic and efficient project schedule" },
+      { criterion: "Methodology", weight: 15, description: "Approach and project management methodology" },
+      { criterion: "References", weight: 10, description: "Past client references and case studies" }
+    ],
+    attachments: [
+      { name: "Technical_Requirements.pdf", size: "2.4 MB", type: "PDF" },
+      { name: "Security_Requirements.docx", size: "1.1 MB", type: "Document" },
+      { name: "Company_Profile.pdf", size: "3.2 MB", type: "PDF" }
+    ],
+    similarRFPs: [
+      {
+        id: "2",
+        title: "Cloud Infrastructure Modernization",
+        organization: "Global Finance Corp",
+        budget: "$300,000 - $450,000",
+        deadline: "2025-01-15",
+        category: "IT Services"
+      },
+      {
+        id: "3",
+        title: "Azure Migration Project",
+        organization: "Healthcare Systems Inc",
+        budget: "$400,000 - $600,000",
+        deadline: "2025-01-20",
+        category: "IT Services"
       }
-    }
-    fetchRFP()
-  }, [id])
-
-  const handleSubmitBid = async () => {
-    if (!bidAmount) {
-      toast.error("Please enter a bid amount")
-      return
-    }
-    setSubmittingBid(true)
-    try {
-      const payload: Record<string, unknown> = {
-        publicRfpId: id,
-        amount: parseFloat(bidAmount),
-        proposal: bidProposal,
-      }
-      const res = await fetch("/api/bids", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Failed to submit bid" }))
-        throw new Error(data.error || "Failed to submit bid")
-      }
-      toast.success("Bid submitted successfully!")
-      setShowBidForm(false)
-      setBidAmount("")
-      setBidProposal("")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to submit bid")
-    } finally {
-      setSubmittingBid(false)
-    }
+    ]
   }
 
+  const [activeTab, setActiveTab] = useState("overview")
+
   const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      "IT Services": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
-      "Marketing": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-      "Construction": "bg-orange-500/15 text-orange-700 dark:text-orange-400",
-      "Software Development": "bg-violet-500/15 text-violet-700 dark:text-violet-400",
-      "Consulting": "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400",
-      "Design": "bg-pink-500/15 text-pink-700 dark:text-pink-400"
+    const colors = {
+      "IT Services": "bg-blue-100 text-blue-800",
+      "Marketing": "bg-green-100 text-green-800",
+      "Construction": "bg-orange-100 text-orange-800",
+      "Software Development": "bg-purple-100 text-purple-800",
+      "Consulting": "bg-indigo-100 text-indigo-800",
+      "Design": "bg-pink-100 text-pink-800"
     }
-    return colors[category] || "bg-muted text-muted-foreground"
+    return colors[category as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
 
   const getComplexityColor = (complexity: string) => {
-    const colors: Record<string, string> = {
-      "Low": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-      "Medium": "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-      "High": "bg-red-500/15 text-red-700 dark:text-red-400"
+    const colors = {
+      "Low": "bg-green-100 text-green-800",
+      "Medium": "bg-yellow-100 text-yellow-800",
+      "High": "bg-red-100 text-red-800"
     }
-    return colors[complexity] || "bg-muted text-muted-foreground"
-  }
-
-  if (loading) {
-    return (
-      <MainLayout title="Loading...">
-        <div className="space-y-6">
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="h-9 w-32 bg-muted rounded animate-pulse" />
-            <div className="flex-1">
-              <div className="h-10 w-80 bg-muted rounded animate-pulse mb-2" />
-              <div className="h-5 w-60 bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              <Card><CardContent className="p-6"><div className="h-40 bg-muted rounded animate-pulse" /></CardContent></Card>
-            </div>
-            <div className="space-y-6">
-              <Card><CardContent className="p-6"><div className="h-32 bg-muted rounded animate-pulse" /></CardContent></Card>
-            </div>
-          </div>
-        </div>
-      </MainLayout>
-    )
-  }
-
-  if (!rfp) {
-    return (
-      <MainLayout title="RFP Not Found">
-        <div className="space-y-6">
-          <Button variant="ghost" asChild>
-            <Link href="/marketplace/rfps">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to RFPs
-            </Link>
-          </Button>
-          <Card>
-            <CardContent className="text-center py-12">
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">RFP Not Found</h3>
-              <p className="text-muted-foreground">The RFP you are looking for does not exist or has been removed.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </MainLayout>
-    )
+    return colors[complexity as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
 
   return (
@@ -208,7 +147,7 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
             <div className="flex items-center space-x-2 mb-2">
               <h1 className="text-3xl font-bold">{rfp.title}</h1>
               {rfp.featured && (
-                <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <Badge className="bg-yellow-100 text-yellow-800">
                   <Star className="mr-1 h-3 w-3" />
                   Featured
                 </Badge>
@@ -230,32 +169,11 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
             </div>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={async () => {
-              try {
-                const res = await fetch('/api/saved-rfps', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ rfpId: id }),
-                })
-                if (res.ok) {
-                  setIsSaved(!isSaved)
-                  toast.success(isSaved ? 'RFP removed from bookmarks' : 'RFP saved to bookmarks')
-                }
-              } catch {
-                toast.error('Failed to save RFP')
-              }
-            }}>
-              {isSaved ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <BookmarkPlus className="mr-2 h-4 w-4" />}
-              {isSaved ? 'Saved' : 'Save'}
+            <Button variant="outline" size="sm">
+              <BookmarkPlus className="mr-2 h-4 w-4" />
+              Save
             </Button>
-            <Button variant="outline" size="sm" onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(window.location.href)
-                toast.success('Link copied to clipboard')
-              } catch {
-                toast.error('Failed to copy link')
-              }
-            }}>
+            <Button variant="outline" size="sm">
               <Share2 className="mr-2 h-4 w-4" />
               Share
             </Button>
@@ -278,14 +196,14 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Budget:</span>
-                      <span className="flex items-center text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span className="flex items-center text-green-600 font-medium">
                         <DollarSign className="mr-1 h-4 w-4" />
                         {rfp.budget}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Deadline:</span>
-                      <span className="flex items-center text-red-600 dark:text-red-400 font-medium">
+                      <span className="flex items-center text-red-600 font-medium">
                         <Clock className="mr-1 h-4 w-4" />
                         {rfp.deadline}
                       </span>
@@ -313,9 +231,9 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Status:</span>
-                      <Badge className={getStatusColor(rfp.status)}>
+                      <Badge className="bg-green-100 text-green-800">
                         <CheckCircle className="mr-1 h-3 w-3" />
-                        {rfp.status === 'active' ? 'Active' : rfp.status}
+                        Active
                       </Badge>
                     </div>
                   </div>
@@ -350,18 +268,14 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                     <CardTitle>Key Deliverables</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {rfp.deliverables && rfp.deliverables.length > 0 ? (
-                      <ul className="space-y-2">
-                        {rfp.deliverables.map((deliverable: string, index: number) => (
-                          <li key={index} className="flex items-start">
-                            <CheckCircle className="mr-2 h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                            <span>{deliverable}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No deliverables specified.</p>
-                    )}
+                    <ul className="space-y-2">
+                      {rfp.deliverables.map((deliverable, index) => (
+                        <li key={index} className="flex items-start">
+                          <CheckCircle className="mr-2 h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>{deliverable}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </CardContent>
                 </Card>
 
@@ -370,36 +284,23 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                     <CardTitle>Attachments</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {rfp.attachments && rfp.attachments.length > 0 ? (
-                      <div className="space-y-2">
-                        {rfp.attachments.map((attachment: any, index: number) => (
-                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <FileText className="h-5 w-5 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium">{attachment.name}</p>
-                                <p className="text-sm text-muted-foreground">{attachment.size} • {attachment.type}</p>
-                              </div>
+                    <div className="space-y-2">
+                      {rfp.attachments.map((attachment, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium">{attachment.name}</p>
+                              <p className="text-sm text-muted-foreground">{attachment.size} • {attachment.type}</p>
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => {
-                              if (attachment.url) {
-                                const a = document.createElement('a')
-                                a.href = attachment.url
-                                a.download = attachment.name
-                                a.click()
-                              } else {
-                                toast.info('File URL not available for this attachment')
-                              }
-                            }}>
-                              <Download className="mr-2 h-4 w-4" />
-                              Download
-                            </Button>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No attachments available.</p>
-                    )}
+                          <Button variant="outline" size="sm">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -410,18 +311,14 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                     <CardTitle>Requirements & Qualifications</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {rfp.requirements && rfp.requirements.length > 0 ? (
-                      <ul className="space-y-2">
-                        {rfp.requirements.map((requirement: string, index: number) => (
-                          <li key={index} className="flex items-start">
-                            <AlertCircle className="mr-2 h-4 w-4 text-sky-500 mt-0.5 flex-shrink-0" />
-                            <span>{requirement}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No specific requirements listed.</p>
-                    )}
+                    <ul className="space-y-2">
+                      {rfp.requirements.map((requirement, index) => (
+                        <li key={index} className="flex items-start">
+                          <AlertCircle className="mr-2 h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                          <span>{requirement}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -432,24 +329,20 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                     <CardTitle>Project Timeline</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {rfp.timeline && rfp.timeline.length > 0 ? (
-                      <div className="space-y-4">
-                        {rfp.timeline.map((phase: any, index: number) => (
-                          <div key={index} className="flex items-start space-x-4">
-                            <div className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
-                              {index + 1}
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium">{phase.phase}</h4>
-                              <p className="text-sm text-muted-foreground">{phase.duration}</p>
-                              <p className="text-sm text-muted-foreground">Start: {phase.start}</p>
-                            </div>
+                    <div className="space-y-4">
+                      {rfp.timeline.map((phase, index) => (
+                        <div key={index} className="flex items-start space-x-4">
+                          <div className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
+                            {index + 1}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No timeline specified.</p>
-                    )}
+                          <div className="flex-1">
+                            <h4 className="font-medium">{phase.phase}</h4>
+                            <p className="text-sm text-muted-foreground">{phase.duration}</p>
+                            <p className="text-sm text-muted-foreground">Start: {phase.start}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -460,23 +353,19 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                     <CardTitle>Evaluation Criteria</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {rfp.evaluationCriteria && rfp.evaluationCriteria.length > 0 ? (
-                      <div className="space-y-4">
-                        {rfp.evaluationCriteria.map((criterion: any, index: number) => (
-                          <div key={index} className="border rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-medium">{criterion.criterion}</h4>
-                              <Badge variant="outline">{criterion.weight}%</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {criterion.description}
-                            </p>
+                    <div className="space-y-4">
+                      {rfp.evaluationCriteria.map((criterion, index) => (
+                        <div key={index} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">{criterion.criterion}</h4>
+                            <Badge variant="outline">{criterion.weight}%</Badge>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No evaluation criteria specified.</p>
-                    )}
+                          <p className="text-sm text-muted-foreground">
+                            {criterion.description}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -488,22 +377,31 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {rfp.organizationInfo.description ? (
-                        <p className="text-muted-foreground">{rfp.organizationInfo.description}</p>
-                      ) : (
-                        <p className="text-muted-foreground">No organization details available.</p>
-                      )}
-                      {rfp.organizationInfo.website && (
+                      <p className="text-muted-foreground">
+                        {rfp.organizationInfo.description}
+                      </p>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <h4 className="font-medium mb-2">Company Details</h4>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="font-medium">Size:</span> {rfp.organizationInfo.size}</p>
+                            <p><span className="font-medium">Industry:</span> {rfp.organizationInfo.industry}</p>
+                            <p><span className="font-medium">Founded:</span> {rfp.organizationInfo.founded}</p>
+                            <p><span className="font-medium">Location:</span> {rfp.organizationInfo.location}</p>
+                          </div>
+                        </div>
                         <div>
                           <h4 className="font-medium mb-2">Contact</h4>
-                          <Button variant="link" className="p-0 h-auto" asChild>
-                            <a href={rfp.organizationInfo.website} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-1 h-3 w-3" />
-                              Visit Website
-                            </a>
-                          </Button>
+                          <div className="space-y-1 text-sm">
+                            <Button variant="link" className="p-0 h-auto" asChild>
+                              <a href={rfp.organizationInfo.website} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-1 h-3 w-3" />
+                                Visit Website
+                              </a>
+                            </Button>
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -522,34 +420,10 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {showBidForm ? (
-                  <div className="space-y-3">
-                    <input
-                      type="number"
-                      placeholder="Bid amount ($)"
-                      value={bidAmount}
-                      onChange={(e) => setBidAmount(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                    />
-                    <textarea
-                      placeholder="Your proposal..."
-                      value={bidProposal}
-                      onChange={(e) => setBidProposal(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md text-sm min-h-[80px]"
-                    />
-                    <div className="flex space-x-2">
-                      <Button className="flex-1" size="sm" onClick={handleSubmitBid} disabled={submittingBid}>
-                        {submittingBid ? "Submitting..." : "Confirm Bid"}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setShowBidForm(false)}>Cancel</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button className="w-full" size="lg" onClick={() => setShowBidForm(true)}>
-                    Submit Bid
-                  </Button>
-                )}
-                <Button variant="outline" className="w-full" onClick={() => setShowQuestionDialog(true)}>
+                <Button className="w-full" size="lg">
+                  Submit Bid
+                </Button>
+                <Button variant="outline" className="w-full">
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Ask Question
                 </Button>
@@ -560,68 +434,26 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
               </CardContent>
             </Card>
 
-        <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Ask a Question</DialogTitle>
-            </DialogHeader>
-            <Textarea
-              placeholder="Type your question here..."
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
-              rows={4}
-            />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowQuestionDialog(false)}>Cancel</Button>
-              <Button disabled={!questionText.trim() || submittingQuestion} onClick={async () => {
-                setSubmittingQuestion(true)
-                try {
-                  const res = await fetch('/api/qna', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rfpId: id, questionText: questionText.trim(), isPublic: true }),
-                  })
-                  if (res.ok) {
-                    toast.success('Question submitted successfully')
-                    setShowQuestionDialog(false)
-                    setQuestionText('')
-                  } else {
-                    toast.error('Failed to submit question')
-                  }
-                } catch {
-                  toast.error('Failed to submit question')
-                } finally {
-                  setSubmittingQuestion(false)
-                }
-              }}>{submittingQuestion ? 'Submitting...' : 'Submit Question'}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
             {/* Similar RFPs */}
             <Card>
               <CardHeader>
                 <CardTitle>Similar Opportunities</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {rfp.similarRFPs && rfp.similarRFPs.length > 0 ? (
-                  rfp.similarRFPs.map((similar: any) => (
-                    <div key={similar.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-                      <h4 className="font-medium text-sm mb-1">{similar.title}</h4>
-                      <p className="text-xs text-muted-foreground mb-2">{similar.organization}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{similar.budget}</span>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/marketplace/rfps/${similar.id}`}>
-                            View
-                          </Link>
-                        </Button>
-                      </div>
+                {rfp.similarRFPs.map((similar) => (
+                  <div key={similar.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
+                    <h4 className="font-medium text-sm mb-1">{similar.title}</h4>
+                    <p className="text-xs text-muted-foreground mb-2">{similar.organization}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-green-600">{similar.budget}</span>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/marketplace/rfps/${similar.id}`}>
+                          View
+                        </Link>
+                      </Button>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">No similar RFPs found.</p>
-                )}
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
@@ -632,12 +464,20 @@ export default function RFPDetail({ params }: { params: Promise<{ id: string }> 
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
+                  <span className="text-sm">Views</span>
+                  <span className="font-medium">1,247</span>
+                </div>
+                <div className="flex items-center justify-between">
                   <span className="text-sm">Bids</span>
                   <span className="font-medium">{rfp.bids}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Status</span>
-                  <Badge className={getStatusColor(rfp.status)}>Active</Badge>
+                  <span className="text-sm">Questions</span>
+                  <span className="font-medium">8</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Days Left</span>
+                  <span className="font-medium text-red-600">15</span>
                 </div>
               </CardContent>
             </Card>

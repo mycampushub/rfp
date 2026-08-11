@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
-import { EmptyState } from "@/components/shared/empty-state"
-import { LoadingTable } from "@/components/shared/loading-table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { 
   Table,
@@ -19,11 +18,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { FileText, Plus, Eye, CheckCircle, Clock, Filter, Search, Users, Paperclip, Download, Bell } from "lucide-react"
+import { 
+  FileText, 
+  Plus, 
+  Eye, 
+  CheckCircle, 
+  Clock,
+  AlertCircle,
+  Filter,
+  Search,
+  Users,
+  Calendar,
+  Paperclip,
+  Download,
+  Bell
+} from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { toast } from "sonner"
-import { formatDate } from "@/lib/utils"
 
 interface Addendum {
   id: string
@@ -47,14 +58,12 @@ interface Acknowledgment {
 }
 
 export default function AddendaPage() {
-  useEffect(() => { document.title = 'Addenda | RFP Platform' }, [])
   const [addenda, setAddenda] = useState<Addendum[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [rfpFilter, setRfpFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [selectedAddendum, setSelectedAddendum] = useState<Addendum | null>(null)
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [newAddendum, setNewAddendum] = useState({
     title: "",
     note: "",
@@ -62,39 +71,94 @@ export default function AddendaPage() {
     rfpId: ""
   })
 
-  useEffect(() => {
-    const fetchAddenda = async () => {
-      try {
-        const res = await fetch('/api/addenda')
-        if (!res.ok) throw new Error('Failed to fetch addenda')
-        const data = await res.json()
-        const mapped: Addendum[] = (Array.isArray(data) ? data : []).map((item: any) => ({
-          id: item.id,
-          rfpId: item.rfpId || '',
-          rfpTitle: item.rfp?.title || 'Unknown RFP',
-          title: item.title || '',
-          note: item.note || item.description || undefined,
-          attachments: item.attachments || [],
-          requiresAck: item.requiresAck ?? false,
-          createdAt: item.createdAt || '',
-          status: item.status || 'active',
-          acknowledgments: (item.acknowledgments || []).map((ack: any) => ({
-            id: ack.id,
-            vendorId: ack.vendorId || '',
-            vendorName: ack.vendor?.name || 'Unknown',
-            vendorEmail: ack.vendor?.contactInfo?.email || '',
-            acknowledgedAt: ack.createdAt || '',
-          })),
-        }))
-        setAddenda(mapped)
-      } catch (err) {
-        console.error(err)
-        toast.error('Failed to load addenda')
-      } finally {
-        setLoading(false)
-      }
+  // Mock data for demonstration
+  const mockAddenda: Addendum[] = [
+    {
+      id: "1",
+      rfpId: "1",
+      rfpTitle: "IT Managed Services 2024",
+      title: "Extension of Submission Deadline",
+      note: "Due to the high volume of inquiries, we are extending the submission deadline by 7 days. The new deadline is December 22, 2024.",
+      attachments: ["deadline-extension.pdf"],
+      requiresAck: true,
+      createdAt: "2024-11-10T09:00:00Z",
+      status: "active",
+      acknowledgments: [
+        {
+          id: "1",
+          vendorId: "1",
+          vendorName: "Tech Solutions Inc",
+          vendorEmail: "contact@techsolutions.com",
+          acknowledgedAt: "2024-11-10T10:30:00Z"
+        },
+        {
+          id: "2",
+          vendorId: "2",
+          vendorName: "Global IT Services",
+          vendorEmail: "info@globalit.com",
+          acknowledgedAt: "2024-11-10T11:15:00Z"
+        }
+      ]
+    },
+    {
+      id: "2",
+      rfpId: "1",
+      rfpTitle: "IT Managed Services 2024",
+      title: "Clarification on Security Requirements",
+      note: "Additional security requirements have been specified in Section 4.2. All vendors must review and acknowledge these updated requirements.",
+      attachments: ["security-updates.pdf", "compliance-checklist.xlsx"],
+      requiresAck: true,
+      createdAt: "2024-11-08T14:00:00Z",
+      status: "active",
+      acknowledgments: [
+        {
+          id: "3",
+          vendorId: "3",
+          vendorName: "Digital Dynamics",
+          vendorEmail: "contact@digitaldynamics.com",
+          acknowledgedAt: "2024-11-08T15:45:00Z"
+        }
+      ]
+    },
+    {
+      id: "3",
+      rfpId: "2",
+      rfpTitle: "Marketing Campaign Services",
+      title: "Budget Adjustment",
+      note: "The budget for this RFP has been increased from $100,000 to $150,000 to accommodate expanded scope requirements.",
+      attachments: ["budget-revision.pdf"],
+      requiresAck: true,
+      createdAt: "2024-11-05T11:00:00Z",
+      status: "active",
+      acknowledgments: []
+    },
+    {
+      id: "4",
+      rfpId: "3",
+      rfpTitle: "Office Equipment Procurement",
+      title: "Specification Updates",
+      note: "Technical specifications for office equipment have been updated. Please review the new requirements in the attached document.",
+      attachments: ["spec-updates-v2.pdf"],
+      requiresAck: false,
+      createdAt: "2024-11-01T16:00:00Z",
+      status: "expired",
+      acknowledgments: [
+        {
+          id: "4",
+          vendorId: "4",
+          vendorName: "Office Supplies Co",
+          vendorEmail: "sales@officesupplies.com",
+          acknowledgedAt: "2024-11-02T09:30:00Z"
+        }
+      ]
     }
-    fetchAddenda()
+  ]
+
+  useEffect(() => {
+    setTimeout(() => {
+      setAddenda(mockAddenda)
+      setLoading(false)
+    }, 1000)
   }, [])
 
   const filteredAddenda = addenda.filter(item => {
@@ -111,11 +175,11 @@ export default function AddendaPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+        return "bg-green-100 text-green-800"
       case "expired":
-        return "bg-red-500/15 text-red-700 dark:text-red-300"
+        return "bg-red-100 text-red-800"
       default:
-        return "bg-muted text-foreground"
+        return "bg-gray-100 text-gray-800"
     }
   }
 
@@ -124,47 +188,26 @@ export default function AddendaPage() {
     return Math.round((acknowledgments.length / totalVendors) * 100)
   }
 
-  const handleCreateAddendum = async () => {
-    if (!newAddendum.title.trim() || !newAddendum.rfpId) {
-      toast.error('Title and RFP selection are required')
-      return
+  const handleCreateAddendum = () => {
+    if (!newAddendum.title.trim() || !newAddendum.rfpId) return
+    
+    const rfpTitle = addenda.find(a => a.rfpId === newAddendum.rfpId)?.rfpTitle || "Unknown RFP"
+    
+    const addendum: Addendum = {
+      id: `add-${Date.now()}`,
+      rfpId: newAddendum.rfpId,
+      rfpTitle,
+      title: newAddendum.title,
+      note: newAddendum.note,
+      attachments: [],
+      requiresAck: newAddendum.requiresAck,
+      createdAt: new Date().toISOString(),
+      status: "active",
+      acknowledgments: []
     }
     
-    try {
-      const res = await fetch('/api/addenda', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rfpId: newAddendum.rfpId,
-          title: newAddendum.title,
-          note: newAddendum.note,
-          requiresAck: newAddendum.requiresAck,
-        }),
-      })
-      if (!res.ok) throw new Error('Failed to create addendum')
-      const created = await res.json()
-      const rfpTitle = addenda.find(a => a.rfpId === newAddendum.rfpId)?.rfpTitle || created.rfp?.title || 'Unknown RFP'
-      
-      const addendum: Addendum = {
-        id: created.id,
-        rfpId: newAddendum.rfpId,
-        rfpTitle,
-        title: newAddendum.title,
-        note: newAddendum.note,
-        attachments: [],
-        requiresAck: newAddendum.requiresAck,
-        createdAt: created.createdAt || new Date().toISOString(),
-        status: 'active',
-        acknowledgments: []
-      }
-      
-      setAddenda(prev => [addendum, ...prev])
-      setNewAddendum({ title: "", note: "", requiresAck: true, rfpId: "" })
-      toast.success('Addendum created successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error('Failed to create addendum')
-    }
+    setAddenda(prev => [addendum, ...prev])
+    setNewAddendum({ title: "", note: "", requiresAck: true, rfpId: "" })
   }
 
   const getUniqueRfps = () => {
@@ -175,7 +218,9 @@ export default function AddendaPage() {
   if (loading) {
     return (
       <MainLayout title="Addenda Management">
-        <LoadingTable rows={5} columns={6} />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading addenda...</div>
+        </div>
       </MainLayout>
     )
   }
@@ -191,7 +236,7 @@ export default function AddendaPage() {
               Manage RFP addenda and track vendor acknowledgments
             </p>
           </div>
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <Dialog>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -300,7 +345,7 @@ export default function AddendaPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {addenda.length > 0 ? Math.round(addenda.reduce((acc, a) => acc + getAcknowledgmentRate(a.acknowledgments, 5), 0) / addenda.length) : 0}%
+                {Math.round(addenda.reduce((acc, a) => acc + getAcknowledgmentRate(a.acknowledgments, 5), 0) / addenda.length)}%
               </div>
             </CardContent>
           </Card>
@@ -361,7 +406,6 @@ export default function AddendaPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -412,11 +456,11 @@ export default function AddendaPage() {
                           </div>
                           {addendum.requiresAck && (
                             <div className="flex items-center space-x-1">
-                              <div className="w-16 bg-muted-foreground/20 rounded-full h-2">
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
                                 <div 
                                   className={`h-2 rounded-full ${
-                                    acknowledgmentRate === 100 ? 'bg-emerald-500' : 
-                                    acknowledgmentRate >= 60 ? 'bg-amber-500' : 'bg-red-500'
+                                    acknowledgmentRate === 100 ? 'bg-green-600' : 
+                                    acknowledgmentRate >= 60 ? 'bg-yellow-600' : 'bg-red-600'
                                   }`}
                                   style={{ width: `${acknowledgmentRate}%` }}
                                 ></div>
@@ -428,7 +472,7 @@ export default function AddendaPage() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {formatDate(addendum.createdAt)}
+                          {new Date(addendum.createdAt).toLocaleDateString()}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -437,7 +481,6 @@ export default function AddendaPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setSelectedAddendum(addendum)}
-                            aria-label="View"
                           >
                             <Eye className="h-3 w-3" />
                           </Button>
@@ -445,16 +488,6 @@ export default function AddendaPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                              const text = `ADDENDUM: ${addendum.title}\n\nDate: ${formatDate(addendum.createdAt)}\nRFP: ${addendum.rfpTitle || 'N/A'}\n\n${addendum.note}\n\n---\nGenerated from RFP Platform`
-                              const blob = new Blob([text], { type: 'text/plain' })
-                              const url = URL.createObjectURL(blob)
-                              const a = document.createElement('a')
-                              a.href = url; a.download = `addendum-${addendum.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`; a.click()
-                              URL.revokeObjectURL(url)
-                              toast.success('Addendum downloaded')
-                            }}
-                            aria-label="Download"
                             >
                               <Download className="h-3 w-3" />
                             </Button>
@@ -463,17 +496,6 @@ export default function AddendaPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/addenda/${addendum.id}/remind`, { method: 'POST' })
-                                  if (res.ok) {
-                                    toast.success('Reminder sent successfully')
-                                  } else {
-                                    toast.error('Failed to send reminder')
-                                  }
-                                } catch (err) { toast.error('Failed to send reminder') }
-                              }}
-                              aria-label="Send reminder"
                             >
                               <Bell className="h-3 w-3" />
                             </Button>
@@ -485,10 +507,12 @@ export default function AddendaPage() {
                 })}
               </TableBody>
             </Table>
-            </div>
             
             {filteredAddenda.length === 0 && (
-              <EmptyState icon={FileText} title="No addenda found" description="Addenda will appear here once they are created for RFPs." action={{ label: "Create Addendum", onClick: () => setCreateDialogOpen(true) }} />
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No addenda found matching your filters.</p>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -503,13 +527,13 @@ export default function AddendaPage() {
                   {selectedAddendum.title}
                 </DialogTitle>
                 <DialogDescription>
-                  {selectedAddendum.rfpTitle} • {formatDate(selectedAddendum.createdAt)}
+                  {selectedAddendum.rfpTitle} • {new Date(selectedAddendum.createdAt).toLocaleDateString()}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Description</Label>
-                  <p className="text-foreground/80">{selectedAddendum.note || "No description provided."}</p>
+                  <p className="text-gray-700">{selectedAddendum.note || "No description provided."}</p>
                 </div>
                 
                 {selectedAddendum.attachments.length > 0 && (
@@ -522,16 +546,7 @@ export default function AddendaPage() {
                             <Paperclip className="h-4 w-4" />
                             <span className="text-sm">{attachment}</span>
                           </div>
-                          <Button variant="ghost" size="sm" aria-label="Download attachment" onClick={() => {
-                              if (!selectedAddendum) return
-                              const text = `ADDENDUM: ${selectedAddendum.title}\n\nDate: ${formatDate(selectedAddendum.createdAt)}\nRFP: ${selectedAddendum.rfpTitle || 'N/A'}\n\n${selectedAddendum.note}\n\n---\nGenerated from RFP Platform`
-                              const blob = new Blob([text], { type: 'text/plain' })
-                              const url = URL.createObjectURL(blob)
-                              const a = document.createElement('a')
-                              a.href = url; a.download = `addendum-${selectedAddendum.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`; a.click()
-                              URL.revokeObjectURL(url)
-                              toast.success('Attachment downloaded')
-                            }}>
+                          <Button variant="ghost" size="sm">
                             <Download className="h-3 w-3" />
                           </Button>
                         </div>
@@ -548,14 +563,14 @@ export default function AddendaPage() {
                         selectedAddendum.acknowledgments.map((ack) => (
                           <div key={ack.id} className="flex items-center justify-between p-2 border rounded">
                             <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                              <CheckCircle className="h-4 w-4 text-green-600" />
                               <div>
                                 <div className="text-sm font-medium">{ack.vendorName}</div>
                                 <div className="text-xs text-muted-foreground">{ack.vendorEmail}</div>
                               </div>
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {formatDate(ack.acknowledgedAt)}
+                              {new Date(ack.acknowledgedAt).toLocaleDateString()}
                             </div>
                           </div>
                         ))
@@ -573,16 +588,7 @@ export default function AddendaPage() {
                     Close
                   </Button>
                   {selectedAddendum.requiresAck && selectedAddendum.acknowledgments.length < 5 && (
-                    <Button onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/addenda/${selectedAddendum.id}/remind`, { method: 'POST' })
-                        if (res.ok) {
-                          toast.success('Reminder sent successfully')
-                        } else {
-                          toast.error('Failed to send reminder')
-                        }
-                      } catch (err) { toast.error('Failed to send reminder') }
-                    }}>
+                    <Button>
                       <Bell className="mr-2 h-4 w-4" />
                       Send Reminder
                     </Button>
