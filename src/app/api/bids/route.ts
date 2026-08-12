@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 
 const createBidSchema = z.object({
@@ -31,14 +32,14 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [bids, total] = await Promise.all([
       db.bid.findMany({
         where,
         include: {
-          publicRfp: { select: { id: true, title: true, tenantId: true } },
+          publicRfp: { select: { id: true, tenantId: true } },
           vendorProfile: { select: { id: true, businessName: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -62,9 +63,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const ctx = getTenantContext(session)
+    const { ctx } = await requirePermission('bid:create')
 
     const body = await request.json()
     const data = createBidSchema.parse(body)
@@ -106,7 +105,7 @@ export async function POST(request: NextRequest) {
         proposal: data.proposal,
       },
       include: {
-        publicRfp: { select: { id: true, title: true } },
+        publicRfp: { select: { id: true } },
         vendorProfile: { select: { id: true, businessName: true } },
       },
     })

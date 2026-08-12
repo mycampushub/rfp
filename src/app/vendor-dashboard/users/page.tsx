@@ -594,10 +594,10 @@ export default function UserManagement() {
                           <TableCell>
                             <div className="flex items-center space-x-2">
                               {user.twoFactorEnabled && (
-                                <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" title="2FA Enabled" />
+                                <span title="2FA Enabled"><Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /></span>
                               )}
                               {user.emailVerified && (
-                                <CheckCircle className="h-4 w-4 text-sky-600 dark:text-sky-400" title="Email Verified" />
+                                <span title="Email Verified"><CheckCircle className="h-4 w-4 text-sky-600 dark:text-sky-400" /></span>
                               )}
                               {user.activeSessions > 0 && (
                                 <div className="flex items-center">

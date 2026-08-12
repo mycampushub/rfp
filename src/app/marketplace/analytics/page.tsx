@@ -112,7 +112,7 @@ export default function MarketplaceAnalytics() {
     }
   ] : []
 
-  const revenueAnalytics = analyticsData?.monthlyData?.map((m: any) => ({
+  const revenueAnalytics: Array<{month: string; bids: number; wins: number; revenue: number; avgValue: number}> = analyticsData?.monthlyData?.map((m: any) => ({
     month: m.month,
     revenue: m.budget,
     bids: m.rfps,
@@ -120,7 +120,7 @@ export default function MarketplaceAnalytics() {
     avgValue: m.rfps > 0 ? Math.round(m.budget / m.rfps) : 0,
   })) ?? []
 
-  const categoryPerformance = analyticsData?.categoryData?.map((c: any) => ({
+  const categoryPerformance: Array<{name: string; bids: number; avgValue: number}> = analyticsData?.categoryData?.map((c: any) => ({
     name: c.category,
     bids: c.count,
     wins: 0,
@@ -132,7 +132,7 @@ export default function MarketplaceAnalytics() {
     satisfaction: 0,
   })) ?? []
 
-  const competitorAnalysis = analyticsData?.vendorMetrics?.topPerformers?.map((v: any) => ({
+  const competitorAnalysis: Array<{name: string; winRate: number; avgValue: number}> = analyticsData?.vendorMetrics?.topPerformers?.map((v: any) => ({
     name: v.name,
     marketShare: 0,
     bids: 0,

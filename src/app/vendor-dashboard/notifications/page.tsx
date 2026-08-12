@@ -81,22 +81,22 @@ export default function VendorNotifications() {
 
         const notifsData = Array.isArray(notifsRes) ? notifsRes : []
         setNotifications(notifsData.map((n: Record<string, unknown>) => ({
-          id: n.id,
+          id: String(n.id),
           type: (n.type || 'system') as Notification['type'],
-          title: n.title || '',
-          message: n.message || '',
+          title: String(n.title || ''),
+          message: String(n.message || ''),
           data: n.data as Record<string, unknown> | undefined,
-          isRead: n.isRead || false,
+          isRead: Boolean(n.isRead),
           isDismissed: false,
           priority: 'medium' as const,
-          createdAt: n.createdAt || '',
+          createdAt: String(n.createdAt || ''),
           deliveryMethod: 'in_app' as const,
           category: 'system' as const,
         })))
 
         const prefsData = Array.isArray(prefsRes) ? prefsRes : []
         setPreferences(prefsData.map((p: Record<string, unknown>) => ({
-          type: p.type || '',
+          type: String(p.type || ''),
           enabled: true,
           deliveryMethods: [],
           frequency: 'immediate' as const,
@@ -191,13 +191,14 @@ export default function VendorNotifications() {
   }
 
   const getDeliveryIcon = (method: string) => {
-    const icons = {
+    const icons: Record<string, React.ComponentType<{ className?: string }>> = {
       in_app: Bell,
       email: Mail,
       sms: Phone,
       push: Globe
     }
-    return icons[method as keyof typeof icons] || Bell
+    const Icon = icons[method] || Bell
+    return <Icon className="h-3 w-3" />
   }
 
   const formatDate = (dateString: string) => {

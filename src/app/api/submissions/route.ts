@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
+import { dispatchWebhooks } from "@/lib/webhook-dispatcher"
 
 const createSubmissionSchema = z.object({
   rfpId: z.string(),
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [submissions, total] = await Promise.all([
@@ -105,6 +106,7 @@ export async function GET(request: NextRequest) {
                   id: true,
                   label: true,
                   weight: true,
+                  scaleMax: true,
                 },
               },
             },
@@ -240,6 +242,16 @@ export async function POST(request: NextRequest) {
         },
       })
     })
+
+    // Dispatch webhook for submission creation
+    dispatchWebhooks('submission.created', {
+      submissionId: submission.id,
+      rfpId: submission.rfpId,
+      rfpTitle: submission.rfp.title,
+      vendorId: submission.vendorId,
+      vendorName: submission.vendor.name,
+      version: submission.version,
+    }, tenantContext.tenantId)
 
     return NextResponse.json(submission, { status: 201 })
   } catch (error) {

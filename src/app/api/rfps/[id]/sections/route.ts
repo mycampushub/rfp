@@ -84,7 +84,7 @@ export async function PUT(
             type: q.type || "text",
             prompt: q.prompt || q.title || "",
             required: q.required ?? false,
-            constraints: q.constraints || undefined,
+            constraints: q.constraints as any || undefined,
             order: qIdx,
           },
         })

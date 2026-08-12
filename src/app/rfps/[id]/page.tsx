@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Calendar, Users, FileText, MessageSquare, Settings, Clock, User, Building, Building2, FileX, AlertCircle, Eye } from "lucide-react"
+import { Calendar, Users, FileText, MessageSquare, Settings, Clock, User, Building, Building2, FileX, AlertCircle, Eye, Award, ClipboardCheck, FileSignature, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/shared/empty-state"
 import { getStatusColor } from "@/lib/status-utils"
@@ -17,7 +17,7 @@ import { formatDate } from "@/lib/utils"
 interface RFP {
   id: string
   title: string
-  status: "draft" | "published" | "closed" | "awarded" | "archived"
+  status: "draft" | "published" | "closed" | "awarded" | "archived" | "evaluating"
   category?: string
   budget?: string
   confidentiality: "internal" | "confidential" | "restricted"
@@ -194,6 +194,7 @@ export default function RFPDetailPage() {
   }
 
   const handleEdit = () => {
+    if (!rfp) return
     router.push('/rfps/' + rfp.id + '/edit')
   }
 
@@ -267,6 +268,31 @@ export default function RFPDetailPage() {
                 {publishing ? "Publishing..." : "Publish"}
               </Button>
             )}
+            {rfp.status === "closed" && (
+              <>
+                <Button variant="outline" onClick={() => router.push('/approvals?rfpId=' + rfp.id)}>
+                  <Award className="h-4 w-4 mr-2" />Award Vendor
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/evaluation?rfpId=' + rfp.id)}>
+                  <ClipboardCheck className="h-4 w-4 mr-2" />View Evaluations
+                </Button>
+              </>
+            )}
+            {rfp.status === "evaluating" && (
+              <Button variant="outline" onClick={() => router.push('/evaluation?rfpId=' + rfp.id)}>
+                <ClipboardCheck className="h-4 w-4 mr-2" />View Evaluations
+              </Button>
+            )}
+            {rfp.status === "awarded" && (
+              <>
+                <Button variant="outline" onClick={() => router.push('/contracts?rfpId=' + rfp.id)}>
+                  <FileSignature className="h-4 w-4 mr-2" />View Contract
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/evaluation?rfpId=' + rfp.id)}>
+                  <ClipboardCheck className="h-4 w-4 mr-2" />View Evaluations
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -284,15 +310,15 @@ export default function RFPDetailPage() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="flex flex-wrap gap-1">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="teams">Teams</TabsTrigger>
-            <TabsTrigger value="sections">Sections</TabsTrigger>
-            <TabsTrigger value="vendors">Vendors</TabsTrigger>
-            <TabsTrigger value="qa">Q&A</TabsTrigger>
-            <TabsTrigger value="submissions">Submissions</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsList className="flex flex-nowrap gap-1 overflow-x-auto w-max min-w-0">
+            <TabsTrigger value="overview"><Eye className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Overview</span></TabsTrigger>
+            <TabsTrigger value="timeline"><Clock className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Timeline</span></TabsTrigger>
+            <TabsTrigger value="teams"><Users className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Teams</span></TabsTrigger>
+            <TabsTrigger value="sections"><FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Sections</span></TabsTrigger>
+            <TabsTrigger value="vendors"><Building className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Vendors</span></TabsTrigger>
+            <TabsTrigger value="qa"><MessageSquare className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Q&A</span></TabsTrigger>
+            <TabsTrigger value="submissions"><Upload className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Submissions</span></TabsTrigger>
+            <TabsTrigger value="settings"><Settings className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Settings</span></TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -398,7 +424,7 @@ export default function RFPDetailPage() {
                     })}
                   </div>
                 ) : (
-                  <EmptyState icon={Clock} title="No timeline events" />
+                  <EmptyState icon={Clock} title="No timeline events" action={{ label: "Set Timeline", onClick: () => router.push('/rfps/' + rfp.id + '/edit') }} />
                 )}
               </CardContent>
             </Card>
@@ -429,7 +455,7 @@ export default function RFPDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState icon={Users} title="No team members" />
+                  <EmptyState icon={Users} title="No team members" action={{ label: "Invite Team Members", onClick: () => router.push('/rfps/' + rfp.id + '/edit') }} />
                 )}
               </CardContent>
             </Card>
@@ -459,7 +485,7 @@ export default function RFPDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState icon={FileText} title="No sections" />
+                  <EmptyState icon={FileText} title="No sections" action={{ label: "Add Section", onClick: () => router.push('/rfps/' + rfp.id + '/edit') }} />
                 )}
               </CardContent>
             </Card>
@@ -490,7 +516,7 @@ export default function RFPDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState icon={Building2} title="No vendors" />
+                  <EmptyState icon={Building2} title="No vendors" action={{ label: "Invite Vendors", onClick: () => router.push('/rfps/' + rfp.id + '/edit') }} />
                 )}
               </CardContent>
             </Card>
@@ -531,7 +557,7 @@ export default function RFPDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState icon={MessageSquare} title="No questions" />
+                  <EmptyState icon={MessageSquare} title="No questions" action={{ label: "Ask a Question", onClick: () => router.push('/rfps/' + rfp.id + '/edit') }} />
                 )}
               </CardContent>
             </Card>

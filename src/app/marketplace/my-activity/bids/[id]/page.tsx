@@ -56,7 +56,7 @@ export default function BidDetailPage() {
   const [bid, setBid] = useState<BidData | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [messages, setMessages] = useState<BidData["messages"]>([])
+  const [messages, setMessages] = useState<NonNullable<BidData["messages"]>>([])
   const [replyText, setReplyText] = useState("")
   const [sendingReply, setSendingReply] = useState(false)
 
@@ -104,8 +104,8 @@ export default function BidDetailPage() {
         body: JSON.stringify({ content: replyText.trim() }),
       })
       if (!res.ok) throw new Error("Failed to send message")
-      const newMsg = await res.json()
-      setMessages((prev) => [...prev, newMsg])
+      const newMsg = await res.json() as any
+      setMessages((prev) => [...(prev || []), newMsg])
       setReplyText("")
     } catch {
       toast.error("Failed to send message")
@@ -324,7 +324,7 @@ export default function BidDetailPage() {
             <CardDescription>Communication related to this bid</CardDescription>
           </CardHeader>
           <CardContent>
-            {messages.length === 0 ? (
+            {(messages || []).length === 0 ? (
               <EmptyState
                 icon={MessageSquare}
                 title="No messages yet"
@@ -332,7 +332,7 @@ export default function BidDetailPage() {
               />
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto mb-4">
-                {messages.map((msg) => (
+                {(messages || []).map((msg) => (
                   <div key={msg.id} className="flex gap-3">
                     <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                       <User className="h-4 w-4 text-primary" />

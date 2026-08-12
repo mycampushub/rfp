@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { MainLayout } from "@/components/layout/main-layout"
+import { useCsvExport } from "@/hooks/use-csv-export"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/shared/empty-state"
-import { SearchX } from "lucide-react"
+import { SearchX, Download, Loader2, EyeOff } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import type { EvaluationDetail, RubricCriterion, EvaluatorScore, ConsensusScore } from "./components/types"
 import { EvaluationHeader } from "./components/EvaluationHeader"
@@ -20,6 +23,7 @@ export default function EvaluationDetailPage() {
   const params = useParams()
   useEffect(() => { document.title = 'Evaluation Details | RFP Platform' }, [])
   const router = useRouter()
+  const { exportCsv, exporting } = useCsvExport()
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
@@ -77,17 +81,27 @@ export default function EvaluationDetailPage() {
           }
         }
 
-        // Pick a vendor name from the first submission if available
-        const vendorName = data.submissions?.[0]?.vendorName || 'Unknown Vendor'
-        const vendorId = data.submissions?.[0]?.vendorId || ''
+        // Anonymize vendor names if blind evaluation is active
+        const isBlindEval = data.isBlindEvaluation === true
+
+        // Anonymize vendor names in submissions when blind mode is on
+        const processedSubmissions = isBlindEval && Array.isArray(data.submissions)
+          ? data.submissions.map((sub: any, index: number) => ({
+              ...sub,
+              vendorName: `Vendor ${String.fromCharCode(65 + index)}`, // Vendor A, Vendor B, ...
+              vendorId: sub.vendorId || '', // Keep ID for data operations
+            }))
+          : data.submissions
 
         const mapped: EvaluationDetail = {
           id: data.id,
           rfpTitle: data.rfpTitle || 'Untitled RFP',
-          vendorName,
-          vendorId,
+          vendorName: isBlindEval
+            ? (processedSubmissions?.[0]?.vendorName || 'Vendor A')
+            : (data.submissions?.[0]?.vendorName || 'Unknown Vendor'),
+          vendorId: data.submissions?.[0]?.vendorId || '',
           status: data.status || 'pending',
-          isBlind: false,
+          isBlind: isBlindEval,
           rubricCriteria,
           evaluatorScores,
           consensusScores: [],
@@ -96,7 +110,7 @@ export default function EvaluationDetailPage() {
           requiredEvaluators: Math.max(evaluatorScores.length, 1),
           deadline: data.deadline || '',
           submittedAt: undefined,
-          submissions: data.submissions,
+          submissions: processedSubmissions,
         }
 
         setEvaluation(mapped)
@@ -181,31 +195,41 @@ export default function EvaluationDetailPage() {
     if (!evaluation) return []
     if (evaluation.evaluatorScores.length === 0) return []
 
-    // Use existing evaluator scores to derive consensus
-    // Since evaluatorScores are per-evaluator totals, derive per-criterion estimates
-    const avgOverall = evaluation.evaluatorScores.reduce((sum, s) => sum + s.score, 0) / evaluation.evaluatorScores.length
-
     return evaluation.rubricCriteria.map(criterion => {
       // Derive per-criterion scores proportionally from evaluator totals
       const maxTotal = evaluation.rubricCriteria.reduce((sum, c) => sum + c.scaleMax, 0) || 1
       const criterionWeight = criterion.scaleMax / maxTotal
-      const scores = evaluation.evaluatorScores.map(score => {
+      const derivedScores = evaluation.evaluatorScores.map(score => {
         const derived = (score.score / evaluation.maxPossibleScore) * criterion.scaleMax * criterionWeight * 2
         return Math.max(criterion.scaleMin, Math.min(criterion.scaleMax, derived))
       })
 
-      const average = scores.reduce((sum, score) => sum + score, 0) / scores.length
-      const variance = scores.reduce((sum, score) => sum + Math.pow(score - average, 2), 0) / scores.length
-      const standardDeviation = Math.sqrt(variance)
-      const confidence = Math.max(0, 1 - (standardDeviation / criterion.scaleMax))
-      
-      const disagreements = scores.filter(score => Math.abs(score - average) > standardDeviation).length
+      // Calculate mean
+      const mean = derivedScores.reduce((sum, s) => sum + s, 0) / derivedScores.length
+
+      // Calculate standard deviation
+      const variance = derivedScores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / derivedScores.length
+      const stdDev = Math.sqrt(variance)
+
+      // Agreement level: 1 - (std_dev / max_possible_std_dev), clamped 0-1
+      // Max possible std dev is half the scoring range
+      const maxPossibleStdDev = (criterion.scaleMax - criterion.scaleMin) / 2
+      const agreement = maxPossibleStdDev > 0
+        ? Math.max(0, Math.min(1, 1 - (stdDev / maxPossibleStdDev)))
+        : 1
+      // Single evaluator = 100% agreement
+      const confidence = derivedScores.length === 1 ? 1 : agreement
+
+      // Count disagreements (scores more than 1 std dev from mean)
+      const disagreements = derivedScores.length > 1
+        ? derivedScores.filter(s => Math.abs(s - mean) > stdDev).length
+        : 0
 
       return {
         criterionId: criterion.id,
-        finalScore: Math.round(average * 10) / 10,
+        finalScore: Math.round(mean * 10) / 10,
         confidence: Math.round(confidence * 100) / 100,
-        disagreements
+        disagreements,
       }
     })
   }
@@ -244,13 +268,35 @@ export default function EvaluationDetailPage() {
 
   return (
     <MainLayout title={`Evaluation: ${evaluation.rfpTitle}`}>
-      <h1 className="text-2xl font-bold tracking-tight">Evaluation</h1>
+      <div className="flex justify-between items-start">
+        <h1 className="text-2xl font-bold tracking-tight">Evaluation</h1>
+        <Button
+          variant="outline"
+          disabled={exporting}
+          onClick={() => {
+            const date = new Date().toISOString().slice(0, 10)
+            exportCsv(`/api/export/evaluations/${params.id}?format=csv`, `evaluation-scores-${date}.csv`)
+          }}
+        >
+          {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+          Export Scores
+        </Button>
+      </div>
       <div className="space-y-6">
         <EvaluationHeader
           evaluation={evaluation}
           showVendorInfo={showVendorInfo}
           onToggleVendorInfo={() => setShowVendorInfo(!showVendorInfo)}
         />
+
+        {evaluation.isBlind && !showVendorInfo && (
+          <Alert className="border-amber-500/50 bg-amber-500/10 dark:bg-amber-500/20">
+            <EyeOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+              <strong>Blind Evaluation Active</strong> — Vendor identities are hidden to prevent bias. Click &quot;Show Vendor&quot; in the header to reveal names when evaluation is complete.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <StatsCards
           evaluation={evaluation}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -8,20 +8,15 @@ import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-conte
  * GET /api/evaluations
  *
  * DERIVED / VIRTUAL ENDPOINT — There is no `Evaluation` model in the database.
- * Evaluation data is computed at query time by joining RFP, Submission, and Score records.
+ * Evaluation data is computed at query time by joining RFP, Submission, Score, and RFP_Team records.
  *
- * An "evaluation" in this API represents an RFP that has entered the evaluation phase.
- * For each such RFP, we aggregate:
- *   - Submission count and unique vendor count
- *   - Average score across all individual scores
- *   - Status derived from the RFP's lifecycle stage:
- *       "evaluation" → "in_progress"
- *       "closed"     → "completed"
- *       other        → "pending"
- *   - The evaluation deadline from the RFP's timeline
- *
- * Because evaluations are virtual, there are no POST/PUT/DELETE handlers here.
- * Score management is handled by the /api/scores endpoints.
+ * Returns a list of RFPs that have entered or passed the evaluation phase,
+ * enriched with:
+ *   - Submission & vendor counts
+ *   - Average score across all scores
+ *   - Evaluator team info (assigned evaluators, who has scored)
+ *   - Whether the current user is assigned as an evaluator
+ *   - Whether the current user has completed their scoring
  */
 export async function GET(request: NextRequest) {
   try {
@@ -31,12 +26,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
-    const whereClause = { tenantId: ctx.tenantId, status: { in: ["published", "evaluation", "closed"] } }
+    const whereClause = { tenantId: ctx.tenantId, status: { in: ["published", "evaluation", "closed", "awarded"] } }
 
-    const [total, rfpsWithSubmissions] = await Promise.all([
+    const [total, rfpsWithData] = await Promise.all([
       db.rFP.count({
         where: {
           ...whereClause,
@@ -55,6 +50,12 @@ export async function GET(request: NextRequest) {
             },
           },
           timeline: true,
+          teams: {
+            where: { role: "evaluator" },
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
         take: limit,
@@ -62,24 +63,53 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    const evaluations = rfpsWithSubmissions
+    const evaluations = rfpsWithData
       .filter((rfp) => rfp._count.submissions > 0)
       .map((rfp) => {
-        const totalScores = rfp.submissions.flatMap((s) => s.scores)
-        const avgScore = totalScores.length > 0
-          ? totalScores.reduce((sum, s) => sum + (s.scoreValue || 0), 0) / totalScores.length
+        const allScores = rfp.submissions.flatMap((s) => s.scores)
+        const avgScore = allScores.length > 0
+          ? allScores.reduce((sum, s) => sum + (s.scoreValue || 0), 0) / allScores.length
           : 0
+
+        // Evaluator progress: unique evaluator IDs who have scored vs total assigned evaluators
+        const evaluatorIdsWhoScored = new Set(allScores.map((s) => s.evaluatorId))
+        const totalEvaluators = rfp.teams.length
+        const evaluatorsCompleted = rfp.teams.filter((t) => evaluatorIdsWhoScored.has(t.userId)).length
+
+        // Check if current user is an evaluator on this RFP
+        const currentUserId = ctx.userId
+        const isEvaluator = rfp.teams.some((t) => t.userId === currentUserId)
+        const hasUserScored = isEvaluator && evaluatorIdsWhoScored.has(currentUserId)
+
+        // Derive evaluation status
+        const evaluationStatus = rfp.status === "evaluation"
+          ? "in_progress"
+          : rfp.status === "closed" || rfp.status === "awarded"
+            ? "completed"
+            : "pending"
 
         return {
           id: rfp.id,
           rfpId: rfp.id,
           rfpTitle: rfp.title,
-          status: rfp.status === "evaluation" ? "in_progress" : rfp.status === "closed" ? "completed" : "pending",
+          status: evaluationStatus,
+          rfpStatus: rfp.status,
           submissionCount: rfp._count.submissions,
           vendorCount: new Set(rfp.submissions.map((s) => s.vendorId)).size,
           averageScore: Math.round(avgScore * 100) / 100,
           deadline: rfp.timeline?.awardTarget || null,
+          submissionDeadline: rfp.timeline?.submissionDeadline || null,
           createdAt: rfp.createdAt,
+          // Evaluator info
+          totalEvaluators,
+          evaluatorsCompleted,
+          isEvaluator,
+          hasUserScored,
+          evaluators: rfp.teams.map((t) => ({
+            id: t.userId,
+            name: t.user?.name || "Unknown",
+            hasScored: evaluatorIdsWhoScored.has(t.userId),
+          })),
         }
       })
 

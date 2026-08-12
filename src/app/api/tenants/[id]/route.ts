@@ -5,13 +5,14 @@ import { db } from "@/lib/db"
 import { AuthError, PermissionError } from "@/lib/tenant-context"
 import { requireSystemAdmin } from "@/lib/auth-utils"
 import { z } from "zod"
+import { Prisma } from "@prisma/client"
 
 const updateTenantSchema = z.object({
   name: z.string().min(1).optional(),
   region: z.string().optional(),
   plan: z.string().optional(),
-  settings: z.record(z.string(), z.unknown()).optional(),
-  branding: z.record(z.string(), z.unknown()).optional(),
+  settings: z.any().optional(),
+  branding: z.any().optional(),
   subscriptionStatus: z.string().optional(),
 })
 

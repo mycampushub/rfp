@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, FileText } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export const metadata: Metadata = {
   title: "Terms of Service | RFP Platform",
@@ -17,78 +18,118 @@ export default function TermsPage() {
             <span className="font-semibold">RFP Platform</span>
           </div>
           <Link
-            href="/"
+            href="/auth/signup"
             className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Home
+            <ArrowLeft className="h-4 w-4" /> Back to Sign Up
           </Link>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-12">
         <article className="max-w-3xl mx-auto">
-          <h1 className="text-4xl font-bold tracking-tight mb-8">Terms and Conditions</h1>
-          <p className="text-muted-foreground mb-8">
-            Last updated: January 1, 2025
-          </p>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">Terms and Conditions</h1>
+          <p className="text-muted-foreground mb-8">Last updated: July 2025</p>
 
-          <h2 className="text-2xl font-semibold mt-10 mb-4">1. Acceptance of Terms</h2>
-          <p className="text-muted-foreground mb-4">
-            By accessing or using RFP Platform, you agree to be bound by these Terms and Conditions.
-            If you do not agree to these terms, you may not access or use the platform. We reserve the
-            right to update these terms at any time, and continued use of the platform constitutes
-            acceptance of any changes.
-          </p>
+          <Card>
+            <CardContent className="pt-6 space-y-8">
+              <section>
+                <h2 className="text-xl font-semibold mb-3">1. Acceptance of Terms</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  By accessing or using the RFP Platform, you acknowledge that you have read, understood,
+                  and agree to be bound by these Terms and Conditions. If you do not agree with any part
+                  of these terms, you must discontinue use of the platform immediately. Your continued use
+                  of the service following any changes constitutes acceptance of those changes.
+                </p>
+              </section>
 
-          <h2 className="text-2xl font-semibold mt-10 mb-4">2. Service Description</h2>
-          <p className="text-muted-foreground mb-4">
-            RFP Platform provides a web-based application for creating, managing, and evaluating
-            Requests for Proposals (RFPs). The platform includes tools for RFP creation, vendor
-            marketplace, proposal submission, evaluation scoring, and procurement analytics. We
-            reserve the right to modify, suspend, or discontinue any part of the service at any time.
-          </p>
+              <section>
+                <h2 className="text-xl font-semibold mb-3">2. Description of Service</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  The RFP Platform provides a comprehensive web-based solution for creating, managing, and
+                  evaluating Requests for Proposals. The service includes tools for RFP authoring, vendor
+                  marketplace management, proposal submission and scoring, and procurement analytics. We
+                  reserve the right to modify or discontinue any feature of the service with reasonable
+                  notice to our users.
+                </p>
+              </section>
 
-          <h2 className="text-2xl font-semibold mt-10 mb-4">3. User Accounts</h2>
-          <p className="text-muted-foreground mb-4">
-            You must provide accurate and complete information when creating an account. You are
-            responsible for maintaining the security of your account credentials and for all activities
-            that occur under your account. You must notify us immediately of any unauthorized use. We
-            reserve the right to suspend or terminate accounts that violate these terms.
-          </p>
+              <section>
+                <h2 className="text-xl font-semibold mb-3">3. User Accounts</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  To access the full functionality of the platform, you must create an account using
+                  accurate and complete information. You are solely responsible for safeguarding your
+                  login credentials and for all activities that occur under your account. You must
+                  promptly notify us of any unauthorized access or use of your account.
+                </p>
+              </section>
 
-          <h2 className="text-2xl font-semibold mt-10 mb-4">4. Vendor Responsibilities</h2>
-          <p className="text-muted-foreground mb-4">
-            Vendors are responsible for the accuracy and completeness of their proposals and profile
-            information. Vendors must not submit fraudulent, misleading, or plagiarized content. By
-            submitting a proposal, vendors grant the buyer a limited license to review and evaluate the
-            proposal contents for the purposes of the specific RFP.
-          </p>
+              <section>
+                <h2 className="text-xl font-semibold mb-3">4. User Content</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  You retain ownership of all content you submit to the platform, including RFPs,
+                  proposals, and evaluation scores. By submitting content, you grant us a limited,
+                  non-exclusive license to process, store, and display that content solely for the
+                  purpose of providing the service. You represent that your content does not infringe
+                  upon the rights of any third party.
+                </p>
+              </section>
 
-          <h2 className="text-2xl font-semibold mt-10 mb-4">5. Intellectual Property</h2>
-          <p className="text-muted-foreground mb-4">
-            The RFP Platform, including its software, design, logos, and documentation, is owned by
-            RFP Platform, Inc. and protected by intellectual property laws. Users retain ownership of
-            the content they create and submit. By using the platform, you grant us a limited,
-            non-exclusive license to process, store, and display your content solely for the purpose
-            of providing the service.
-          </p>
+              <section>
+                <h2 className="text-xl font-semibold mb-3">5. Intellectual Property</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  The RFP Platform, including its software, design, logos, and documentation, is the
+                  exclusive property of RFP Platform, Inc. and is protected by applicable intellectual
+                  property laws. You may not reproduce, distribute, or create derivative works from any
+                  part of the platform without our prior written consent.
+                </p>
+              </section>
 
-          <h2 className="text-2xl font-semibold mt-10 mb-4">6. Limitation of Liability</h2>
-          <p className="text-muted-foreground mb-4">
-            To the maximum extent permitted by law, RFP Platform, Inc. shall not be liable for any
-            indirect, incidental, special, consequential, or punitive damages arising from your use
-            of the platform. Our total liability for any claim shall not exceed the amount you paid
-            to us in the twelve months preceding the claim. This limitation applies regardless of the
-            legal theory on which the claim is based.
-          </p>
+              <section>
+                <h2 className="text-xl font-semibold mb-3">6. Limitation of Liability</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  To the maximum extent permitted by applicable law, RFP Platform, Inc. shall not be
+                  liable for any indirect, incidental, special, consequential, or punitive damages
+                  arising from your use of or inability to use the platform. Our total aggregate
+                  liability for any claims shall not exceed the fees you paid to us in the twelve months
+                  preceding the event giving rise to the claim.
+                </p>
+              </section>
 
-          <h2 className="text-2xl font-semibold mt-10 mb-4">7. Governing Law</h2>
-          <p className="text-muted-foreground mb-4">
-            These Terms and Conditions are governed by and construed in accordance with the laws of
-            the State of California, without regard to its conflict of law provisions. Any disputes
-            arising from these terms or your use of the platform shall be resolved in the state or
-            federal courts located in San Francisco County, California.
-          </p>
+              <section>
+                <h2 className="text-xl font-semibold mb-3">7. Privacy</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  Your privacy is important to us. Our collection and use of personal information is
+                  governed by our{" "}
+                  <Link href="/privacy" className="text-sky-600 dark:text-sky-400 hover:underline">
+                    Privacy Policy
+                  </Link>
+                  , which is incorporated into these Terms by reference. By using the platform, you
+                  consent to the data practices described in the Privacy Policy.
+                </p>
+              </section>
+
+              <section>
+                <h2 className="text-xl font-semibold mb-3">8. Changes to Terms</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  We reserve the right to update or modify these Terms at any time at our sole
+                  discretion. We will notify registered users of material changes by posting the updated
+                  terms on this page and, where appropriate, by sending an email notification. Your
+                  continued use of the platform after any such changes constitutes your acceptance of
+                  the revised Terms.
+                </p>
+              </section>
+
+              <section>
+                <h2 className="text-xl font-semibold mb-3">9. Contact</h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  If you have any questions or concerns about these Terms and Conditions, please contact
+                  us at legal@rfpplatform.com or write to us at RFP Platform, Inc., 100 Market Street,
+                  Suite 400, San Francisco, CA 94105.
+                </p>
+              </section>
+            </CardContent>
+          </Card>
         </article>
       </main>
 

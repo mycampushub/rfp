@@ -26,7 +26,7 @@ export async function GET(
     const bid = await db.bid.findFirst({
       where: { id },
       include: {
-        publicRfp: { select: { id: true, title: true, tenantId: true } },
+        publicRfp: { select: { id: true, tenantId: true } },
         vendorProfile: { select: { id: true, businessName: true } },
         messages: {
           include: { sender: { select: { id: true, name: true } } },

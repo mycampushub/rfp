@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext } from "@/lib/tenant-context"
-import { type Request } from "express"
 
 export interface AuditLogData {
   action: string
@@ -32,16 +31,17 @@ export class AuditLogger {
           // Not in API context, try to get from session
           const session = await getServerSession(authOptions)
           if (session?.user) {
-            tenantId = session.user.tenantId
-            userId = session.user.id
+            const u = session.user as Record<string, unknown>
+            tenantId = u.tenantId as string | undefined
+            userId = u.id as string | undefined
           }
         }
       }
 
       // Get IP address and user agent from headers
-      const headersList = headers()
-      const ipAddress = this.getClientIP(headersList)
-      const userAgent = headersList.get("user-agent") || undefined
+      const headersList = await headers()
+      const ipAddress = this.getClientIP(headersList as unknown as Headers)
+      const userAgent = (headersList as unknown as Headers).get("user-agent") || undefined
 
       await db.activityLog.create({
         data: {
@@ -231,7 +231,7 @@ export class AuditLogger {
       }
     }
 
-    const orderBy = options?.orderBy === "asc" ? { timestamp: "asc" } : { timestamp: "desc" }
+    const orderBy = options?.orderBy === "asc" ? { timestamp: "asc" as const } : { timestamp: "desc" as const }
     const take = options?.limit || 100
     const skip = options?.offset || 0
 

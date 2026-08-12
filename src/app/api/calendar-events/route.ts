@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 
 const eventTypeEnum = z.enum(['meeting', 'deadline', 'review', 'event', 'holiday'])
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     if (type) (where as Record<string, unknown>).type = type
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [events, total] = await Promise.all([
@@ -66,9 +67,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    const ctx = getTenantContext(session)
+    const { ctx } = await requirePermission('calendar:create')
 
     const body = await request.json()
     const data = createEventSchema.parse(body)

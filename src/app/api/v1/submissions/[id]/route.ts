@@ -217,8 +217,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: session.user.tenantId,
-        actor: session.user.id,
+        tenantId: ctx.tenantId,
+        actor: ctx.userId,
         action: "UPDATE_SUBMISSION",
         targetType: "Submission",
         targetId: id,
@@ -344,8 +344,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: session.user.tenantId,
-        actor: session.user.id,
+        tenantId: ctx.tenantId,
+        actor: ctx.userId,
         action: "SUBMIT_SUBMISSION",
         targetType: "Submission",
         targetId: id,

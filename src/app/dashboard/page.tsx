@@ -5,29 +5,65 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  FileText, 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  FileText,
+  Users,
+  Clock,
+  CheckCircle,
+  AlertCircle,
   TrendingUp,
   Plus,
   Eye,
-  Edit
+  Edit,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/shared/empty-state"
 import { getStatusColor } from "@/lib/status-utils"
 import { formatDate } from "@/lib/utils"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  Legend,
+} from "recharts"
+
+const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#6b7280"]
+
+interface ChartData {
+  statusDistribution: Array<{ name: string; value: number }>
+  monthlyActivity: Array<{ month: string; created: number; submissions: number }>
+  vendorResponseRate: Array<{ rfp: string; responses: number; max: number }>
+  evaluationProgress: Array<{ rfp: string; evaluated: number; total: number }>
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="space-y-3">
+      <Skeleton className="h-4 w-40" />
+      <Skeleton className="h-[200px] w-full rounded-lg" />
+    </div>
+  )
+}
 
 export default function Dashboard() {
   useEffect(() => { document.title = 'Dashboard | RFP Platform' }, [])
   const router = useRouter()
+  const { data: session, status: authStatus } = useSession()
   const [loading, setLoading] = useState(true)
+  const [chartsLoading, setChartsLoading] = useState(true)
   const [stats, setStats] = useState<Array<{
     title: string
     value: string
@@ -43,6 +79,7 @@ export default function Dashboard() {
     responses: number
     budget: string
   }>>([])
+  const [chartData, setChartData] = useState<ChartData | null>(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -117,17 +154,35 @@ export default function Dashboard() {
     fetchData()
   }, [])
 
-
+  useEffect(() => {
+    async function fetchCharts() {
+      try {
+        const res = await fetch("/api/dashboard/charts")
+        if (!res.ok) throw new Error("Failed to fetch charts")
+        const data = await res.json()
+        setChartData(data)
+      } catch (error) {
+        console.error("Error fetching chart data:", error)
+      } finally {
+        setChartsLoading(false)
+      }
+    }
+    fetchCharts()
+  }, [])
 
   return (
     <MainLayout title="Dashboard">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome back! Here's what's happening with your RFPs.
+              {authStatus === "loading" ? (
+                <span className="inline-block w-48 h-4 bg-muted animate-pulse rounded" />
+              ) : (
+                <>Welcome back, {session?.user?.name || session?.user?.email?.split('@')[0] || 'there'}! Here's what's happening with your RFPs.</>
+              )}
             </p>
           </div>
           <Button asChild>
@@ -139,9 +194,9 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           {loading
-            ? Array.from({ length: 4 }).map((_, i) => (
+            ? Array.from({ length: 5 }).map((_, i) => (
                 <Card key={i}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <Skeleton className="h-4 w-24" />
@@ -171,6 +226,169 @@ export default function Dashboard() {
               ))}
         </div>
 
+        {/* Charts Section */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* 1. RFP Status Distribution (Donut) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>RFP Status Distribution</CardTitle>
+              <CardDescription>Breakdown of RFPs by current status</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartsLoading ? (
+                <ChartSkeleton />
+              ) : chartData && chartData.statusDistribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={chartData.statusDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={85}
+                      paddingAngle={3}
+                      dataKey="value"
+                      nameKey="name"
+                      label={({ name, percent }) =>
+                        `${name} ${(percent * 100).toFixed(0)}%`
+                      }
+                      labelLine={false}
+                    >
+                      {chartData.statusDistribution.map((_entry, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+                  No RFP data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 2. Monthly RFP Activity (Area Chart) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly RFP Activity</CardTitle>
+              <CardDescription>RFPs created and submissions received (last 6 months)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartsLoading ? (
+                <ChartSkeleton />
+              ) : chartData && chartData.monthlyActivity.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={chartData.monthlyActivity}>
+                    <defs>
+                      <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorSubmissions" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" className="text-xs" tick={{ fill: "currentColor" }} />
+                    <YAxis className="text-xs" tick={{ fill: "currentColor" }} allowDecimals={false} />
+                    <Tooltip />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="created"
+                      stroke="#10b981"
+                      fill="url(#colorCreated)"
+                      strokeWidth={2}
+                      name="RFPs Created"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="submissions"
+                      stroke="#3b82f6"
+                      fill="url(#colorSubmissions)"
+                      strokeWidth={2}
+                      name="Submissions"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+                  No activity data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 3. Vendor Response Rate (Bar Chart) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Vendor Response Rate</CardTitle>
+              <CardDescription>Submissions received vs RFPs published</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartsLoading ? (
+                <ChartSkeleton />
+              ) : chartData && chartData.vendorResponseRate.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={chartData.vendorResponseRate} layout="vertical" margin={{ left: 0, right: 16 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: "currentColor" }} allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="rfp"
+                      width={120}
+                      tick={{ fill: "currentColor", fontSize: 11 }}
+                    />
+                    <Tooltip />
+                    <Bar dataKey="responses" fill="#10b981" radius={[0, 4, 4, 0]} name="Responses" />
+                    <Bar dataKey="max" fill="hsl(var(--muted-foreground))" radius={[0, 4, 4, 0]} name="Published" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+                  No response data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 4. Evaluation Progress (Horizontal Bar Chart) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Evaluation Progress</CardTitle>
+              <CardDescription>Submissions evaluated vs pending evaluation</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {chartsLoading ? (
+                <ChartSkeleton />
+              ) : chartData && chartData.evaluationProgress.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={chartData.evaluationProgress} layout="vertical" margin={{ left: 0, right: 16 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: "currentColor" }} allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="rfp"
+                      width={120}
+                      tick={{ fill: "currentColor", fontSize: 11 }}
+                    />
+                    <Tooltip />
+                    <Bar dataKey="evaluated" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Evaluated" />
+                    <Bar dataKey="total" fill="#f59e0b" radius={[0, 4, 4, 0]} name="Total Submissions" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+                  No evaluation data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Recent RFPs */}
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
@@ -195,9 +413,9 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   {recentRFPs.map((rfp) => (
                     <div key={rfp.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{rfp.title}</h4>
-                        <div className="flex items-center space-x-2 mt-1">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{rfp.title}</h4>
+                        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1">
                           <Badge className={getStatusColor(rfp.status)}>
                             {rfp.status}
                           </Badge>
@@ -210,7 +428,7 @@ export default function Dashboard() {
                           <span>{rfp.budget}</span>
                         </div>
                       </div>
-                      <div className="flex space-x-1">
+                      <div className="flex space-x-1 ml-2">
                         <Button variant="ghost" size="sm" onClick={() => router.push('/rfps/' + rfp.id)} aria-label="View RFP">
                           <Eye className="h-4 w-4" />
                         </Button>

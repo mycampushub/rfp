@@ -14,18 +14,19 @@ export class PermissionsManager {
     tenantId?: string
   ): Promise<boolean> {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id || !session?.user?.tenantId) {
+    const u = session?.user as Record<string, unknown> | undefined
+    if (!u?.id || !u?.tenantId) {
       return false
     }
 
     // Check tenant context
-    if (tenantId && session.user.tenantId !== tenantId) {
+    if (tenantId && u.tenantId !== tenantId) {
       return false
     }
 
     // Get user's roles and permissions (tenant-scoped to prevent cross-tenant inheritance)
     const user = await db.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: u.id as string },
       select: { roleIds: true },
     })
 
@@ -39,7 +40,7 @@ export class PermissionsManager {
         id: {
           in: user.roleIds as unknown as string[],
         },
-        tenantId: session.user.tenantId,
+        tenantId: u.tenantId as string,
       },
       select: { permissions: true },
     })
@@ -105,16 +106,17 @@ export class PermissionsManager {
 
   static async hasRole(roleName: string, tenantId?: string): Promise<boolean> {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id || !session?.user?.tenantId) {
+    const u = session?.user as Record<string, unknown> | undefined
+    if (!u?.id || !u?.tenantId) {
       return false
     }
 
-    if (tenantId && session.user.tenantId !== tenantId) {
+    if (tenantId && u.tenantId !== tenantId) {
       return false
     }
 
     const user = await db.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: u.id as string },
       select: { roleIds: true },
     })
 
@@ -128,7 +130,7 @@ export class PermissionsManager {
         id: {
           in: user.roleIds as unknown as string[],
         },
-        tenantId: session.user.tenantId,
+        tenantId: u.tenantId as string,
       },
     })
 
@@ -155,14 +157,15 @@ export class PermissionsManager {
 
   static async canAccessRFP(rfpId: string): Promise<boolean> {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id || !session?.user?.tenantId) {
+    const u = session?.user as Record<string, unknown> | undefined
+    if (!u?.id || !u?.tenantId) {
       return false
     }
 
     const rfp = await db.rFP.findFirst({
       where: {
         id: rfpId,
-        tenantId: session.user.tenantId,
+        tenantId: u.tenantId as string,
       },
     })
 
@@ -174,7 +177,7 @@ export class PermissionsManager {
     const teamMember = await db.rFP_Team.findFirst({
       where: {
         rfpId,
-        userId: session.user.id,
+        userId: u.id as string,
       },
     })
 
@@ -183,19 +186,20 @@ export class PermissionsManager {
     }
 
     // Check if user has general RFP view permission
-    return this.hasPermission(PERMISSIONS.VIEW_RFP, session.user.tenantId)
+    return this.hasPermission(PERMISSIONS.VIEW_RFP, u.tenantId as string)
   }
 
   static async canModifyRFP(rfpId: string): Promise<boolean> {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id || !session?.user?.tenantId) {
+    const u = session?.user as Record<string, unknown> | undefined
+    if (!u?.id || !u?.tenantId) {
       return false
     }
 
     const rfp = await db.rFP.findFirst({
       where: {
         id: rfpId,
-        tenantId: session.user.tenantId,
+        tenantId: u.tenantId as string,
       },
     })
 
@@ -207,7 +211,7 @@ export class PermissionsManager {
     const teamMember = await db.rFP_Team.findFirst({
       where: {
         rfpId,
-        userId: session.user.id,
+        userId: u.id as string,
         role: {
           in: ["owner", "editor"],
         },
@@ -219,6 +223,6 @@ export class PermissionsManager {
     }
 
     // Check if user has general RFP edit permission
-    return this.hasPermission(PERMISSIONS.EDIT_RFP, session.user.tenantId)
+    return this.hasPermission(PERMISSIONS.EDIT_RFP, u.tenantId as string)
   }
 }

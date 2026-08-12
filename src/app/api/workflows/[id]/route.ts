@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
+import { Prisma } from "@prisma/client"
 
 const updateWorkflowSchema = z.object({
   name: z.string().optional(),
@@ -17,7 +18,7 @@ const updateWorkflowSchema = z.object({
     approverRole: z.string(),
     slaHours: z.number(),
     autoApprove: z.boolean().optional(),
-    conditions: z.array(z.record(z.string(), z.unknown())).optional(),
+    conditions: z.any().optional(),
   })).optional(),
   isActive: z.boolean().optional(),
 })
@@ -109,7 +110,7 @@ export async function PUT(
 
     const workflow = await db.approvalWorkflow.update({
       where: { id: id },
-      data: validatedData,
+      data: validatedData as unknown as Prisma.ApprovalWorkflowUpdateInput,
     })
 
     return NextResponse.json(workflow)
@@ -128,11 +129,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
-          const { id } = await params
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const tenantContext = getTenantContext(session)

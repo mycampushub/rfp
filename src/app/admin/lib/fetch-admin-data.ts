@@ -29,19 +29,20 @@ export async function fetchAdminData(setters: {
 
     const rolesData = Array.isArray(rolesRes) ? rolesRes : []
     setters.setRoles(rolesData.map((r: Record<string, unknown>) => ({
-      id: r.id,
-      name: r.name || '',
+      id: String(r.id),
+      name: String(r.name || ''),
       permissions: Array.isArray(r.permissions) ? r.permissions as string[] : [],
       userCount: 0,
     })))
 
     if (tenantRes && typeof tenantRes === 'object' && !Array.isArray(tenantRes)) {
+      const t = tenantRes as Record<string, unknown>
       setters.setTenants([{
-        id: (tenantRes as Record<string, unknown>).id || '',
-        name: (tenantRes as Record<string, unknown>).name || 'Current Tenant',
+        id: String(t.id || ''),
+        name: String(t.name || 'Current Tenant'),
         plan: 'standard',
         status: 'active',
-        createdAt: (tenantRes as Record<string, unknown>).createdAt || '',
+        createdAt: String(t.createdAt || ''),
         userCount: 0,
         rfpCount: 0,
         settings: {},
@@ -52,13 +53,13 @@ export async function fetchAdminData(setters: {
 
     const logsData = Array.isArray(logsRes) ? logsRes : []
     setters.setAuditLogs(logsData.map((log: Record<string, unknown>) => ({
-      id: log.id,
-      action: log.action || '',
-      target: log.targetType || '',
-      user: log.actor || '',
-      timestamp: log.timestamp || '',
+      id: String(log.id || ''),
+      action: String(log.action || ''),
+      target: String(log.targetType || ''),
+      user: String(log.actor || ''),
+      timestamp: String(log.timestamp || ''),
       ip: '',
-      details: log.targetId || '',
+      details: String(log.targetId || ''),
     })))
 
     if (healthRes) {
@@ -78,8 +79,8 @@ export async function fetchAdminData(setters: {
       const data = (integrationsRes as Record<string, unknown>).data
       if (Array.isArray(data)) {
         setters.setIntegrations(data.map((item: Record<string, unknown>) => ({
-          id: item.id || String(Date.now()),
-          name: item.companyName || item.certificationName || 'Unknown',
+          id: String(item.id || Date.now()),
+          name: String(item.companyName || item.certificationName || 'Unknown'),
           type: 'api' as const,
           status: (item.status === 'Active' ? 'active' : 'inactive') as 'active' | 'inactive' | 'error',
           lastSync: new Date().toISOString(),

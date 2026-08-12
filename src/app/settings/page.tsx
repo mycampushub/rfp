@@ -187,7 +187,7 @@ export default function SettingsPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mfaEnabled: notificationSettings.emailNotifications,
+          emailNotifications: notificationSettings.emailNotifications,
           notificationPreferences: notificationSettings,
         }),
       })
@@ -296,7 +296,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="flex flex-wrap gap-1 w-full">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>

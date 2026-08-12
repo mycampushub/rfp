@@ -7,7 +7,7 @@ import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 
 const createRoleSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().max(100).min(1),
   permissions: z.array(z.string()).optional(),
 })
 
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const where = { tenantId: ctx.tenantId }

@@ -10,9 +10,10 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 interface MainLayoutProps {
   children: React.ReactNode
   title?: string
+  hideBreadcrumbs?: boolean
 }
 
-export function MainLayout({ children, title }: MainLayoutProps) {
+export function MainLayout({ children, title, hideBreadcrumbs }: MainLayoutProps) {
   const router = useRouter()
 
   useKeyboardShortcuts({
@@ -29,7 +30,7 @@ export function MainLayout({ children, title }: MainLayoutProps) {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={title} />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <Breadcrumbs />
+          {!hideBreadcrumbs && <Breadcrumbs />}
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>

@@ -33,9 +33,10 @@ export async function getCurrentTenant() {
 
   // Inline DB call kept to avoid circular dependency with permissions.ts
   const { db } = await import("./db")
+  const u = user as Record<string, unknown>
   return db.tenant.findUnique({
     where: {
-      id: user.tenantId
+      id: u.tenantId as string
     }
   })
 }

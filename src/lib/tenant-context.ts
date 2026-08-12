@@ -23,13 +23,14 @@ export class PermissionError extends Error {
  * All callers should pass the session if they already have it to avoid double lookups.
  */
 export function getTenantContext(session?: Session | null): TenantContext {
-  if (!session?.user?.id || !session.user.email || !session.user.tenantId) {
+  const u = session?.user as Record<string, unknown> | undefined
+  if (!u?.id || !session?.user?.email || !u?.tenantId) {
     throw new AuthError("Missing tenant context in session")
   }
   return {
-    tenantId: session.user.tenantId as string,
-    userId: session.user.id as string,
-    userEmail: session.user.email as string,
+    tenantId: u.tenantId as string,
+    userId: u.id as string,
+    userEmail: session!.user!.email as string,
   }
 }
 

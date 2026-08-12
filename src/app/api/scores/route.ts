@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { calculateConsensus } from "@/lib/consensus-calculator"
 import { z } from "zod"
 
 const createScoreSchema = z.object({
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [scores, total] = await Promise.all([
@@ -247,68 +248,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-type TransactionClient = typeof db
-
-async function calculateConsensus(
-  tx: TransactionClient,
-  submissionId: string,
-  criterionId: string,
-) {
-  // Get all scores for this submission and criterion
-  const scores = await tx.score.findMany({
-    where: {
-      submissionId,
-      criterionId,
-    },
-    include: {
-      evaluator: true,
-    },
-    take: 500,
-  })
-
-  if (scores.length < 2) {
-    return // Need at least 2 evaluators for consensus
-  }
-
-  // Calculate average score
-  const averageScore = scores.reduce((sum, score) => sum + score.scoreValue, 0) / scores.length
-
-  // Check if scores are within consensus threshold (e.g., within 1 point)
-  const maxScore = Math.max(...scores.map(s => s.scoreValue))
-  const minScore = Math.min(...scores.map(s => s.scoreValue))
-  const consensusThreshold = 1.0
-
-  let consensusScore = averageScore
-  let consensusNotes = `Consensus score based on ${scores.length} evaluators. Average: ${averageScore.toFixed(2)}`
-
-  if (maxScore - minScore > consensusThreshold) {
-    consensusNotes += `. Note: Scores vary from ${minScore} to ${maxScore}. Further review recommended.`
-  }
-
-  // Update or create consensus score
-  const existingConsensus = await tx.consensusScore.findFirst({
-    where: {
-      submissionId,
-      criterionId,
-    },
-  })
-
-  if (existingConsensus) {
-    await tx.consensusScore.update({
-      where: { id: existingConsensus.id },
-      data: {
-        scoreValue: consensusScore,
-        notes: consensusNotes,
-      },
-    })
-  } else {
-    await tx.consensusScore.create({
-      data: {
-        submissionId,
-        criterionId,
-        scoreValue: consensusScore,
-        notes: consensusNotes,
-      },
-    })
-  }
-}

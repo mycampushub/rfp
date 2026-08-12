@@ -18,10 +18,11 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 
 const createVendorSchema = z.object({
-  name: z.string().min(1, "Vendor name is required"),
+  name: z.string().min(1, "Vendor name is required").max(200),
   contactInfo: z.object({
     email: z.string().email().optional(),
     phone: z.string().optional(),
@@ -98,11 +99,7 @@ export async function GET(request: NextRequest) {
 // POST /api/v1/vendors - Create vendor
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const ctx = getTenantContext(session)
+    const { ctx } = await requirePermission('vendor:create')
 
     const body = await request.json()
     const validatedData = createVendorSchema.parse(body)

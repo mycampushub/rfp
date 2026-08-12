@@ -36,7 +36,7 @@ export function ConsensusTab({ evaluation, consensusData, getConfidenceColor }: 
             <TableRow>
               <TableHead>Criterion</TableHead>
               <TableHead>Final Score</TableHead>
-              <TableHead>Confidence</TableHead>
+              <TableHead>Agreement</TableHead>
               <TableHead>Disagreements</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>

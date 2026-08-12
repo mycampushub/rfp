@@ -3,14 +3,16 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+import { dispatchWebhooks } from "@/lib/webhook-dispatcher"
 
 const createRFPSchema = z.object({
-  title: z.string().min(1),
-  category: z.string().optional(),
+  title: z.string().min(1).max(200),
+  category: z.string().max(100).optional(),
   budget: z.coerce.number().positive().optional(),
   confidentiality: z.enum(["internal", "confidential", "restricted"]).default("internal"),
-  description: z.string().optional(),
+  description: z.string().max(5000).optional(),
   timeline: z.object({
     qnaStart: z.string().optional(),
     qnaEnd: z.string().optional(),
@@ -18,6 +20,7 @@ const createRFPSchema = z.object({
     evaluationStart: z.string().optional(),
     awardTarget: z.string().optional(),
   }).optional(),
+  templateId: z.string().max(100).optional(),
 })
 
 // GET /api/rfps - List RFPs
@@ -34,6 +37,10 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category")
     const search = searchParams.get("search")
 
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
+    const skip = (page - 1) * limit
+
     const where: Record<string, unknown> = { tenantId: ctx.tenantId }
 
     if (status) (where as Record<string, unknown>).status = status
@@ -45,18 +52,27 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    const rfps = await db.rFP.findMany({
-      where,
-      include: {
-        timeline: true,
-        _count: {
-          select: { submissions: true, invitations: true },
+    const statusFilter = status ? { status } : {}
+    const [rfps, total] = await Promise.all([
+      db.rFP.findMany({
+        where,
+        include: {
+          timeline: true,
+          _count: {
+            select: { submissions: true, invitations: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    })
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      db.rFP.count({ where: { tenantId: ctx.tenantId, ...statusFilter } }),
+    ])
 
-    return NextResponse.json(rfps)
+    return NextResponse.json({
+      data: rfps,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     console.error("Error fetching RFPs:", error)
@@ -67,11 +83,7 @@ export async function GET(request: NextRequest) {
 // POST /api/rfps - Create RFP
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const ctx = getTenantContext(session)
+    const { ctx } = await requirePermission('rfp:create')
 
     const body = await request.json()
     const validatedData = createRFPSchema.parse(body)
@@ -84,6 +96,7 @@ export async function POST(request: NextRequest) {
         budget: validatedData.budget ?? null,
         confidentiality: validatedData.confidentiality,
         description: validatedData.description,
+        templateId: validatedData.templateId ?? null,
         timeline: validatedData.timeline ? {
           create: {
             qnaStart: validatedData.timeline.qnaStart ? new Date(validatedData.timeline.qnaStart) : null,
@@ -96,6 +109,15 @@ export async function POST(request: NextRequest) {
       },
       include: { timeline: true },
     })
+
+    // Dispatch webhook for RFP creation
+    dispatchWebhooks('rfp.created', {
+      rfpId: rfp.id,
+      title: rfp.title,
+      category: rfp.category,
+      status: rfp.status,
+      createdBy: ctx.userId,
+    }, ctx.tenantId)
 
     return NextResponse.json(rfp, { status: 201 })
   } catch (error) {

@@ -77,7 +77,7 @@ export default function AdminPage() {
     return (
       <MainLayout title="Admin Panel">
         <div className="space-y-6">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
               <Skeleton className="h-10 w-64 mb-2" />
               <Skeleton className="h-4 w-96" />
@@ -93,12 +93,12 @@ export default function AdminPage() {
   return (
     <MainLayout title="Admin Panel">
       <div className="space-y-6">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div>
             <h1 className="text-3xl font-bold">Administration Panel</h1>
             <p className="text-muted-foreground mt-1">Manage users, marketplace, analytics, and system settings</p>
           </div>
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => { setLoading(true); fetchData() }}>
               <RefreshCw className="mr-2 h-4 w-4" />Refresh Data
             </Button>
@@ -111,7 +111,7 @@ export default function AdminPage() {
         <StatsOverview users={users} marketplaceStats={marketplaceStats} systemHealth={systemHealth} />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 overflow-x-auto">
             <TabsTrigger value="dashboard" className="flex items-center space-x-2"><BarChart3 className="h-4 w-4" /><span>Dashboard</span></TabsTrigger>
             <TabsTrigger value="users" className="flex items-center space-x-2"><Users className="h-4 w-4" /><span>Users</span></TabsTrigger>
             <TabsTrigger value="marketplace" className="flex items-center space-x-2"><Store className="h-4 w-4" /><span>Marketplace</span></TabsTrigger>

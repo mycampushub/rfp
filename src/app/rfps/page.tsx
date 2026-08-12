@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useCsvExport } from "@/hooks/use-csv-export"
 import { 
   Search, 
   Filter, 
@@ -34,7 +35,9 @@ import {
   DollarSign,
   Users,
   FileText,
-  FileSearch
+  FileSearch,
+  Download,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -92,6 +95,7 @@ interface RFP {
 export default function RFPsPage() {
   useEffect(() => { document.title = 'RFPs | RFP Platform' }, [])
   const router = useRouter()
+  const { exportCsv, exporting } = useCsvExport()
   const [rfps, setRfps] = useState<RFP[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -109,7 +113,8 @@ export default function RFPsPage() {
       if (!res.ok) {
         throw new Error(`Failed to fetch RFPs (${res.status})`)
       }
-      const data: APIRFP[] = await res.json()
+      const json = await res.json()
+      const data: APIRFP[] = json.data ?? json
 
       const mapped: RFP[] = data.map((r) => ({
         id: r.id,
@@ -219,19 +224,34 @@ export default function RFPsPage() {
     <MainLayout title="RFPs">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center">
           <div>
             <h1 className="text-2xl font-bold">Requests for Proposal</h1>
             <p className="text-muted-foreground">
               Manage and track all your RFPs in one place
             </p>
           </div>
-          <Button asChild>
-            <Link href="/rfps/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Create New RFP
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              disabled={exporting}
+              onClick={() => {
+                const date = new Date().toISOString().slice(0, 10)
+                const params = new URLSearchParams({ format: 'csv' })
+                if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+                exportCsv(`/api/export/rfps?${params.toString()}`, `rfps-export-${date}.csv`)
+              }}
+            >
+              {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Export CSV
+            </Button>
+            <Button asChild>
+              <Link href="/rfps/create">
+                <Plus className="mr-2 h-4 w-4" />
+                Create New RFP
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -406,8 +426,10 @@ export default function RFPsPage() {
             {filteredRfps.length === 0 && (
               <EmptyState 
                 icon={FileSearch}
-                title="No RFPs found"
-                description="Try adjusting your search or filters, or create a new RFP."
+                title={searchTerm || statusFilter !== 'all' || categoryFilter !== 'all' ? "No matching RFPs" : "No RFPs found"}
+                description={searchTerm || statusFilter !== 'all' || categoryFilter !== 'all'
+                  ? "Try adjusting your search or filters to find what you're looking for."
+                  : "Get started by creating your first RFP."}
                 action={{ label: "Create RFP", onClick: () => router.push('/rfps/create') }}
               />
             )}

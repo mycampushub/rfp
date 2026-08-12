@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { FileService } from "@/lib/file-service"
 import { z } from "zod"
+import { readFile } from "fs/promises"
+import { join } from "path"
+import { db } from "@/lib/db"
 
 const updateFileSchema = z.object({
   retention: z.string().optional(),
@@ -24,29 +27,54 @@ export async function GET(
     const { id } = await params
     const tenantContext = getTenantContext(session)
 
+    // Look up the file by ID and verify tenant ownership
+    const fileRecord = await db.file.findFirst({
+      where: { id },
+    })
+
+    if (!fileRecord) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 })
+    }
+
+    if (fileRecord.tenantId !== tenantContext.tenantId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
     const { searchParams } = new URL(request.url)
-    const version = searchParams.get("version") ? parseInt(searchParams.get("version")!) : undefined
     const download = searchParams.get("download") === "true"
 
-    const result = await FileService.getFile(id, tenantContext.tenantId, version)
+    // Read the file from the uploads/ directory
+    const filePath = join(process.cwd(), "uploads", fileRecord.path)
+    let fileContent: Buffer
+    try {
+      fileContent = await readFile(filePath)
+    } catch {
+      return NextResponse.json({ error: "File not found on disk" }, { status: 404 })
+    }
+
+    const contentType = fileRecord.mime || "application/octet-stream"
+    const originalName = (fileRecord.metadata as Record<string, unknown>)?.originalName as string || fileRecord.path
 
     if (download) {
-      return new NextResponse(result.content, {
+      return new NextResponse(fileContent as unknown as BodyInit, {
         headers: {
-          "Content-Type": result.file.mime || "application/octet-stream",
-          "Content-Disposition": `attachment; filename="${result.file.metadata?.originalName || result.file.path}"`,
+          "Content-Type": contentType,
+          "Content-Disposition": `attachment; filename="${originalName}"`,
+          "Content-Length": String(fileContent.length),
         },
       })
     }
 
-    return NextResponse.json(result.file)
+    return new NextResponse(fileContent as unknown as BodyInit, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Length": String(fileContent.length),
+      },
+    })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching file:", error)
-    if (error.message === "File not found" || error.message === "Version not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 })
-    }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
@@ -87,11 +115,11 @@ export async function PUT(
       data: {
         ...validatedData,
         metadata: {
-          ...existingFile.metadata,
-          ...validatedData.metadata,
+          ...(existingFile.metadata as Record<string, unknown>),
+          ...(validatedData.metadata || {}),
           lastModifiedBy: tenantContext.userId,
           lastModifiedAt: new Date().toISOString(),
-        },
+        } as any,
       },
     })
 
@@ -130,11 +158,12 @@ export async function DELETE(
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting file:", error)
-    if (error.message === "File not found") {
-      return NextResponse.json({ error: error.message }, { status: 404 })
+    const msg = error instanceof Error ? error.message : ''
+    if (msg === "File not found") {
+      return NextResponse.json({ error: msg }, { status: 404 })
     }
-    if (error.message === "Cannot delete file under legal hold") {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    if (msg === "Cannot delete file under legal hold") {
+      return NextResponse.json({ error: msg }, { status: 400 })
     }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }

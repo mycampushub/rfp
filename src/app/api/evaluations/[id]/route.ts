@@ -85,6 +85,7 @@ export async function GET(
       rfpTitle: rfp.title,
       description: rfp.description,
       status: rfp.status === "evaluation" ? "in_progress" : rfp.status === "closed" ? "completed" : "pending",
+      isBlindEvaluation: rfp.isBlindEvaluation ?? false,
       deadline: rfp.timeline?.awardTarget || null,
       sections: rfp.sections,
       submissions: submissionsWithScores,

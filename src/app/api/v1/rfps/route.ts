@@ -17,14 +17,15 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 
 const createRFPSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  category: z.string().optional(),
-  budget: z.number().optional(),
+  title: z.string().min(1, "Title is required").max(200),
+  category: z.string().max(100).optional(),
+  budget: z.number().min(0).optional(),
   confidentiality: z.enum(["internal", "confidential", "restricted"]).default("internal"),
-  description: z.string().optional(),
+  description: z.string().max(5000).optional(),
   timeline: z.object({
     qnaStart: z.string().optional(),
     qnaEnd: z.string().optional(),
@@ -91,11 +92,7 @@ export async function GET(request: NextRequest) {
 // POST /api/v1/rfps - Create RFP
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const ctx = getTenantContext(session)
+    const { ctx } = await requirePermission('rfp:create')
 
     const body = await request.json()
     const validatedData = createRFPSchema.parse(body)

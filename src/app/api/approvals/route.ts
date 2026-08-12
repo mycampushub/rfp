@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 import NotificationService from "@/lib/notification-service"
 
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [approvals, total] = await Promise.all([
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createApprovalSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission('approval:create')
 
     // Verify RFP belongs to tenant
     const rfp = await db.rFP.findFirst({

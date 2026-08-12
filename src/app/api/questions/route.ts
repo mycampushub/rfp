@@ -10,7 +10,7 @@ const createQuestionSchema = z.object({
   type: z.enum(["text", "number", "multiple_choice", "checkbox", "file", "date"]),
   prompt: z.string(),
   required: z.boolean().default(false),
-  constraints: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.unknown())])).optional(),
+  constraints: z.record(z.string(), z.unknown()).optional(),
   order: z.number(),
 })
 
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [questions, total] = await Promise.all([
@@ -117,9 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     const question = await db.question.create({
-      data: {
-        ...validatedData,
-      },
+      data: validatedData as any,
       include: {
         section: {
           select: {

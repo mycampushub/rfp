@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
+import { randomUUID } from "crypto"
 
 const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -12,7 +13,6 @@ const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters")
     .regex(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain uppercase, lowercase, and number"),
   company: z.string().min(1, "Company name is required"),
-  businessId: z.string().min(1, "Business ID is required"),
   phone: z.string().min(1, "Phone number is required"),
   agreeToTerms: z.boolean().refine(val => val === true, "You must agree to the terms and conditions"),
   agreeToPrivacy: z.boolean().refine(val => val === true, "You must agree to the privacy policy")
@@ -46,9 +46,11 @@ export async function POST(request: NextRequest) {
       }
 
       // Always create a new tenant for registration (never join an existing one)
+      // Generate tenant ID server-side — never trust user input for this
+      const generatedTenantId = randomUUID()
       const tenant = await tx.tenant.create({
         data: {
-          id: validatedData.businessId,
+          id: generatedTenantId,
           name: validatedData.company,
           settings: {
             notifications: {

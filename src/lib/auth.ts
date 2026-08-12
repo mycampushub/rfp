@@ -75,9 +75,10 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.tenantId = user.tenantId
-        token.roleIds = user.roleIds
-        token.roleNames = user.roleNames
+        const u = user as unknown as Record<string, unknown>
+        token.tenantId = u.tenantId
+        token.roleIds = u.roleIds
+        token.roleNames = u.roleNames
         // X27: Set token expiration to match session maxAge
         token.exp = Math.floor(Date.now() / 1000) + 8 * 60 * 60
       }
@@ -85,10 +86,11 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.sub!
-        session.user.tenantId = token.tenantId as string
+        const u = session.user as Record<string, unknown>
+        u.id = token.sub!
+        u.tenantId = token.tenantId
         // roleIds stored as Json in DB, embedded in JWT token — cast to string[]
-        session.user.roleIds = Array.isArray(token.roleIds) ? (token.roleIds as string[]) : []
+        u.roleIds = Array.isArray(token.roleIds) ? (token.roleIds as string[]) : []
       }
       return session
     }

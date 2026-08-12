@@ -23,6 +23,7 @@ export interface ConsensusScore {
   notes?: string
   confidence: number
   disagreements: number
+  agreementLevel?: number
 }
 
 export interface EvaluationDetail {

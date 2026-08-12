@@ -36,7 +36,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Search, Filter, Plus, MoreHorizontal, Eye, Edit, Trash2, Building, Building2, Mail, Phone, Award, Users, Star, TrendingUp, TrendingDown, CheckCircle, Upload, Download } from "lucide-react"
+import { useCsvExport } from "@/hooks/use-csv-export"
+import { Search, Filter, Plus, MoreHorizontal, Eye, Edit, Trash2, Building, Building2, Mail, Phone, Award, Users, Star, TrendingUp, TrendingDown, CheckCircle, Upload, Download, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { formatDate } from "@/lib/utils"
@@ -44,10 +45,16 @@ import { formatDate } from "@/lib/utils"
 interface Vendor {
   id: string
   name: string
+  verified?: boolean
   contactInfo?: {
     email?: string
     phone?: string
     address?: string
+    taxId?: string
+    insurance?: string
+    licenseNumber?: string
+    ndaSigned?: boolean
+    backgroundCheck?: boolean
   }
   categories?: string[]
   certifications?: string[]
@@ -76,12 +83,14 @@ interface Vendor {
   _count: {
     invitations: number
     submissions: number
+    contracts: number
   }
 }
 
 export default function VendorsPage() {
   useEffect(() => { document.title = 'Vendors | RFP Platform' }, [])
   const router = useRouter()
+  const { exportCsv, exporting } = useCsvExport()
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -98,6 +107,7 @@ export default function VendorsPage() {
         const mapped: Vendor[] = (Array.isArray(data) ? data : []).map((v: any) => ({
           id: v.id,
           name: v.name,
+          verified: v.verified ?? false,
           contactInfo: v.contactInfo || undefined,
           categories: v.categories || [],
           certifications: v.certifications || [],
@@ -107,6 +117,7 @@ export default function VendorsPage() {
           _count: {
             invitations: v._count?.invitations || 0,
             submissions: v._count?.submissions || 0,
+            contracts: v._count?.contracts || 0,
           },
         }))
         setVendors(mapped)
@@ -174,7 +185,7 @@ export default function VendorsPage() {
     <MainLayout title="Vendors">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center">
           <div>
             <h1 className="text-2xl font-bold">Vendor Management</h1>
             <p className="text-muted-foreground">
@@ -253,10 +264,10 @@ export default function VendorsPage() {
                     if (vendorsRes.ok) {
                       const data = await vendorsRes.json()
                       const mapped: Vendor[] = (Array.isArray(data) ? data : []).map((v: any) => ({
-                        id: v.id, name: v.name, contactInfo: v.contactInfo || undefined,
+                        id: v.id, name: v.name, verified: v.verified ?? false, contactInfo: v.contactInfo || undefined,
                         categories: v.categories || [], certifications: v.certifications || [],
                         diversityAttrs: v.diversityAttrs || undefined, isActive: v.isActive ?? true,
-                        createdAt: v.createdAt, _count: { invitations: v._count?.invitations || 0, submissions: v._count?.submissions || 0 },
+                        createdAt: v.createdAt, _count: { invitations: v._count?.invitations || 0, submissions: v._count?.submissions || 0, contracts: v._count?.contracts || 0 },
                       }))
                       setVendors(mapped)
                     }
@@ -269,27 +280,16 @@ export default function VendorsPage() {
               <Upload className="mr-2 h-4 w-4" />
               Import Vendors
             </Button>
-            <Button variant="outline" onClick={() => {
-              if (vendors.length === 0) { toast.info('No vendors to export'); return }
-              const headers = ['Name','Email','Phone','Categories','Active','Created']
-              const rows = vendors.map(v => [
-                v.name,
-                v.contactInfo?.email || '',
-                v.contactInfo?.phone || '',
-                (v.categories || []).join('; '),
-                v.isActive ? 'Yes' : 'No',
-                formatDate(v.createdAt),
-              ].map(field => `"${field}"`).join(','))
-              const csv = [headers.join(','), ...rows].join('\n')
-              const blob = new Blob([csv], { type: 'text/csv' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url; a.download = 'vendor-export.csv'; a.click()
-              URL.revokeObjectURL(url)
-              toast.success('Vendor data exported successfully')
-            }}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
+            <Button
+              variant="outline"
+              disabled={exporting}
+              onClick={() => {
+                const date = new Date().toISOString().slice(0, 10)
+                exportCsv('/api/export/vendors?format=csv', `vendors-export-${date}.csv`)
+              }}
+            >
+              {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Export CSV
             </Button>
             <Button asChild>
               <Link href="/marketplace/vendors/register">
@@ -552,117 +552,175 @@ export default function VendorsPage() {
           </TabsContent>
 
           <TabsContent value="prequalification">
-            <Card>
-              <CardHeader>
-                <CardTitle>Vendor Prequalification Management</CardTitle>
-                <CardDescription>
-                  Manage vendor prequalification status and processes
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Prequalification Dashboard</h3>
-                  <p className="text-muted-foreground mb-4">
-                    View and manage vendor prequalification processes
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                            {vendors.filter(v => v.prequalification?.status === "approved").length}
-                          </div>
-                          <p className="text-sm text-muted-foreground">Approved</p>
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vendor Prequalification Management</CardTitle>
+                  <CardDescription>
+                    Review vendor verification status, compliance, and start prequalification processes
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              {vendors.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12">
+                    <EmptyState icon={CheckCircle} title="No vendors found" description="Add vendors to manage their prequalification status." />
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {vendors.map((vendor) => (
+                    <Card key={vendor.id}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="text-base font-semibold truncate">{vendor.name}</CardTitle>
+                          <Badge className={vendor.verified
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0"
+                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 shrink-0"
+                          }>
+                            {vendor.verified ? 'Verified' : 'Not Verified'}
+                          </Badge>
                         </div>
+                        <CardDescription className="text-xs">
+                          Added {formatDate(vendor.createdAt)}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {/* Prequalification Status */}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Prequalification</span>
+                          {vendor.prequalification ? (
+                            <Badge className={getPrequalificationColor(vendor.prequalification.status)}>
+                              {vendor.prequalification.status.replace("_", " ")}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Not Started</Badge>
+                          )}
+                        </div>
+                        {/* Compliance Fields */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Compliance</p>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Tax ID</span>
+                              <span className={vendor.contactInfo?.taxId ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                                {vendor.contactInfo?.taxId ? 'On file' : 'Missing'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Insurance</span>
+                              <span className={vendor.contactInfo?.insurance ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                                {vendor.contactInfo?.insurance ? 'On file' : 'Missing'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">License</span>
+                              <span className={vendor.contactInfo?.licenseNumber ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                                {vendor.contactInfo?.licenseNumber ? 'On file' : 'Missing'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">NDA Signed</span>
+                              <span className={vendor.contactInfo?.ndaSigned ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                                {vendor.contactInfo?.ndaSigned ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Background Check</span>
+                              <span className={vendor.contactInfo?.backgroundCheck ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
+                                {vendor.contactInfo?.backgroundCheck ? 'Passed' : 'Pending'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button asChild variant="outline" size="sm" className="w-full mt-2">
+                          <Link href={`/vendors/${vendor.id}/prequalify`}>
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Start Prequalification
+                          </Link>
+                        </Button>
                       </CardContent>
                     </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                            {vendors.filter(v => v.prequalification?.status === "pending").length}
-                          </div>
-                          <p className="text-sm text-muted-foreground">Pending</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-muted-foreground/80">
-                            {vendors.filter(v => !v.prequalification).length}
-                          </div>
-                          <p className="text-sm text-muted-foreground">Not Started</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="performance">
-            <Card>
-              <CardHeader>
-                <CardTitle>Vendor Performance Tracking</CardTitle>
-                <CardDescription>
-                  Monitor vendor performance metrics and trends
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Performance Analytics</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Track vendor performance across key metrics
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                            {vendors.length > 0 ? Math.round(vendors.filter(v => v.performance?.overallScore && v.performance.overallScore >= 90).length / vendors.length * 100) : 0}%
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vendor Performance Tracking</CardTitle>
+                  <CardDescription>
+                    Monitor vendor performance metrics and trends
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              {vendors.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12">
+                    <EmptyState icon={TrendingUp} title="No vendors found" description="Add vendors to track their performance." />
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {vendors.map((vendor) => {
+                    const submissions = vendor._count.submissions
+                    const wonContracts = vendor._count.contracts
+                    const winRate = submissions > 0 ? Math.round((wonContracts / submissions) * 100) : 0
+                    const perfIndicator = submissions === 0
+                      ? 'neutral'
+                      : winRate >= 50
+                        ? 'green'
+                        : winRate >= 25
+                          ? 'amber'
+                          : 'red'
+
+                    return (
+                      <Card key={vendor.id}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <CardTitle className="text-base font-semibold truncate">{vendor.name}</CardTitle>
+                            <div className={`shrink-0 h-3 w-3 rounded-full ${
+                              perfIndicator === 'green' ? 'bg-emerald-500' : perfIndicator === 'amber' ? 'bg-amber-500' : perfIndicator === 'red' ? 'bg-red-500' : 'bg-muted-foreground/40'
+                            }`} title={`Win rate: ${winRate}%`} />
                           </div>
-                          <p className="text-sm text-muted-foreground">High Performers</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
-                            {vendors.filter(v => v.performance?.trend === "up").length}
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Submissions</p>
+                              <p className="font-semibold">{submissions}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Won Contracts</p>
+                              <p className="font-semibold">{wonContracts}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Win Rate</p>
+                              <p className="font-semibold">{submissions > 0 ? `${winRate}%` : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Avg Score</p>
+                              <p className={`font-semibold ${vendor.performance ? getScoreColor(vendor.performance.overallScore) : ''}`}>
+                                {vendor.performance ? `${vendor.performance.overallScore}%` : 'N/A'}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground">Improving</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                            {vendors.filter(v => v.performance?.trend === "stable").length}
-                          </div>
-                          <p className="text-sm text-muted-foreground">Stable</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                            {vendors.filter(v => v.performance?.trend === "down").length}
-                          </div>
-                          <p className="text-sm text-muted-foreground">Declining</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                          <Button asChild variant="outline" size="sm" className="w-full">
+                            <Link href={`/vendors/${vendor.id}/performance`}>
+                              <Star className="mr-2 h-4 w-4" />
+                              View Performance
+                            </Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="analytics">
@@ -684,7 +742,7 @@ export default function VendorsPage() {
                           </div>
                           <div className="w-full bg-muted-foreground/20 rounded-full h-2">
                             <div 
-                              className="bg-sky-500 h-2 rounded-full"
+                              className="bg-primary h-2 rounded-full"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>

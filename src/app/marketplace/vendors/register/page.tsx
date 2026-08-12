@@ -86,7 +86,7 @@ export default function VendorRegister() {
     "Full-time", "Part-time", "Weekends", "Evenings", "24/7", "As Needed"
   ]
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 

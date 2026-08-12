@@ -38,7 +38,7 @@ export function ComparisonTab({ evaluation, consensusData }: ComparisonTabProps)
                 <TableHead key={score.id}>{score.evaluatorName}</TableHead>
               ))}
               <TableHead>Average</TableHead>
-              <TableHead>Consensus</TableHead>
+              <TableHead>Agreement</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -69,8 +69,8 @@ export function ComparisonTab({ evaluation, consensusData }: ComparisonTabProps)
                   </TableCell>
                   <TableCell>
                     {consensus && (
-                      <span className={`font-medium ${getScoreColor(criterion.scaleMax > 0 ? (consensus.finalScore / criterion.scaleMax) * 100 : 0)}`}>
-                        {consensus.finalScore.toFixed(1)}
+                      <span className={`font-medium ${consensus.confidence >= 0.8 ? 'text-emerald-600 dark:text-emerald-400' : consensus.confidence >= 0.6 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {(consensus.confidence * 100).toFixed(0)}%
                       </span>
                     )}
                   </TableCell>

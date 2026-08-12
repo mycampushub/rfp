@@ -26,7 +26,7 @@ import {
 import { 
   Checkbox,
 } from "@/components/ui/checkbox"
-import { Search, Plus, MoreHorizontal, Eye, Edit, Trash2, CheckCircle, AlertTriangle, Users, Shield, Key, Settings, Filter, RefreshCw, Copy, Lock, Crown, User, Link } from "lucide-react"
+import { Search, Plus, MoreHorizontal, Eye, Edit, Trash2, CheckCircle, AlertTriangle, Users, Shield, Key, Settings, Filter, RefreshCw, Copy, Lock, Crown, User, Link as LinkIcon } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { formatDate } from "@/lib/utils"
@@ -124,27 +124,27 @@ export default function RoleManagement() {
 
         const rolesData = Array.isArray(rolesRes) ? rolesRes : []
         setRoles(rolesData.map((r: Record<string, unknown>) => ({
-          id: r.id,
-          name: r.name || '',
-          description: r.description || '',
+          id: String(r.id),
+          name: String(r.name || ''),
+          description: String(r.description || ''),
           permissions: Array.isArray(r.permissions) ? r.permissions as string[] : [],
           userCount: 0,
           isSystemRole: false,
-          createdAt: r.createdAt || '',
-          updatedAt: r.updatedAt || '',
+          createdAt: String(r.createdAt || ''),
+          updatedAt: String(r.updatedAt || ''),
         })))
         setPermissions(STATIC_PERMISSIONS)
         setUsers([])
 
         const logsData = Array.isArray(logsRes) ? logsRes : []
         setAccessLogs(logsData.map((log: Record<string, unknown>) => ({
-          id: log.id,
-          userId: log.actor || '',
-          userName: log.actor || '',
-          action: log.action || '',
-          resource: log.targetType || '',
+          id: String(log.id),
+          userId: String(log.actor || ''),
+          userName: String(log.actor || ''),
+          action: String(log.action || ''),
+          resource: String(log.targetType || ''),
           ipAddress: '',
-          timestamp: log.timestamp || '',
+          timestamp: String(log.timestamp || ''),
           status: 'success' as const,
         })))
       } catch {
@@ -220,14 +220,14 @@ export default function RoleManagement() {
         if (rolesRes.ok) {
           const rolesData = await rolesRes.json()
           setRoles((Array.isArray(rolesData) ? rolesData : []).map((r: Record<string, unknown>) => ({
-            id: r.id,
-            name: r.name || '',
-            description: r.description || '',
+            id: String(r.id),
+            name: String(r.name || ''),
+            description: String(r.description || ''),
             permissions: Array.isArray(r.permissions) ? r.permissions as string[] : [],
             userCount: 0,
             isSystemRole: false,
-            createdAt: r.createdAt || '',
-            updatedAt: r.updatedAt || '',
+            createdAt: String(r.createdAt || ''),
+            updatedAt: String(r.updatedAt || ''),
           })))
         }
       } else {
@@ -529,7 +529,7 @@ export default function RoleManagement() {
                           <div className="flex items-center space-x-2">
                             <div className="font-medium">{user.name}</div>
                             {user.twoFactorEnabled && (
-                              <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" title="2FA Enabled" />
+                              <span title="2FA Enabled"><Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /></span>
                             )}
                           </div>
                         </TableCell>
@@ -630,7 +630,7 @@ export default function RoleManagement() {
                                   <h4 className="font-medium flex items-center">
                                     {permission.name}
                                     {permission.isDangerous && (
-                                      <Lock className="ml-2 h-3 w-3 text-red-600 dark:text-red-400" title="Dangerous permission" />
+                                      <span title="Dangerous permission"><Lock className="ml-2 h-3 w-3 text-red-600 dark:text-red-400" /></span>
                                     )}
                                   </h4>
                                   <p className="text-sm text-muted-foreground mt-1">

@@ -8,10 +8,10 @@ import { z } from "zod"
 const updateTenantSchema = z.object({
   name: z.string().optional(),
   region: z.string().optional(),
-  settings: z.record(z.unknown()).optional(),
-  branding: z.record(z.unknown()).optional(),
-  marketplaceSettings: z.record(z.unknown()).optional(),
-  billingInfo: z.record(z.unknown()).optional(),
+  settings: z.any().optional(),
+  branding: z.any().optional(),
+  marketplaceSettings: z.any().optional(),
+  billingInfo: z.any().optional(),
 })
 
 export async function GET() {

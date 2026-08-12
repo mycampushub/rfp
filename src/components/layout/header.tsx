@@ -233,7 +233,7 @@ export function Header({ title }: HeaderProps) {
                     className="w-full justify-center text-sm"
                     onClick={() => {
                       setNotifOpen(false)
-                      toast.info('Full notifications page coming soon')
+                      router.push("/notifications")
                     }}
                   >
                     View All
@@ -249,7 +249,7 @@ export function Header({ title }: HeaderProps) {
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback>
-                        {session.user.name?.[0] || session.user.email[0]}
+                        {session.user?.name?.[0] || session.user?.email?.[0] || "U"}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -258,10 +258,10 @@ export function Header({ title }: HeaderProps) {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {session.user.name || "User"}
+                        {session.user?.name || "User"}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {session.user.email}
+                        {session.user?.email}
                       </p>
                     </div>
                   </DropdownMenuLabel>

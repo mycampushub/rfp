@@ -111,22 +111,22 @@ export default function BusinessConnections() {
           const other = c.fromVendorId !== undefined ? (c.toVendor as Record<string, unknown> || {}) : (c.fromVendor as Record<string, unknown> || {})
           const contact = (other as Record<string, unknown>)?.contactInfo as Record<string, unknown> || {}
           return {
-            id: c.id,
-            businessId: (other as Record<string, unknown>)?.id || '',
-            businessName: (other as Record<string, unknown>)?.name || 'Unknown',
+            id: String(c.id),
+            businessId: String((other as Record<string, unknown>)?.id || ''),
+            businessName: String((other as Record<string, unknown>)?.name || 'Unknown'),
             category: '',
             contactInfo: {
-              email: contact.email || '',
-              phone: contact.phone || '',
-              address: contact.address || '',
+              email: String(contact.email || ''),
+              phone: String(contact.phone || ''),
+              address: String(contact.address || ''),
             },
             status: 'accepted' as const,
             connectionType: 'partner' as const,
-            connectedAt: c.respondedAt || c.createdAt || '',
-            lastActivity: c.updatedAt || '',
+            connectedAt: String(c.respondedAt || c.createdAt || ''),
+            lastActivity: String(c.updatedAt || ''),
             mutualConnections: 0,
-            rating: (other as Record<string, unknown>)?.rating || 0,
-            description: (other as Record<string, unknown>)?.description || '',
+            rating: Number((other as Record<string, unknown>)?.rating) || 0,
+            description: String((other as Record<string, unknown>)?.description || ''),
             specialties: [],
           }
         }))
@@ -134,14 +134,14 @@ export default function BusinessConnections() {
         // Map pending requests
         const pendingConns = connData.filter((c: Record<string, unknown>) => c.status === 'pending')
         setRequests(pendingConns.map((c: Record<string, unknown>) => ({
-          id: c.id,
-          fromBusinessId: (c.fromVendor as Record<string, unknown>)?.id || '',
-          fromBusinessName: (c.fromVendor as Record<string, unknown>)?.name || 'Unknown',
-          toBusinessId: (c.toVendor as Record<string, unknown>)?.id || '',
-          message: c.message || '',
+          id: String(c.id),
+          fromBusinessId: String((c.fromVendor as Record<string, unknown>)?.id || ''),
+          fromBusinessName: String((c.fromVendor as Record<string, unknown>)?.name || 'Unknown'),
+          toBusinessId: String((c.toVendor as Record<string, unknown>)?.id || ''),
+          message: String(c.message || ''),
           connectionType: 'vendor',
           status: 'pending' as const,
-          requestedAt: c.createdAt || '',
+          requestedAt: String(c.createdAt || ''),
         })))
 
         // Suggestions: vendors not already connected
@@ -151,20 +151,20 @@ export default function BusinessConnections() {
           .map((v: Record<string, unknown>) => {
             const contact = v.contactInfo as Record<string, unknown> || {}
             return {
-              id: v.id,
-              businessId: v.id,
-              businessName: v.name || 'Unknown',
-              description: v.description || '',
+              id: String(v.id),
+              businessId: String(v.id),
+              businessName: String(v.name || 'Unknown'),
+              description: String(v.description || ''),
               categories: Array.isArray(v.categories) ? v.categories : [],
               specialties: [],
               contactInfo: {
-                email: contact.email || '',
-                phone: contact.phone || '',
-                address: contact.address || '',
-                website: contact.website || '',
+                email: String(contact.email || ''),
+                phone: String(contact.phone || ''),
+                address: String(contact.address || ''),
+                website: String(contact.website || ''),
               },
-              isVerified: v.verified || false,
-              rating: v.rating || 0,
+              isVerified: Boolean(v.verified),
+              rating: Number(v.rating) || 0,
               connectionCount: 0,
             }
           })

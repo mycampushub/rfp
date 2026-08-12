@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
+import { calculateConsensus } from "@/lib/consensus-calculator"
 
 const updateScoreSchema = z.object({
   scoreValue: z.number(),
@@ -178,8 +179,7 @@ export async function PUT(
     })
 
     // Recalculate consensus
-    const { calculateConsensus } = await import("../route")
-    await calculateConsensus(existingScore.submissionId, existingScore.criterionId)
+    await calculateConsensus(db, existingScore.submissionId, existingScore.criterionId)
 
     return NextResponse.json(score)
   } catch (error) {
@@ -197,11 +197,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
-          const { id } = await params
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const tenantContext = getTenantContext(session)
@@ -228,8 +228,7 @@ export async function DELETE(
     })
 
     // Recalculate consensus
-    const { calculateConsensus } = await import("../route")
-    await calculateConsensus(existingScore.submissionId, existingScore.criterionId)
+    await calculateConsensus(db, existingScore.submissionId, existingScore.criterionId)
 
     return NextResponse.json({ message: "Score deleted successfully" })
   } catch (error) {

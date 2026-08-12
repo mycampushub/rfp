@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
 import { EmptyState } from "@/components/shared/empty-state"
 import { LoadingCards } from "@/components/shared/loading-table"
+import { useCsvExport } from "@/hooks/use-csv-export"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
@@ -20,7 +21,7 @@ import {
   Pie,
   Cell
 } from "recharts"
-import { TrendingUp, DollarSign, Clock, FileText, Target, Award, Percent, AlertTriangle, BarChart3 } from "lucide-react"
+import { TrendingUp, DollarSign, Clock, FileText, Target, Award, Percent, AlertTriangle, BarChart3, Download, Loader2, CalendarDays } from "lucide-react"
 
 interface AnalyticsData {
   rfpMetrics: {
@@ -64,33 +65,86 @@ interface AnalyticsData {
   }>
 }
 
+type DateRange = 'all' | '7d' | '30d' | '90d' | 'custom'
+
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: 'all', label: 'All Time' },
+  { value: '7d', label: '7 Days' },
+  { value: '30d', label: '30 Days' },
+  { value: '90d', label: '90 Days' },
+]
+
+function getDateFromRange(range: DateRange, customFrom?: string): Date | null {
+  if (range === 'all') return null
+  if (range === 'custom' && customFrom) return new Date(customFrom)
+  const now = new Date()
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 90
+  const from = new Date(now)
+  from.setDate(from.getDate() - days)
+  from.setHours(0, 0, 0, 0)
+  return from
+}
+
+function filterMonthlyData(data: AnalyticsData['monthlyData'], range: DateRange, customFrom?: string, customTo?: string): AnalyticsData['monthlyData'] {
+  const from = range === 'custom' && customFrom ? new Date(customFrom) : getDateFromRange(range)
+  const to = range === 'custom' && customTo ? new Date(customTo + 'T23:59:59') : new Date()
+  if (!from) return data
+  return data.filter(item => {
+    const monthDate = new Date(item.month + '-01')
+    return monthDate >= from && monthDate <= to
+  })
+}
+
 export default function AnalyticsPage() {
   useEffect(() => { document.title = 'Analytics | RFP Platform' }, [])
-  const [data, setData] = useState<AnalyticsData | null>(null)
+  const { exportCsv, exporting } = useCsvExport()
+  const [rawData, setRawData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<DateRange>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
-  const retryFetch = async () => {
+  const retryFetch = useCallback(async () => {
     setFetchError(null)
     setLoading(true)
     try {
       const response = await fetch('/api/analytics?type=full')
       if (!response.ok) throw new Error('Failed to fetch analytics')
       const data = await response.json()
-      setData(data)
+      setRawData(data)
     } catch (error) {
       console.error('Error fetching analytics data:', error)
       setFetchError('Failed to load analytics data. Please try again.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     retryFetch()
-  }, [])
+  }, [retryFetch])
+
+  const filteredMonthlyData = rawData
+    ? filterMonthlyData(rawData.monthlyData, dateRange, customFrom, customTo)
+    : []
+
+  const data = rawData
+    ? {
+        ...rawData,
+        monthlyData: filteredMonthlyData,
+      }
+    : null
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
+
+  const handleDateRangeChange = (range: DateRange) => {
+    setDateRange(range)
+    if (range !== 'custom') {
+      setCustomFrom('')
+      setCustomTo('')
+    }
+  }
 
   if (loading) {
     return (
@@ -100,7 +154,7 @@ export default function AnalyticsPage() {
     )
   }
 
-  if (!data) {
+  if (!rawData) {
     return (
       <MainLayout title="Analytics & Reporting">
         {fetchError ? (
@@ -117,15 +171,78 @@ export default function AnalyticsPage() {
     )
   }
 
+  if (!data) return null
+
   return (
     <MainLayout title="Analytics & Reporting">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold">Analytics & Reporting</h1>
-          <p className="text-muted-foreground">
-            Comprehensive insights into your RFP performance and procurement metrics
-          </p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Analytics & Reporting</h1>
+            <p className="text-muted-foreground">
+              Comprehensive insights into your RFP performance and procurement metrics
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            disabled={exporting}
+            onClick={() => {
+              const date = new Date().toISOString().slice(0, 10)
+              exportCsv('/api/export/analytics?format=csv', `analytics-report-${date}.csv`)
+            }}
+          >
+            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Export Report
+          </Button>
+        </div>
+
+        {/* Date Range Filter */}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground mr-1">Period:</span>
+            {DATE_RANGE_OPTIONS.map(opt => (
+              <Button
+                key={opt.value}
+                variant={dateRange === opt.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleDateRangeChange(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+            <Button
+              variant={dateRange === 'custom' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangeChange('custom')}
+            >
+              Custom
+            </Button>
+          </div>
+          {dateRange === 'custom' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-sm text-muted-foreground">From:</label>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <label className="text-sm text-muted-foreground">To:</label>
+              <input
+                type="date"
+                value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              {customFrom && customTo && (
+                <span className="text-xs text-muted-foreground">
+                  Showing {filteredMonthlyData.length} month{filteredMonthlyData.length !== 1 ? 's' : ''} of data
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Key Metrics */}
@@ -195,12 +312,12 @@ export default function AnalyticsPage() {
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={data.monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fill: 'currentColor', fontSize: 12 }} />
+                  <YAxis tick={{ fill: 'currentColor', fontSize: 12 }} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="rfps" stroke="#8884d8" strokeWidth={2} name="RFPs" />
-                  <Line type="monotone" dataKey="awards" stroke="#82ca9d" strokeWidth={2} name="Awards" />
+                  <Line type="monotone" dataKey="rfps" stroke="hsl(var(--primary))" strokeWidth={2} name="RFPs" />
+                  <Line type="monotone" dataKey="awards" stroke="hsl(var(--chart-2, #10b981))" strokeWidth={2} name="Awards" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -222,7 +339,7 @@ export default function AnalyticsPage() {
                     labelLine={false}
                     label={({ category, count }) => `${category}: ${count}`}
                     outerRadius={80}
-                    fill="#8884d8"
+                    fill="hsl(var(--primary))"
                     dataKey="count"
                   >
                     {data.categoryData.map((entry, index) => (
@@ -247,12 +364,12 @@ export default function AnalyticsPage() {
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={data.monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fill: 'currentColor', fontSize: 12 }} />
+                  <YAxis tick={{ fill: 'currentColor', fontSize: 12 }} />
                   <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, "Amount"]} />
-                  <Bar dataKey="budget" fill="#8884d8" name="Budget" />
-                  <Bar dataKey="awards" fill="#82ca9d" name="Awarded" />
+                  <Bar dataKey="budget" fill="hsl(var(--primary))" name="Budget" />
+                  <Bar dataKey="awards" fill="hsl(var(--chart-2, #10b981))" name="Awarded" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

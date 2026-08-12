@@ -6,7 +6,7 @@ export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request })
   const { pathname } = request.nextUrl
 
-  // X32: Security headers on all responses
+  // Security headers on all responses
   const response = NextResponse.next()
   response.headers.set("X-Frame-Options", "DENY")
   response.headers.set("X-Content-Type-Options", "nosniff")
@@ -18,10 +18,31 @@ export async function middleware(request: NextRequest) {
     response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
   }
 
-  // X10: Rate limit API routes
-  if (pathname.startsWith("/api/")) {
+  // CSRF protection for mutating API requests (non-GET, non-HEAD, non-OPTIONS)
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
+    const method = request.method.toUpperCase()
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+      const origin = request.headers.get("origin")
+      const host = request.headers.get("host")
+      // Allow requests with no origin (server-to-server, same-origin fetch)
+      // but block cross-origin requests with a mismatched origin
+      if (origin) {
+        const allowedOrigins = [
+          `http://${host}`,
+          `https://${host}`,
+        ]
+        if (!allowedOrigins.includes(origin)) {
+          return NextResponse.json(
+            { error: "Forbidden: cross-origin request blocked" },
+            { status: 403 }
+          )
+        }
+      }
+    }
+
+    // Rate limit API routes
     const { rateLimit } = await import("@/lib/rate-limiter")
-    const identifier = token?.sub || request.ip || "anonymous"
+    const identifier = token?.sub || request.headers.get('x-forwarded-for') || "anonymous"
     const rl = rateLimit(`api:${identifier}:${pathname}`, 100, 60_000) // 100 req/min
     if (!rl.success) {
       return NextResponse.json(

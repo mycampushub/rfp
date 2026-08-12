@@ -9,7 +9,7 @@ const updateQuestionSchema = z.object({
   type: z.enum(["text", "number", "multiple_choice", "checkbox", "file", "date"]).optional(),
   prompt: z.string().optional(),
   required: z.boolean().optional(),
-  constraints: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.unknown())])).optional(),
+  constraints: z.record(z.string(), z.unknown()).optional(),
   order: z.number().optional(),
 })
 
@@ -98,7 +98,7 @@ export async function PUT(
 
     const question = await db.question.update({
       where: { id: id },
-      data: validatedData,
+      data: validatedData as any,
       include: {
         section: {
           select: {

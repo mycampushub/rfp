@@ -215,7 +215,7 @@ export default function CalendarPage() {
   return (
     <MainLayout title="Calendar">
       <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-      <div className="h-[calc(100vh-8rem)] flex gap-6">
+      <div className="h-auto md:h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-6">
         {/* Calendar View */}
         <div className="flex-1">
           <Card>
@@ -340,7 +340,7 @@ export default function CalendarPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-80">
+        <div className="w-full md:w-80 shrink-0">
           <Tabs defaultValue="upcoming" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="upcoming">Upcoming</TabsTrigger>

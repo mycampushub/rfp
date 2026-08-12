@@ -41,7 +41,7 @@ export default function VendorDashboard() {
       deadline_reminder: true, vendor_update: false, system: true
     },
     quietHours: { enabled: false, start: "22:00", end: "08:00" },
-    frequency: "instant" as const
+    frequency: "instant" as "instant" | "daily" | "weekly"
   })
 
   const saveNotificationSettings = async (settings: typeof notificationSettings) => {
@@ -82,16 +82,16 @@ export default function VendorDashboard() {
 
         const invs = Array.isArray(invitationsRes) ? invitationsRes : []
         setInvitations(invs.map((inv: Record<string, unknown>) => ({
-          id: inv.id, rfpTitle: (inv.rfp as Record<string, unknown>)?.title || 'Unknown RFP',
-          organization: (inv.vendor as Record<string, unknown>)?.name || '', budget: '', deadline: '',
-          status: inv.status || 'pending', isPublic: false, receivedAt: inv.createdAt || '',
+          id: String(inv.id), rfpTitle: String((inv.rfp as Record<string, unknown>)?.title || 'Unknown RFP'),
+          organization: String((inv.vendor as Record<string, unknown>)?.name || ''), budget: '', deadline: '',
+          status: (String(inv.status || 'pending')) as Invitation['status'], isPublic: false, receivedAt: String(inv.createdAt || ''),
         })))
 
         const bidsData = Array.isArray(bidsRes) ? bidsRes : []
         setBids(bidsData.map((b: Record<string, unknown>) => ({
-          id: b.id, rfpTitle: (b.publicRfp as Record<string, unknown>)?.title || 'Unknown RFP',
+          id: String(b.id), rfpTitle: String((b.publicRfp as Record<string, unknown>)?.title || 'Unknown RFP'),
           organization: '', amount: b.amount ? `$${Number(b.amount).toLocaleString()}` : '',
-          status: b.status || 'draft', submittedAt: b.createdAt || '', deadline: '',
+          status: (String(b.status || 'draft')) as Bid['status'], submittedAt: String(b.createdAt || ''), deadline: '',
         })))
 
         try {
@@ -100,10 +100,10 @@ export default function VendorDashboard() {
             const rfps = await rfpsRes.json()
             const rfpList = Array.isArray(rfps) ? rfps : []
             setOpportunities(rfpList.map((r: Record<string, unknown>) => ({
-              id: r.id, title: r.title || 'Untitled', organization: '',
+              id: String(r.id), title: String(r.title || 'Untitled'), organization: '',
               budget: r.budget ? `$${Number(r.budget).toLocaleString()}` : '',
-              category: r.category || '', deadline: (r.timeline as Record<string, unknown>)?.submissionDeadline || '',
-              bids: (r._count as Record<string, unknown>)?.submissions || 0, matchScore: 0, isFeatured: false,
+              category: String(r.category || ''), deadline: String((r.timeline as Record<string, unknown>)?.submissionDeadline || ''),
+              bids: Number((r._count as Record<string, unknown>)?.submissions) || 0, matchScore: 0, isFeatured: false,
             })))
           }
         } catch { /* Opportunities fetch failed, keep empty */ }
@@ -117,7 +117,7 @@ export default function VendorDashboard() {
     return (
       <MainLayout title="Vendor Dashboard">
         <div className="space-y-6">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div><Skeleton className="h-10 w-64 mb-2" /><Skeleton className="h-4 w-80" /></div>
             <div className="flex items-center space-x-2"><Skeleton className="h-10 w-28" /><Skeleton className="h-10 w-40" /></div>
           </div>
@@ -131,12 +131,12 @@ export default function VendorDashboard() {
   return (
     <MainLayout title="Vendor Dashboard">
       <div className="space-y-6">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div>
             <h1 className="text-3xl font-bold">Vendor Dashboard</h1>
             <p className="text-muted-foreground mt-1">Welcome back! Manage your vendor activities and opportunities.</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <NotificationBell onOpenSettings={() => setShowNotificationSettings(true)} />
             <Button variant="outline"><Settings className="mr-2 h-4 w-4" />Settings</Button>
             <Button asChild><Link href="/marketplace/rfps"><Globe className="mr-2 h-4 w-4" />Browse Marketplace</Link></Button>
@@ -146,7 +146,7 @@ export default function VendorDashboard() {
         <StatsCards vendorProfile={vendorProfile} invitations={invitations} bids={bids} />
 
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 overflow-x-auto">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="invitations">Invitations</TabsTrigger>
             <TabsTrigger value="bids">My Bids</TabsTrigger>

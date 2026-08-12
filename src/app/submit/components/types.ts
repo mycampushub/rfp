@@ -27,6 +27,7 @@ export interface ESignature {
 export interface DataIntegration {
   id: string
   source: string
+  dataSource?: string
   endpoint: string
   dataType: string
   status: "connected" | "disconnected" | "error"

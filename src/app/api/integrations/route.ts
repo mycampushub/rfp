@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const integration = EXTERNAL_APIS[type as keyof typeof EXTERNAL_APIS]
     
     // Simulate API call with mock data
-    const mockData = generateMockData(type, query)
+    const mockData = generateMockData(type, query || '')
     
     return NextResponse.json({
       type,
@@ -230,7 +230,7 @@ async function validateData(type: string, data: Record<string, unknown>) {
   // Check patterns
   if (rules.patterns) {
     Object.entries(rules.patterns).forEach(([field, pattern]) => {
-      if (data[field] && !pattern.test(data[field])) {
+      if (data[String(field)] && !(pattern as RegExp).test(String(data[String(field)]))) {
         errors.push(`Invalid format for ${field}`)
       }
     })

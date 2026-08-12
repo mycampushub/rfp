@@ -3,7 +3,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+import crypto from "crypto"
 
 const createSignatureSchema = z.object({
   submissionId: z.string(),
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
     const submissionId = searchParams.get("submissionId")
     const signatureId = searchParams.get("signatureId")
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const tenantContext = getTenantContext(session)
@@ -122,6 +124,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createSignatureSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
+    await requirePermission('esignature:create')
 
     // Verify submission belongs to tenant
     const submission = await db.submission.findFirst({
@@ -184,17 +187,17 @@ export async function POST(request: NextRequest) {
       data: {
         status: verificationResult.valid ? "verified" : "failed",
         verificationResult: verificationResult,
-        auditTrail: {
-          ...(signature.auditTrail as Record<string, unknown>),
+        auditTrail: JSON.parse(JSON.stringify({
+          ...(signature.auditTrail as Record<string, unknown> || {}),
           actions: [
-            ...((signature.auditTrail as Record<string, unknown>)?.actions as Array<Record<string, unknown>>) || [],
+            ...((signature.auditTrail as Record<string, unknown>)?.actions as Array<Record<string, unknown>> || []),
             {
               action: "verification_completed",
               timestamp: new Date().toISOString(),
               details: `Signature verification ${verificationResult.valid ? "passed" : "failed"}`
             }
           ]
-        }
+        })) as any,
       }
     })
 
@@ -233,6 +236,7 @@ export async function PUT(request: NextRequest) {
     const { signatureId, action } = body
 
     const tenantContext = getTenantContext(session)
+    await requirePermission('esignature:manage')
 
     const signature = await db.electronicSignature.findFirst({
       where: {
@@ -314,14 +318,8 @@ export async function PUT(request: NextRequest) {
 }
 
 // Helper functions
-async function getLocationFromIP(ip: string): Promise<string> {
-  // Mock location service - in real implementation, use a geolocation service
-  const locations: Record<string, string> = {
-    "192.168.1.1": "New York, NY",
-    "10.0.0.1": "San Francisco, CA",
-    "unknown": "Unknown Location"
-  }
-  return locations[ip] || "Unknown Location"
+async function getLocationFromIP(_ip: string): Promise<string> {
+  return 'Unknown Location'
 }
 
 function getClientIp(request: NextRequest): string {
@@ -346,12 +344,58 @@ async function generateDocumentHash(submission: Record<string, unknown>): Promis
 }
 
 async function verifySignatureIntegrity(signature: Record<string, unknown>) {
+  const sha256HexRegex = /^[0-9a-f]{64}$/i
+  const documentHash = signature.documentHash as string | undefined
+  const signatureData = signature.signatureData as string | undefined
+  const signerName = signature.signerName as string | undefined
+  const signerEmail = signature.signerEmail as string | undefined
+  const existingVerifiedHash = (signature.verificationResult as Record<string, unknown> | undefined)?.verifiedHash as string | undefined
+
+  // Check: signature data present and non-empty
+  const signatureFormat = !!(signatureData && typeof signatureData === 'string' && signatureData.length > 0)
+
+  // Check: documentHash is a valid SHA-256 hex string (exactly 64 hex chars)
+  const dataIntegrity = !!(documentHash && typeof documentHash === 'string' && sha256HexRegex.test(documentHash))
+
+  // Check: timestamp is valid
+  const timestampValid = !!(signature.createdAt && new Date(signature.createdAt as string).getTime() > 0)
+
+  // Check: signer info present
+  const certificateValid = !!(signerName && signerEmail)
+
+  // Check: audit trail exists
+  const auditTrail = signature.auditTrail as Record<string, unknown> | null
+  const chainOfCustody = !!(auditTrail && Array.isArray(auditTrail.actions))
+
+  // HMAC-based integrity verification
+  let hmacValid = false
+  let computedHash = ''
+  let hmacCheck = false
+  if (signerName && signerEmail && documentHash && signatureData && dataIntegrity) {
+    const hmac = crypto.createHmac('sha256', process.env.NEXTAUTH_SECRET || 'fallback-secret')
+    hmac.update(`${signerName}${signerEmail}${documentHash}${signatureData}`)
+    computedHash = hmac.digest('hex')
+
+    if (existingVerifiedHash) {
+      // Compare against stored/approved hash
+      hmacValid = crypto.timingSafeEqual(
+        Buffer.from(computedHash, 'hex'),
+        Buffer.from(existingVerifiedHash, 'hex')
+      )
+    } else {
+      // First-time verification: generate and store the hash
+      hmacValid = true
+    }
+    hmacCheck = true
+  }
+
   const checks = {
-    signatureFormat: !!(signature.signatureData && typeof signature.signatureData === 'string' && signature.signatureData.length > 0),
-    dataIntegrity: !!(signature.documentHash && typeof signature.documentHash === 'string' && signature.documentHash.length === 64),
-    timestampValid: !!(signature.createdAt && new Date(signature.createdAt as string).getTime() > 0),
-    certificateValid: !!(signature.signerName && signature.signerEmail),
-    chainOfCustody: !!(Array.isArray(signature.auditTrail?.actions)),
+    signatureFormat,
+    dataIntegrity,
+    timestampValid,
+    certificateValid,
+    chainOfCustody,
+    hmacIntegrity: hmacValid,
   }
 
   const passedChecks = Object.values(checks).filter(Boolean).length
@@ -361,21 +405,24 @@ async function verifySignatureIntegrity(signature: Record<string, unknown>) {
 
   const warnings: string[] = []
   if (!checks.signatureFormat) warnings.push('Signature data is missing or invalid format')
-  if (!checks.dataIntegrity) warnings.push('Document hash is missing or invalid')
+  if (!checks.dataIntegrity) warnings.push('Document hash is missing or not a valid SHA-256 hex string')
   if (!checks.timestampValid) warnings.push('Timestamp is invalid')
   if (!checks.certificateValid) warnings.push('Signer name or email is missing')
   if (!checks.chainOfCustody) warnings.push('Audit trail is incomplete')
+  if (hmacCheck && !checks.hmacIntegrity) warnings.push('HMAC integrity check failed: signature data may have been tampered with')
+  if (!hmacCheck) warnings.push('HMAC integrity check could not be performed: missing required fields')
 
   return {
     valid,
     score,
     checks,
     warnings,
+    verifiedHash: computedHash || undefined,
     verifiedAt: new Date().toISOString()
   }
 }
 
-async function sendSignatureConfirmation(signature: Record<string, unknown>): Promise<boolean> {
-  // In real implementation, use email service (e.g. Resend, SendGrid)
+async function sendSignatureConfirmation(_signature: Record<string, unknown>): Promise<boolean> {
+  // TODO: integrate email service
   return true
 }

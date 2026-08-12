@@ -74,9 +74,12 @@ model User {
   sentMessages Message[] @relation("MessageSender")
   calendarEvents CalendarEvent[]
   notificationPreferences NotificationPreference[]
+  awardedContracts Contract[] @relation("ContractAwarder")
+  createdTemplates RFPTemplate[] @relation("TemplateCreator")
 
   @@map("users")
   @@unique([tenantId, email])
+  @@index([tenantId])
 }
 
 model Role {
@@ -118,8 +121,10 @@ model Vendor {
   acknowledgments Acknowledgment[]
   vendorConnectionsOutgoing VendorConnection[] @relation("VendorConnectionOutgoing")
   vendorConnectionsIncoming VendorConnection[] @relation("VendorConnectionIncoming")
+  contracts       Contract[]
 
   @@map("vendors")
+  @@index([tenantId])
 }
 
 model RFP {
@@ -138,6 +143,7 @@ model RFP {
   closeAt         DateTime?
   settings        Json?
   isPublic        Boolean  @default(false)
+  isBlindEvaluation Boolean @default(false)
   marketplaceId   String?
   responseCount   Int      @default(0)
   createdAt       DateTime @default(now())
@@ -158,8 +164,13 @@ model RFP {
   approvalProcesses ApprovalProcess[]
   publicRfp       PublicRFP?
   calendarEvents  CalendarEvent[]
+  templateId       String?
+  template         RFPTemplate? @relation(fields: [templateId], references: [id])
+  contracts       Contract[]
 
   @@map("rfps")
+  @@index([tenantId])
+  @@index([marketplaceId])
 }
 
 model RFP_Timeline {
@@ -193,6 +204,7 @@ model RFP_Team {
 
   @@unique([rfpId, userId])
   @@map("rfp_teams")
+  @@index([userId])
 }
 
 model Section {
@@ -252,6 +264,8 @@ model RubricCriterion {
   consensus   ConsensusScore[]
 
   @@map("rubric_criteria")
+  @@index([rfpId])
+  @@index([sectionId])
 }
 
 model Invitation {
@@ -270,6 +284,8 @@ model Invitation {
   vendor      Vendor?  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@map("invitations")
+  @@index([rfpId])
+  @@index([vendorId])
 }
 
 model QnA {
@@ -288,6 +304,8 @@ model QnA {
   vendor       Vendor? @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@map("qna")
+  @@index([rfpId])
+  @@index([vendorId])
 }
 
 model Addendum {
@@ -305,6 +323,7 @@ model Addendum {
   acknowledgments Acknowledgment[]
 
   @@map("addenda")
+  @@index([rfpId])
 }
 
 model Acknowledgment {
@@ -319,6 +338,7 @@ model Acknowledgment {
 
   @@unique([addendumId, vendorId])
   @@map("acknowledgments")
+  @@index([vendorId])
 }
 
 model Submission {
@@ -339,9 +359,11 @@ model Submission {
   scores               Score[]
   consensus            ConsensusScore[]
   electronicSignatures ElectronicSignature[]
+  contracts            Contract[]
 
   @@unique([rfpId, vendorId, version])
   @@map("submissions")
+  @@index([vendorId])
 }
 
 model Answer {
@@ -361,6 +383,7 @@ model Answer {
 
   @@unique([submissionId, questionId])
   @@map("answers")
+  @@index([questionId])
 }
 
 model Score {
@@ -380,16 +403,20 @@ model Score {
 
   @@unique([submissionId, criterionId, evaluatorId])
   @@map("scores")
+  @@index([criterionId])
+  @@index([evaluatorId])
 }
 
 model ConsensusScore {
-  id           String   @id @default(cuid())
-  submissionId String
-  criterionId  String
-  scoreValue   Float
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(cuid())
+  submissionId     String
+  criterionId      String
+  scoreValue       Float
+  standardDeviation Float    @default(0)
+  agreementLevel   Float    @default(1)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relationships
   submission   Submission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
@@ -397,6 +424,7 @@ model ConsensusScore {
 
   @@unique([submissionId, criterionId])
   @@map("consensus_scores")
+  @@index([criterionId])
 }
 
 model Approval {
@@ -415,6 +443,8 @@ model Approval {
   approver    User  @relation(fields: [approverId], references: [id], onDelete: Cascade)
 
   @@map("approvals")
+  @@index([rfpId])
+  @@index([approverId])
 }
 
 model File {
@@ -435,6 +465,7 @@ model File {
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("files")
+  @@index([tenantId])
 }
 
 model ActivityLog {
@@ -454,6 +485,9 @@ model ActivityLog {
   rfp         RFP?     @relation("RFPActivityLogs", fields: [targetId], references: [id])
 
   @@map("activity_logs")
+  @@index([tenantId])
+  @@index([actor])
+  @@index([targetId])
 }
 
 model WebhookEndpoint {
@@ -470,6 +504,7 @@ model WebhookEndpoint {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("webhook_endpoints")
+  @@index([tenantId])
 }
 
 model SecurityAlert {
@@ -489,6 +524,7 @@ model SecurityAlert {
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("security_alerts")
+  @@index([tenantId])
 }
 
 model ApprovalWorkflow {
@@ -506,6 +542,7 @@ model ApprovalWorkflow {
   processes   ApprovalProcess[]
 
   @@map("approval_workflows")
+  @@index([tenantId])
 }
 
 model ApprovalProcess {
@@ -526,6 +563,8 @@ model ApprovalProcess {
   requests    ApprovalRequest[]
 
   @@map("approval_processes")
+  @@index([rfpId])
+  @@index([workflowId])
 }
 
 model ApprovalRequest {
@@ -548,6 +587,8 @@ model ApprovalRequest {
   approver    User?           @relation(fields: [approverId], references: [id])
 
   @@map("approval_requests")
+  @@index([processId])
+  @@index([approverId])
 }
 
 // Marketplace Models
@@ -591,6 +632,8 @@ model PublicRFP {
   reviews         Review[]
   
   @@map("public_rfps")
+  @@index([marketplaceId])
+  @@index([tenantId])
 }
 
 model Category {
@@ -623,6 +666,7 @@ model PublicRFPCategory {
   
   @@unique([publicRfpId, categoryId])
   @@map("public_rfp_categories")
+  @@index([categoryId])
 }
 
 model VendorProfile {
@@ -700,6 +744,7 @@ model Bid {
   
   @@unique([publicRfpId, vendorProfileId])
   @@map("bids")
+  @@index([vendorProfileId])
 }
 
 model BidMessage {
@@ -715,6 +760,8 @@ model BidMessage {
   sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
   
   @@map("bid_messages")
+  @@index([bidId])
+  @@index([senderId])
 }
 
 model PublicQnA {
@@ -734,6 +781,9 @@ model PublicQnA {
   answerer     User?          @relation("UserPublicQnA", fields: [answerBy], references: [id])
   
   @@map("public_qna")
+  @@index([publicRfpId])
+  @@index([vendorProfileId])
+  @@index([answerBy])
 }
 
 model Review {
@@ -758,6 +808,11 @@ model Review {
   marketplace     Marketplace?  @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
   
   @@map("reviews")
+  @@index([vendorProfileId])
+  @@index([reviewerId])
+  @@index([publicRfpId])
+  @@index([bidId])
+  @@index([marketplaceId])
 }
 
 model SavedSearch {
@@ -776,6 +831,7 @@ model SavedSearch {
   notifications Notification[]
   
   @@map("saved_searches")
+  @@index([userId])
 }
 
 model Notification {
@@ -795,6 +851,8 @@ model Notification {
   savedSearch   SavedSearch? @relation(fields: [savedSearchId], references: [id], onDelete: Cascade)
   
   @@map("notifications")
+  @@index([userId])
+  @@index([savedSearchId])
 }
 
 model Transaction {
@@ -812,6 +870,7 @@ model Transaction {
   tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
   @@map("transactions")
+  @@index([tenantId])
 }
 
 model UsageMetrics {
@@ -852,6 +911,7 @@ model ElectronicSignature {
   submission        Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@map("electronic_signatures")
+  @@index([submissionId])
 }
 
 // Calendar & Messaging Models
@@ -878,6 +938,9 @@ model CalendarEvent {
   rfp         RFP?     @relation(fields: [rfpId], references: [id], onDelete: Cascade)
 
   @@map("calendar_events")
+  @@index([tenantId])
+  @@index([userId])
+  @@index([rfpId])
 }
 
 model MessageThread {
@@ -895,6 +958,7 @@ model MessageThread {
   messages      Message[]
 
   @@map("message_threads")
+  @@index([tenantId])
 }
 
 model Message {
@@ -910,6 +974,8 @@ model Message {
   sender    User          @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+  @@index([threadId])
+  @@index([senderId])
 }
 
 // Vendor Connection Model
@@ -931,6 +997,9 @@ model VendorConnection {
   toVendor      Vendor   @relation("VendorConnectionIncoming", fields: [toVendorId], references: [id], onDelete: Cascade)
 
   @@map("vendor_connections")
+  @@index([tenantId])
+  @@index([fromVendorId])
+  @@index([toVendorId])
 }
 
 // Notification Preference Model
@@ -950,4 +1019,51 @@ model NotificationPreference {
 
   @@unique([userId, type])
   @@map("notification_preferences")
+}
+
+model Contract {
+  id              String   @id @default(cuid())
+  tenantId        String
+  rfpId           String
+  rfp             RFP      @relation(fields: [rfpId], references: [id])
+  submissionId    String
+  submission      Submission @relation(fields: [submissionId], references: [id])
+  vendorId        String
+  vendor          Vendor   @relation(fields: [vendorId], references: [id])
+  status          String   @default("draft") // draft, active, expired, terminated
+  startDate       DateTime?
+  endDate         DateTime?
+  value           Float?
+  terms           String?
+  notes           String?
+  awardedBy       String
+  awardedByUser   User     @relation("ContractAwarder", fields: [awardedBy], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([rfpId])
+  @@index([vendorId])
+}
+
+model RFPTemplate {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  category        String?
+  isPublic        Boolean  @default(false)
+  sections        String   // JSON array of section definitions
+  scoringCriteria String   // JSON array of scoring rubric criteria
+  terms           String?  // Default terms and conditions
+  createdBy       String
+  createdByUser   User     @relation("TemplateCreator", fields: [createdBy], references: [id])
+  usageCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  rfps            RFP[]
+
+  @@index([tenantId])
+  @@index([category])
+  @@index([isPublic])
 }

@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
+import { Prisma } from "@prisma/client"
 
 const createWorkflowSchema = z.object({
   name: z.string(),
@@ -17,7 +18,7 @@ const createWorkflowSchema = z.object({
     approverRole: z.string(),
     slaHours: z.number(),
     autoApprove: z.boolean().optional(),
-    conditions: z.array(z.record(z.string(), z.unknown())).optional(),
+    conditions: z.any().optional(),
   })),
 })
 
@@ -32,7 +33,7 @@ const updateWorkflowSchema = z.object({
     approverRole: z.string(),
     slaHours: z.number(),
     autoApprove: z.boolean().optional(),
-    conditions: z.array(z.record(z.string(), z.unknown())).optional(),
+    conditions: z.any().optional(),
   })).optional(),
   isActive: z.boolean().optional(),
 })
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const where = {
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
         tenantId: tenantContext.tenantId,
         name: validatedData.name,
         description: validatedData.description,
-        stages: stagesWithIds,
+        stages: stagesWithIds as unknown as Prisma.InputJsonValue,
         isActive: true,
       },
     })

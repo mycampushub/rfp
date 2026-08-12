@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [addenda, total] = await Promise.all([
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     })
     for (const inv of invitations) {
       await NotificationService.send({
-        userId: inv.vendorId,
+        userId: inv.vendorId || '',
         type: "addendum_created",
         title: "New Addendum",
         message: `A new addendum has been added to RFP: ${addendum.title}`,

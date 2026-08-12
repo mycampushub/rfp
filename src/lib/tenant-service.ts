@@ -80,7 +80,6 @@ export class TenantService {
             createdAt: true,
           },
         },
-        roles: true,
       },
     })
   }
@@ -171,7 +170,7 @@ export class TenantService {
     const roles = await db.role.findMany({
       where: {
         id: {
-          in: user.roleIds || [],
+          in: (user.roleIds || []) as string[],
         },
         tenantId,
       },

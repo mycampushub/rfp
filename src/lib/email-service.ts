@@ -1,15 +1,39 @@
 /**
  * Email notification service.
  * In production, integrate with SendGrid/SES/SMTP.
- * Currently logs email events for development.
+ * Currently logs email events and creates in-app notifications as fallback.
  */
+import { db } from "@/lib/db"
+
 type EmailPayload = { to: string; subject: string; html: string; text?: string }
+const MAX_LOG_SIZE = 100
 const emailLog: EmailPayload[] = []
 
 export async function sendEmail(payload: EmailPayload): Promise<boolean> {
   // TODO: Replace with actual email provider (SendGrid, AWS SES, etc.)
-  console.log('[EmailService] Would send:', payload.to, payload.subject)
+  console.error('[EmailService] Dev mode — would send:', payload.to, payload.subject)
+
+  // Bounded log to prevent memory leaks
   emailLog.push(payload)
+  if (emailLog.length > MAX_LOG_SIZE) emailLog.shift()
+
+  // In-app notification fallback so users still see notifications
+  try {
+    const user = await db.user.findFirst({ where: { email: payload.to }, select: { id: true } })
+    if (user) {
+      await db.notification.create({
+        data: {
+          userId: user.id,
+          type: 'email_fallback',
+          title: payload.subject,
+          message: payload.text || 'An email notification was sent regarding this subject.',
+        },
+      })
+    }
+  } catch {
+    // Notification creation is best-effort
+  }
+
   return true
 }
 

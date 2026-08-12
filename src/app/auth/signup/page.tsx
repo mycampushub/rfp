@@ -32,7 +32,6 @@ export default function SignupPage() {
     password: "",
     confirmPassword: "",
     company: "",
-    businessId: "",
     phone: "",
     agreeToTerms: false,
     agreeToPrivacy: false
@@ -79,9 +78,6 @@ export default function SignupPage() {
 
     if (!formData.company.trim()) {
       newErrors.company = "Company name is required"
-    }
-    if (!formData.businessId.trim()) {
-      newErrors.businessId = "Business ID is required"
     }
     if (!formData.phone.trim()) {
       newErrors.phone = "Phone number is required"
@@ -406,27 +402,6 @@ export default function SignupPage() {
                       <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.company}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="businessId">Business ID *</Label>
-                    <div className="relative">
-                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                      <Input
-                        id="businessId"
-                        type="text"
-                        placeholder="acme-corp-2024"
-                        className="pl-10"
-                        value={formData.businessId}
-                        onChange={(e) => handleInputChange("businessId", e.target.value)}
-                      />
-                    </div>
-                    {errors.businessId && (
-                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        {errors.businessId}
                       </p>
                     )}
                   </div>

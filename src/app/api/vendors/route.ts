@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext, AuthError } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+import { Prisma } from "@prisma/client"
 
 const createVendorSchema = z.object({
   name: z.string().min(1),
@@ -12,7 +14,7 @@ const createVendorSchema = z.object({
   phone: z.string().optional(),
   website: z.string().optional(),
   location: z.string().optional(),
-  contactInfo: z.record(z.unknown()).optional(),
+  contactInfo: z.any().optional(),
   categories: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
   specialties: z.array(z.string()).optional(),
@@ -21,7 +23,7 @@ const createVendorSchema = z.object({
   languages: z.array(z.string()).optional(),
   paymentMethods: z.array(z.string()).optional(),
   references: z.array(z.string()).optional(),
-  socialMedia: z.record(z.string()).optional(),
+  socialMedia: z.any().optional(),
   diversityAttrs: z.object({
     isMinorityOwned: z.boolean().optional(),
     isWomenOwned: z.boolean().optional(),
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [vendors, total] = await Promise.all([
@@ -109,13 +111,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const ctx = getTenantContext(session)
+    await requirePermission('vendor:create')
 
     const body = await request.json()
     const validatedData = createVendorSchema.parse(body)
 
     // Build the contactInfo JSON from legacy contactInfo + extra fields
     // that don't have direct columns on the Vendor model
-    const enrichedContactInfo: Record<string, unknown> = {
+    const enrichedContactInfo = {
       ...(typeof validatedData.contactInfo === 'object' && validatedData.contactInfo !== null
         ? validatedData.contactInfo as Record<string, unknown>
         : {}),
@@ -151,7 +154,7 @@ export async function POST(request: NextRequest) {
         phone: validatedData.phone,
         website: validatedData.website,
         location: validatedData.location,
-        contactInfo: enrichedContactInfo,
+        contactInfo: enrichedContactInfo as Prisma.InputJsonValue,
         categories: validatedData.categories,
         certifications: validatedData.certifications,
         diversityAttrs: validatedData.diversityAttrs,
@@ -164,6 +167,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error creating vendor:", error)
     return NextResponse.json({ error: "Failed to create vendor" }, { status: 500 })
   }

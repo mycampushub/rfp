@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft, FileText, Search } from "lucide-react"
 import {
@@ -47,6 +47,7 @@ const allFaqs = [
 ]
 
 export default function HelpPage() {
+  useEffect(() => { document.title = 'Help Center | RFP Platform' }, [])
   const [search, setSearch] = useState("")
   const filtered = allFaqs.filter(
     (faq) =>

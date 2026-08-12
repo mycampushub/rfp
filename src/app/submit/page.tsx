@@ -177,7 +177,7 @@ export default function SubmissionPage() {
       title: "",
       signature: "",
       timestamp: "",
-      ipAddress: "192.168.1.100",
+      ipAddress: "",
       status: "pending"
     }
     setCurrentSignature(signature)
@@ -188,7 +188,12 @@ export default function SubmissionPage() {
     try {
       toast.info("Processing signature...")
 
-      const signatureData = signature.signature || "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+      const signatureData = signature.signature
+
+      if (!signatureData) {
+        toast.error("Please provide your signature before submitting.")
+        return
+      }
       
       const signaturePayload = {
         submissionId: "submission_" + Date.now(),
@@ -196,7 +201,7 @@ export default function SubmissionPage() {
         signerEmail: signature.email,
         signerTitle: signature.title,
         signatureData: signatureData,
-        ipAddress: signature.ipAddress,
+        ipAddress: '',
         userAgent: navigator.userAgent,
         termsAccepted: true,
         documentHash: await generateDocumentHash()
@@ -363,7 +368,7 @@ export default function SubmissionPage() {
 
       // Resolve vendor ID from session
       const sessionRes = await fetch('/api/auth/session')
-      const sessionData = await sessionRes.json()
+      const sessionData = await sessionRes.json() as { user?: { id?: string; email?: string } }
       const userId = sessionData?.user?.id
 
       if (!userId) {
@@ -377,7 +382,7 @@ export default function SubmissionPage() {
         const vendorRes = await fetch('/api/vendors')
         if (vendorRes.ok) {
           const vendors = await vendorRes.json()
-          const userVendor = vendors?.find?.((v: Record<string, unknown>) => v.userId === userId || v.contactInfo?.email === sessionData?.user?.email)
+          const userVendor = vendors?.find?.((v: Record<string, unknown>) => v.userId === userId || (v.contactInfo as Record<string, unknown> | undefined)?.email === sessionData?.user?.email)
           if (userVendor?.id) vendorId = userVendor.id
         }
       } catch { /* vendor lookup is best-effort */ }

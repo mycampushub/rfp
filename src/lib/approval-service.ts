@@ -57,9 +57,10 @@ export class ApprovalService {
   }
 
   static async updateWorkflow(id: string, tenantId: string, data: Partial<ApprovalWorkflow>) {
+    const { tenantId: _tid, ...updateData } = data as Partial<ApprovalWorkflow> & { tenantId?: string }
     return await db.approvalWorkflow.updateMany({
       where: { id, tenantId },
-      data,
+      data: updateData as Parameters<typeof db.approvalWorkflow.updateMany>[0]['data'],
     })
   }
 
@@ -124,16 +125,16 @@ export class ApprovalService {
 
     // Create approval requests for each stage
     const approvalRequests = await Promise.all(
-      workflow.stages.map((stage, index) =>
+      ((workflow.stages || []) as Array<Record<string, unknown>>).map((stage, index) =>
         db.approvalRequest.create({
           data: {
             processId: approvalProcess.id,
-            stageId: stage.id,
-            stageName: stage.name,
-            approverRole: stage.approverRole,
-            slaHours: stage.slaHours,
+            stageId: String(stage.id),
+            stageName: String(stage.name),
+            approverRole: String(stage.approverRole),
+            slaHours: Number(stage.slaHours) || 24,
             status: index === 0 ? "pending" : "waiting",
-            dueAt: this.calculateDueDate(stage.slaHours),
+            dueAt: this.calculateDueDate(Number(stage.slaHours) || 24),
           },
         })
       )

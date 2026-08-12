@@ -12,10 +12,10 @@ const updateVendorSchema = z.object({
   phone: z.string().optional(),
   website: z.string().optional(),
   location: z.string().optional(),
-  contactInfo: z.record(z.string(), z.unknown()).optional(),
+  contactInfo: z.any().optional(),
   categories: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
-  diversityAttrs: z.record(z.string(), z.unknown()).optional(),
+  diversityAttrs: z.any().optional(),
   isActive: z.boolean().optional(),
 })
 
@@ -34,7 +34,12 @@ function toPublicVendor(vendor: Record<string, unknown>) {
     description: vendor.description,
     verified: vendor.verified,
     logo: vendor.logo,
+    certifications: vendor.certifications,
+    diversityAttrs: vendor.diversityAttrs,
+    contactInfo: vendor.contactInfo,
     _count: vendor._count,
+    submissions: vendor.submissions,
+    contracts: vendor.contracts,
     createdAt: vendor.createdAt,
     updatedAt: vendor.updatedAt,
   }
@@ -54,7 +59,32 @@ export async function GET(
       where: { id, tenantId: ctx.tenantId },
       include: {
         _count: {
-          select: { submissions: true },
+          select: { submissions: true, invitations: true },
+        },
+        submissions: {
+          include: {
+            rfp: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                category: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        contracts: {
+          include: {
+            rfp: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
         },
       },
     })

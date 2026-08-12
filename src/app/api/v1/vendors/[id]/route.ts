@@ -164,8 +164,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: session.user.tenantId,
-        actor: session.user.id,
+        tenantId: ctx.tenantId,
+        actor: ctx.userId,
         action: "UPDATE_VENDOR",
         targetType: "Vendor",
         targetId: id,
@@ -220,8 +220,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: session.user.tenantId,
-        actor: session.user.id,
+        tenantId: ctx.tenantId,
+        actor: ctx.userId,
         action: "DELETE_VENDOR",
         targetType: "Vendor",
         targetId: id,

@@ -25,7 +25,8 @@ import {
   User,
   TrendingUp,
   Menu,
-  ShieldCheck
+  ShieldCheck,
+  FileSignature
 } from "lucide-react"
 import { useState } from "react"
 import { useSession, signOut } from "next-auth/react"
@@ -102,6 +103,11 @@ const navItems = [
     title: "Announcements",
     href: "/announcements",
     icon: Bell,
+  },
+  {
+    title: "Contracts",
+    href: "/contracts",
+    icon: FileSignature,
   },
   {
     title: "Calendar",
@@ -223,7 +229,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               Signed in as:
             </div>
             <div className="text-sm font-medium truncate">
-              {session.user.email}
+              {session.user?.email}
             </div>
             <Button
               variant="outline"
@@ -242,8 +248,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function SidebarMobileTrigger() {
+  const [open, setOpen] = useState(false)
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation menu">
           <Menu className="h-5 w-5" />
@@ -252,7 +260,7 @@ export function SidebarMobileTrigger() {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-        <SidebarContent />
+        <SidebarContent onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   )

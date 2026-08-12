@@ -67,9 +67,9 @@ export default function ApprovalsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [approvalsRes, consensusRes] = await Promise.all([
+        const [approvalsRes, contractsRes] = await Promise.all([
           fetch('/api/approvals'),
-          fetch('/api/consensus'),
+          fetch('/api/contracts'),
         ])
 
         if (!approvalsRes.ok) throw new Error('Failed to fetch approvals')
@@ -92,20 +92,38 @@ export default function ApprovalsPage() {
         }))
         setApprovals(mappedApprovals)
 
-        // Derive awards from approved approvals
-        const approvedApprovals = mappedApprovals.filter(a => a.status === 'approved' && a.stage === 'award')
-        const mappedAwards: AwardItem[] = approvedApprovals.map((a, idx) => ({
-          id: a.id,
-          rfpId: a.rfpId,
-          rfpTitle: a.rfpTitle,
-          vendorName: 'Pending Vendor',
-          totalValue: 0,
-          status: 'pending' as const,
-          awardedAt: a.decidedAt || a.requestedAt,
-          estimatedStartDate: '',
-          estimatedDuration: '',
-        }))
-        setAwards(mappedAwards)
+        // Fetch awards from real contract data
+        const statusMap: Record<string, AwardItem['status']> = {
+          draft: 'pending',
+          active: 'in_progress',
+          completed: 'completed',
+          terminated: 'pending',
+          expired: 'completed',
+        }
+        if (contractsRes.ok) {
+          const contractsData = await contractsRes.json()
+          const mappedAwards: AwardItem[] = (Array.isArray(contractsData) ? contractsData : []).map((c: any) => {
+            let estimatedDuration = ''
+            if (c.startDate && c.endDate) {
+              const start = new Date(c.startDate)
+              const end = new Date(c.endDate)
+              const months = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30))
+              estimatedDuration = `${Math.max(1, months)} month${months !== 1 ? 's' : ''}`
+            }
+            return {
+              id: c.id,
+              rfpId: c.rfpId || '',
+              rfpTitle: c.rfp?.title || 'Untitled RFP',
+              vendorName: c.vendor?.companyName || 'Unknown Vendor',
+              totalValue: c.value || 0,
+              status: statusMap[c.status] || 'pending',
+              awardedAt: c.startDate || c.createdAt || '',
+              estimatedStartDate: c.startDate || '',
+              estimatedDuration,
+            }
+          })
+          setAwards(mappedAwards)
+        }
       } catch (err) {
         console.error(err)
         toast.error('Failed to load approvals')
@@ -281,16 +299,16 @@ export default function ApprovalsPage() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>RFP</TableHead>
                     <TableHead>Stage</TableHead>
                     <TableHead>Requested By</TableHead>
-                    <TableHead>Approver</TableHead>
-                    <TableHead>Priority</TableHead>
+                    <TableHead className="hidden lg:table-cell">Approver</TableHead>
+                    <TableHead className="hidden md:table-cell">Priority</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Requested</TableHead>
+                    <TableHead className="hidden sm:table-cell">Requested</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -319,7 +337,7 @@ export default function ApprovalsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <div className="flex items-center space-x-2">
                           <User className="h-3 w-3" />
                           <div>
@@ -328,7 +346,7 @@ export default function ApprovalsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <Badge className={getPriorityColor(approval.priority)}>
                           {approval.priority}
                         </Badge>
@@ -338,7 +356,7 @@ export default function ApprovalsPage() {
                           {approval.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <div className="text-sm">
                           {formatDate(approval.requestedAt)}
                         </div>
@@ -351,10 +369,12 @@ export default function ApprovalsPage() {
                           {approval.status === "pending" && (
                             <>
                               <Button variant="outline" size="sm" className="text-emerald-600 dark:text-emerald-400" onClick={() => handleApproveReject(approval.id, 'approved')} aria-label="Approve">
-                                <CheckCircle className="h-3 w-3" />
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Approve
                               </Button>
                               <Button variant="outline" size="sm" className="text-red-600 dark:text-red-400" onClick={() => handleApproveReject(approval.id, 'rejected')} aria-label="Reject">
-                                <AlertCircle className="h-3 w-3" />
+                                <AlertCircle className="h-3 w-3 mr-1" />
+                                Reject
                               </Button>
                             </>
                           )}

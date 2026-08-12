@@ -114,16 +114,16 @@ export function RfpFormWizard({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  // Clear submit error when the user changes team/sections/criteria
-  useEffect(() => {
-    setSubmitError(null)
-  }, [teamMembers.length, sections.length, criteria.length])
-
   // State for wizard steps
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(defaultTeamMembers)
   const [sections, setSections] = useState<Section[]>(defaultSections)
   const [criteria, setCriteria] = useState<RubricCriterion[]>(defaultCriteria)
   const [invitations, setInvitations] = useState<Invitation[]>(defaultInvitations)
+
+  // Clear submit error when the user changes team/sections/criteria
+  useEffect(() => {
+    setSubmitError(null)
+  }, [teamMembers.length, sections.length, criteria.length])
 
   const {
     register,
@@ -572,14 +572,14 @@ export function RfpFormWizard({
     <div className="max-w-4xl mx-auto">
       {/* Progress Steps */}
       <div className="mb-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between overflow-x-auto pb-2 gap-1">
           {steps.map((step, index) => (
             <div
               key={step.id}
-              className={`flex items-center ${index < steps.length - 1 ? "flex-1" : ""}`}
+              className={`flex items-center ${index < steps.length - 1 ? "flex-1" : ""} min-w-0`}
             >
               <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium shrink-0 ${
                   currentStep >= step.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted-foreground/20 text-muted-foreground/80"
@@ -587,12 +587,12 @@ export function RfpFormWizard({
               >
                 {step.id}
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium">{step.title}</p>
-                <p className="text-xs text-muted-foreground">{step.description}</p>
+              <div className="ml-2 sm:ml-3 min-w-0">
+                <p className="text-sm font-medium truncate">{step.title}</p>
+                <p className="text-xs text-muted-foreground truncate hidden sm:block">{step.description}</p>
               </div>
               {index < steps.length - 1 && (
-                <div className="flex-1 h-1 bg-muted-foreground/20 mx-4">
+                <div className="flex-1 h-1 bg-muted-foreground/20 mx-2 sm:mx-4">
                   <div
                     className={`h-full bg-primary transition-all duration-300 ${
                       currentStep > step.id ? "w-full" : "w-0"

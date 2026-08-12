@@ -82,20 +82,20 @@ export class FileService {
           size: file.size,
           mime: file.type,
           metadata: {
-            ...existingFile.metadata,
+            ...(existingFile.metadata as any || {}),
             ...metadata,
             versions: [
-              ...(existingFile.metadata?.versions || []),
+              ...((existingFile.metadata as any || {}).versions || []),
               {
                 version: existingFile.version,
                 path: existingFile.path,
                 sha256: existingFile.sha256,
                 size: existingFile.size,
                 createdAt: existingFile.createdAt,
-                createdBy: existingFile.metadata?.uploadedBy,
+                createdBy: (existingFile.metadata as any || {}).uploadedBy,
               },
             ],
-          },
+          } as any,
         },
       })
 
@@ -143,7 +143,7 @@ export class FileService {
 
     // If specific version requested, get that version
     if (version && version !== file.version) {
-      const versionData = file.metadata?.versions?.find((v: any) => v.version === version)
+      const versionData = (file.metadata as any)?.versions?.find((v: any) => v.version === version)
       if (!versionData) {
         throw new Error("Version not found")
       }
@@ -190,7 +190,7 @@ export class FileService {
         {
           path: file.path,
         },
-        ...(file.metadata?.versions || []),
+        ...((file.metadata as any)?.versions || []),
       ]
 
       for (const version of versions) {
@@ -211,10 +211,10 @@ export class FileService {
         data: {
           retention: "deleted",
           metadata: {
-            ...file.metadata,
+            ...(file.metadata as any || {}),
             deletedBy: userId,
             deletedAt: new Date().toISOString(),
-          },
+          } as any,
         },
       })
     }
@@ -283,8 +283,7 @@ export class FileService {
           // Deleted files: 30 days
           {
             retention: "deleted",
-            metadata: {
-              path: ["deletedAt"],
+            createdAt: {
               lt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
             },
           },
@@ -302,7 +301,7 @@ export class FileService {
           {
             path: file.path,
           },
-          ...(file.metadata?.versions || []),
+          ...((file.metadata as any)?.versions || []),
         ]
 
         for (const version of versions) {
@@ -325,7 +324,7 @@ export class FileService {
         cleanupResults.push({
           fileId: file.id,
           status: "error",
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
         })
       }
     }
@@ -372,7 +371,7 @@ export class FileService {
           fileId: file.id,
           path: file.path,
           isIntact: false,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
         })
       }
     }

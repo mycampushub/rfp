@@ -103,7 +103,7 @@ export class AnalyticsService {
       .filter(r => r.timeline && r.timeline.awardTarget)
       .map(r => {
         const created = new Date(r.createdAt).getTime()
-        const awardTarget = new Date(r.timeline.awardTarget!).getTime()
+        const awardTarget = new Date(r.timeline!.awardTarget!).getTime()
         return Math.ceil((awardTarget - created) / (1000 * 60 * 60 * 24)) // days
       })
 

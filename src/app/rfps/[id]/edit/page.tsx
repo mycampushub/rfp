@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -12,9 +13,19 @@ import {
   TeamMember,
   Section,
   Invitation,
+  RubricCriterion,
 } from "@/components/rfp/rfp-form-wizard"
+import type { QuestionType } from "@/components/rfp/types"
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { toast } from "sonner"
-import { FileText, ArrowLeft } from "lucide-react"
+import { FileText, ArrowLeft, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface RFPRawData {
@@ -32,10 +43,45 @@ interface RFPRawData {
     evaluationStart?: string | null
     awardTarget?: string | null
   } | null
-  settings?: any
-  sections?: any[]
-  teams?: any[]
-  invitations?: any[]
+  settings?: Record<string, unknown>
+  sections?: Array<{
+    id: string
+    title?: string
+    description?: string
+    isRequired?: boolean
+    order?: number
+    questions?: Array<{
+      id: string
+      type?: string
+      prompt?: string
+      title?: string
+      required?: boolean
+      constraints?: unknown
+      order?: number
+    }>
+  }>
+  teams?: Array<{
+    id: string
+    role?: string
+    user?: { name?: string; email?: string }
+  }>
+  invitations?: Array<{
+    id: string
+    vendorId?: string
+    email?: string
+    status?: string
+    expiresAt?: string
+    token?: string
+    vendor?: { email?: string }
+  }>
+  scoringCriteria?: Array<{
+    id: string
+    label?: string
+    weight?: number
+    scaleMin?: number
+    scaleMax?: number
+    guidance?: string
+  }>
 }
 
 export default function EditRFPPage() {
@@ -45,6 +91,13 @@ export default function EditRFPPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Set document.title once RFP data loads
+  useEffect(() => {
+    if (rfpData) {
+      document.title = `Edit: ${rfpData.title} | RFP Platform`
+    }
+  }, [rfpData])
 
   useEffect(() => {
     async function fetchRFP() {
@@ -80,11 +133,11 @@ export default function EditRFPPage() {
       description: data.description || "",
       timeline: tl
         ? {
-            qnaStart: tl.qnaStart || "",
-            qnaEnd: tl.qnaEnd || "",
-            submissionDeadline: tl.submissionDeadline || "",
-            evaluationStart: tl.evaluationStart || "",
-            awardTarget: tl.awardTarget || "",
+            qnaStart: tl.qnaStart ? formatDatetimeLocal(tl.qnaStart) : "",
+            qnaEnd: tl.qnaEnd ? formatDatetimeLocal(tl.qnaEnd) : "",
+            submissionDeadline: tl.submissionDeadline ? formatDatetimeLocal(tl.submissionDeadline) : "",
+            evaluationStart: tl.evaluationStart ? formatDatetimeLocal(tl.evaluationStart) : "",
+            awardTarget: tl.awardTarget ? formatDatetimeLocal(tl.awardTarget) : "",
           }
         : undefined,
     }
@@ -92,41 +145,55 @@ export default function EditRFPPage() {
 
   const buildDefaultTeamMembers = (data: RFPRawData): TeamMember[] => {
     if (!data.teams || data.teams.length === 0) return []
-    return data.teams.map((t: any) => ({
+    return data.teams.map((t) => ({
       id: t.id,
       name: t.user?.name || "Unknown",
       email: t.user?.email || "",
-      role: t.role || "viewer",
+      role: (t.role as TeamMember["role"]) || "viewer",
     }))
   }
 
   const buildDefaultSections = (data: RFPRawData): Section[] => {
     if (!data.sections || data.sections.length === 0) return []
-    return data.sections.map((s: any) => ({
+    return data.sections.map((s) => ({
       id: s.id,
       title: s.title || "",
       description: s.description || "",
       isRequired: s.isRequired ?? false,
       order: s.order ?? 0,
-      questions: (s.questions || []).map((q: any, idx: number) => ({
+      questions: (s.questions || []).map((q, idx) => ({
         id: q.id,
-        type: q.type || "text",
+        type: (q.type || "text") as QuestionType,
         prompt: q.prompt || q.title || "",
         title: q.prompt || q.title || "",
         required: q.required ?? false,
         constraints: q.constraints || undefined,
+        options: undefined,
         order: q.order ?? idx,
       })),
     }))
   }
 
+  const buildDefaultCriteria = (data: RFPRawData): RubricCriterion[] => {
+    if (!data.scoringCriteria || data.scoringCriteria.length === 0) return []
+    return data.scoringCriteria.map((c) => ({
+      id: c.id,
+      label: c.label || "",
+      weight: c.weight || 0,
+      scaleMin: c.scaleMin ?? 1,
+      scaleMax: c.scaleMax ?? 10,
+      guidance: c.guidance || undefined,
+      sectionId: undefined,
+    }))
+  }
+
   const buildDefaultInvitations = (data: RFPRawData): Invitation[] => {
     if (!data.invitations || data.invitations.length === 0) return []
-    return data.invitations.map((inv: any) => ({
+    return data.invitations.map((inv) => ({
       id: inv.id,
       vendorId: inv.vendorId || undefined,
       email: inv.email || inv.vendor?.email || "",
-      status: inv.status || "pending",
+      status: (inv.status as Invitation["status"]) || "pending",
       expiresAt: inv.expiresAt || undefined,
       token: inv.token || "",
     }))
@@ -172,7 +239,7 @@ export default function EditRFPPage() {
       throw new Error(errData?.error || `Failed to update RFP (${res.status})`)
     }
 
-    // 2. Sync sections (parallel with team & invitations)
+    // 2. Sync sections
     const sectionsPromise = (async () => {
       try {
         const secRes = await fetch(`/api/rfps/${params.id}/sections`, {
@@ -244,6 +311,7 @@ export default function EditRFPPage() {
     router.push(`/rfps/${params.id}`)
   }
 
+  // ── Loading state ──
   if (loading) {
     return (
       <MainLayout title="Edit RFP">
@@ -275,6 +343,7 @@ export default function EditRFPPage() {
     )
   }
 
+  // ── Not found / error state ──
   if (notFound || error) {
     return (
       <MainLayout title="Edit RFP">
@@ -310,21 +379,71 @@ export default function EditRFPPage() {
   if (!rfpData) return null
 
   return (
-    <MainLayout title="Edit RFP">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">Edit RFP</h1>
-        <p className="text-muted-foreground/80">Update your Request for Proposal details</p>
+    <MainLayout title={`Edit: ${rfpData.title}`} hideBreadcrumbs>
+      <div className="max-w-4xl mx-auto">
+        {/* Breadcrumb: RFPs > {title} > Edit */}
+        <Breadcrumb className="mb-4">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/">
+                  <Home className="h-3.5 w-3.5" />
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/rfps">RFPs</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={`/rfps/${rfpData.id}`} className="max-w-[200px] truncate">
+                  {rfpData.title}
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Edit</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
+        {/* Page header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold">Edit RFP</h1>
+          <p className="text-muted-foreground/80">Update your Request for Proposal details</p>
+        </div>
+
+        {/* Wizard with pre-populated data */}
+        <RfpFormWizard
+          key={rfpData.id}
+          defaultValues={buildDefaultValues(rfpData)}
+          defaultTeamMembers={buildDefaultTeamMembers(rfpData)}
+          defaultSections={buildDefaultSections(rfpData)}
+          defaultCriteria={buildDefaultCriteria(rfpData)}
+          defaultInvitations={buildDefaultInvitations(rfpData)}
+          onSubmit={handleSubmit}
+          submitLabel="Save Changes"
+          submittingLabel="Saving..."
+        />
       </div>
-      <RfpFormWizard
-        key={rfpData.id}
-        defaultValues={buildDefaultValues(rfpData)}
-        defaultTeamMembers={buildDefaultTeamMembers(rfpData)}
-        defaultSections={buildDefaultSections(rfpData)}
-        defaultInvitations={buildDefaultInvitations(rfpData)}
-        onSubmit={handleSubmit}
-        submitLabel="Save Changes"
-        submittingLabel="Saving..."
-      />
     </MainLayout>
   )
+}
+
+/** Convert an ISO date string to a datetime-local input value */
+function formatDatetimeLocal(dateStr: string): string {
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ""
+    // Format as YYYY-MM-DDTHH:MM for the datetime-local input
+    const pad = (n: number) => String(n).padStart(2, "0")
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  } catch {
+    return ""
+  }
 }

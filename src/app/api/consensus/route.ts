@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { calculateConsensus } from "@/lib/consensus-calculator"
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [consensusScores, total] = await Promise.all([
@@ -130,13 +131,10 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Import once before the loop
-      const scoresModule = await import("../scores/route")
-
       // Recalculate consensus for each criterion
       const results = []
       for (const criterion of criteria) {
-        await scoresModule.calculateConsensus(submissionId, criterion.id)
+        await calculateConsensus(db, submissionId, criterion.id)
         
         const consensus = await db.consensusScore.findFirst({
           where: {
@@ -149,6 +147,8 @@ export async function POST(request: NextRequest) {
           criterionId: criterion.id,
           criterionLabel: criterion.label,
           consensusScore: consensus?.scoreValue || null,
+          standardDeviation: consensus?.standardDeviation || null,
+          agreementLevel: consensus?.agreementLevel ?? null,
           consensusNotes: consensus?.notes || null,
         })
       }

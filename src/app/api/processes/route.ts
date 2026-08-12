@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
     const [processes, total] = await Promise.all([
@@ -149,23 +149,23 @@ export async function POST(request: NextRequest) {
         requestedBy: tenantContext.userId,
         status: "in_progress",
         currentStage: 0,
-        metadata: validatedData.metadata || {},
+        metadata: validatedData.metadata || {} as any,
       },
     })
 
     // Create approval requests for each stage
-    const workflowStages = workflow.stages as unknown[]
+    const workflowStages = (workflow.stages || []) as Array<Record<string, unknown>>
     const requests = await Promise.all(
       workflowStages.map((stage, index) =>
         db.approvalRequest.create({
           data: {
             processId: process.id,
-            stageId: stage.id,
-            stageName: stage.name,
-            approverRole: stage.approverRole,
-            slaHours: stage.slaHours,
+            stageId: String(stage.id || ''),
+            stageName: String(stage.name || ''),
+            approverRole: String(stage.approverRole || ''),
+            slaHours: Number(stage.slaHours || 24),
             status: index === 0 ? "pending" : "waiting",
-            dueAt: calculateDueDate(stage.slaHours),
+            dueAt: calculateDueDate(Number(stage.slaHours || 24)),
           },
         })
       )

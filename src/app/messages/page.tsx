@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Send, Paperclip, MoreVertical, Check, CheckCheck, Bell, BellOff, Archive, Trash2, MessageSquare } from "lucide-react"
+import { Search, Send, Paperclip, MoreVertical, Check, CheckCheck, Bell, BellOff, Archive, Trash2, MessageSquare, ArrowLeft, X, Loader2 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import {
@@ -18,6 +18,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Conversation {
   id: string
@@ -26,6 +36,7 @@ interface Conversation {
   time: string
   unread: number
   status: string
+  lastActivity?: string | null
 }
 
 interface Message {
@@ -48,6 +59,8 @@ interface Announcement {
 export default function MessagesPage() {
   useEffect(() => { document.title = 'Messages | RFP Platform' }, [])
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [threadToDelete, setThreadToDelete] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState("")
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -59,6 +72,8 @@ export default function MessagesPage() {
   const [muteNotifications, setMuteNotifications] = useState<Record<string, boolean>>({})
   const [archivedThreadIds, setArchivedThreadIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [attachedFile, setAttachedFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -79,6 +94,7 @@ export default function MessagesPage() {
             : "",
           unread: (thread.messages as Array<Record<string, unknown>>)?.[0]?.isRead ? 0 : 1,
           status: "offline",
+          lastActivity: thread.lastMessageAt as string | null | undefined,
         }))
         setConversations(mapped)
       } catch (error) {
@@ -155,14 +171,38 @@ export default function MessagesPage() {
   }, [])
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedMessage || sending) return
+    if (!selectedMessage || sending || uploading) return
+    if (!newMessage.trim() && !attachedFile) return
 
     setSending(true)
+    setUploading(true)
     try {
+      let finalContent = newMessage.trim()
+
+      // Upload file first if attached
+      if (attachedFile) {
+        const formData = new FormData()
+        formData.append('files', attachedFile)
+        const uploadRes = await fetch('/api/upload?XTransformPort=3000', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!uploadRes.ok) throw new Error('File upload failed')
+        const uploadData = await uploadRes.json()
+        const fileUrl = uploadData.files?.[0]?.url
+        if (fileUrl) {
+          finalContent = finalContent
+            ? `${finalContent}\n[File: ${attachedFile.name}](${fileUrl})`
+            : `[File: ${attachedFile.name}](${fileUrl})`
+        }
+        setAttachedFile(null)
+      }
+
+      setUploading(false)
       const res = await fetch(`/api/messages/threads/${selectedMessage}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newMessage.trim() }),
+        body: JSON.stringify({ content: finalContent }),
       })
       if (!res.ok) throw new Error("Failed to send message")
       const newMsg = await res.json()
@@ -177,25 +217,31 @@ export default function MessagesPage() {
 
       // Update last message in conversation list
       setConversations(prev => prev.map(c =>
-        c.id === selectedMessage ? { ...c, lastMessage: newMessage.trim(), time: "Just now" } : c
+        c.id === selectedMessage ? { ...c, lastMessage: finalContent, time: "Just now" } : c
       ))
 
       setNewMessage("")
     } catch (error) {
+      setUploading(false)
       console.error("Error sending message:", error)
-      toast.error("Failed to send message")
+      toast.error(attachedFile && !newMessage.trim() ? "Failed to upload file" : "Failed to send message")
     } finally {
       setSending(false)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "online": return "bg-emerald-500"
-      case "away": return "bg-amber-500"
-      case "offline": return "bg-muted-foreground"
-      default: return "bg-muted-foreground"
-    }
+  const getActivityStatus = (lastActivity?: string | null) => {
+    if (!lastActivity) return null
+    const now = Date.now()
+    const last = new Date(lastActivity).getTime()
+    const diffMs = now - last
+    const diffMin = Math.floor(diffMs / 60000)
+    if (diffMin < 5) return 'Active'
+    if (diffMin < 60) return `Last seen ${diffMin}m ago`
+    const diffHrs = Math.floor(diffMin / 60)
+    if (diffHrs < 24) return `Last seen ${diffHrs}h ago`
+    const diffDays = Math.floor(diffHrs / 24)
+    return `Last seen ${diffDays}d ago`
   }
 
   const getPriorityColor = (priority: string) => {
@@ -305,6 +351,14 @@ export default function MessagesPage() {
             <TabsContent value="chat" className="flex-1 flex flex-col mt-4">
               {selectedMessage ? (
                 <>
+                  {/* Mobile Back Button (M19) */}
+                  <div className="md:hidden flex items-center space-x-3 mb-3">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedMessage(null)} aria-label="Back to conversations">
+                      <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <h2 className="font-semibold text-base truncate">{selectedConversation?.name || "Conversation"}</h2>
+                  </div>
+
                   {/* Chat Header */}
                   <Card className="mb-4">
                     <CardContent className="p-4">
@@ -316,8 +370,15 @@ export default function MessagesPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h3 className="font-medium">{selectedConversation?.name || "Conversation"}</h3>
-                            <p className="text-sm text-muted-foreground/80">• Online</p>
+                            <h3 className="font-medium hidden md:block">{selectedConversation?.name || "Conversation"}</h3>
+                            {(() => {
+                              const activity = getActivityStatus(selectedConversation?.lastActivity)
+                              return activity ? (
+                                <p className={`text-sm ${activity === 'Active' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground/80'}`}>
+                                  {activity}
+                                </p>
+                              ) : null
+                            })()}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -365,17 +426,10 @@ export default function MessagesPage() {
                                 <Archive className="mr-2 h-4 w-4" />
                                 Archive
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={async () => {
+                              <DropdownMenuItem onClick={() => {
                                 if (!selectedMessage) return
-                                try {
-                                  const res = await fetch(`/api/messages/threads/${selectedMessage}`, { method: 'DELETE' })
-                                  if (!res.ok) throw new Error()
-                                  setConversations(prev => prev.filter(c => c.id !== selectedMessage))
-                                  setSelectedMessage(null)
-                                  toast.success('Conversation deleted')
-                                } catch {
-                                  toast.error('Failed to delete conversation')
-                                }
+                                setThreadToDelete(selectedMessage)
+                                setDeleteDialogOpen(true)
                               }}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -469,13 +523,25 @@ export default function MessagesPage() {
                         onChange={(e) => {
                           const file = e.target.files?.[0]
                           if (file) {
-                            setNewMessage(prev => prev ? `${prev}\n📎 Attached: ${file.name}` : `📎 Attached: ${file.name}`)
+                            setAttachedFile(file)
                           }
                           e.target.value = ''
                         }}
                       />
+                      {attachedFile && (
+                        <div className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2 mb-2">
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="text-sm truncate">{attachedFile.name}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setAttachedFile(null)} aria-label="Remove attachment">
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                       <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Attach file">
+                        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} aria-label="Attach file" disabled={uploading}>
                           <Paperclip className="h-4 w-4" />
                         </Button>
                         <Input
@@ -489,11 +555,11 @@ export default function MessagesPage() {
                             }
                           }}
                           className="flex-1"
-                          disabled={sending}
+                          disabled={sending || uploading}
                           aria-label="Message input"
                         />
-                        <Button size="sm" onClick={handleSendMessage} disabled={sending || !newMessage.trim()} aria-label="Send message">
-                          <Send className="h-4 w-4" />
+                        <Button size="sm" onClick={handleSendMessage} disabled={sending || uploading || (!newMessage.trim() && !attachedFile)} aria-label="Send message">
+                          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         </Button>
                       </div>
                     </div>
@@ -618,6 +684,41 @@ export default function MessagesPage() {
           </Tabs>
         </div>
       </div>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure? This will permanently delete this conversation and all its messages. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!threadToDelete) return
+                try {
+                  const res = await fetch(`/api/messages/threads/${threadToDelete}`, { method: 'DELETE' })
+                  if (!res.ok) throw new Error()
+                  setConversations(prev => prev.filter(c => c.id !== threadToDelete))
+                  setSelectedMessage(null)
+                  setArchivedThreadIds(prev => prev.filter(id => id !== threadToDelete))
+                  toast.success('Conversation deleted')
+                } catch {
+                  toast.error('Failed to delete conversation')
+                } finally {
+                  setDeleteDialogOpen(false)
+                  setThreadToDelete(null)
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   )
 }

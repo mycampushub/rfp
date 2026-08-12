@@ -26,13 +26,18 @@ export async function requirePermission(permission: string): Promise<RbacResult>
     select: { roleIds: true },
   })
 
-  if (!user?.roleIds || user.roleIds.length === 0) {
+  if (!user) {
+    throw new PermissionError(`Permission denied: ${permission}`)
+  }
+
+  const roleIds = user.roleIds as string[] | null
+  if (!roleIds || roleIds.length === 0) {
     throw new PermissionError(`Permission denied: ${permission}`)
   }
 
   const roles = await db.role.findMany({
     where: {
-      id: { in: user.roleIds as string[] },
+      id: { in: roleIds },
       tenantId: ctx.tenantId,
     },
     select: { permissions: true },
@@ -67,13 +72,18 @@ export async function requireAnyPermission(permissions: string[]): Promise<RbacR
     select: { roleIds: true },
   })
 
-  if (!user?.roleIds || user.roleIds.length === 0) {
+  if (!user) {
+    throw new PermissionError(`Permission denied: one of [${permissions.join(", ")}]`)
+  }
+
+  const roleIds = user.roleIds as string[] | null
+  if (!roleIds || roleIds.length === 0) {
     throw new PermissionError(`Permission denied: one of [${permissions.join(", ")}]`)
   }
 
   const roles = await db.role.findMany({
     where: {
-      id: { in: user.roleIds as string[] },
+      id: { in: roleIds },
       tenantId: ctx.tenantId,
     },
     select: { permissions: true },

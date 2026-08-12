@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext, AuthError } from "@/lib/tenant-context"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
+import { dispatchWebhooks, type WebhookEvent } from "@/lib/webhook-dispatcher"
 
 const updateRFPSchema = z.object({
-  title: z.string().min(1).optional(),
-  category: z.string().optional(),
+  title: z.string().max(200).min(1).optional(),
+  category: z.string().max(100).optional(),
   budget: z.number().optional(),
   confidentiality: z.enum(["internal", "confidential", "restricted"]).optional(),
-  description: z.string().optional(),
+  description: z.string().max(5000).optional(),
   status: z.enum(["draft", "published", "closed", "awarded", "archived"]).optional(),
   isPublic: z.boolean().optional(),
   publishAt: z.string().optional(),
@@ -75,6 +77,7 @@ export async function PATCH(
     }
     const { id } = await params
     const ctx = getTenantContext(session)
+    await requirePermission('rfp:edit')
 
     const body = await request.json()
     const validatedData = updateRFPSchema.parse(body)
@@ -91,7 +94,7 @@ export async function PATCH(
 
     const rfp = await db.rFP.update({
       where: { id: id },
-      data: rfpFields,
+      data: rfpFields as any,
       include: { timeline: true },
     })
 
@@ -115,6 +118,26 @@ export async function PATCH(
       }
     }
 
+    // Dispatch webhook on status change
+    if (validatedData.status && validatedData.status !== existing.status) {
+      const allowedStatusEvents: Record<string, WebhookEvent> = {
+        published: 'rfp.published',
+        closed: 'rfp.closed',
+        awarded: 'rfp.awarded',
+        archived: 'rfp.archived',
+      }
+      const webhookEvent = allowedStatusEvents[validatedData.status]
+      if (webhookEvent) {
+        dispatchWebhooks(webhookEvent, {
+          rfpId: id,
+          title: rfp.title,
+          oldStatus: existing.status,
+          newStatus: validatedData.status,
+          updatedBy: session.user?.email || 'unknown',
+        }, ctx.tenantId)
+      }
+    }
+
     const updatedRfp = await db.rFP.findFirst({
       where: { id: id },
       include: { timeline: true },
@@ -125,6 +148,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error updating RFP:", error)
     return NextResponse.json({ error: "Failed to update RFP" }, { status: 500 })
   }
@@ -142,6 +166,7 @@ export async function DELETE(
     }
     const { id } = await params
     const ctx = getTenantContext(session)
+    await requirePermission('rfp:delete')
 
     const existing = await db.rFP.findFirst({
       where: { id: id, tenantId: ctx.tenantId },
@@ -154,6 +179,7 @@ export async function DELETE(
     return NextResponse.json({ message: "RFP deleted successfully" })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error deleting RFP:", error)
     return NextResponse.json({ error: "Failed to delete RFP" }, { status: 500 })
   }

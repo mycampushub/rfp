@@ -221,7 +221,7 @@ export function QuestionRenderer({ question, answer, validationError, signatures
                 ) : (
                   <Button 
                     size="sm" 
-                    onClick={() => onDataIntegration(integration?.id || question.dataSource, question.id)}
+                    onClick={() => onDataIntegration(integration?.id || question.dataSource || "", question.id)}
                   >
                     <Link className="h-3 w-3 mr-1" />
                     Connect
