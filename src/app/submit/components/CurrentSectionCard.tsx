@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import type { Section, Question, ESignature, DataIntegration, ValidationRule } from "./types"
+import type { Section, ESignature, DataIntegration } from "./types"
 import { QuestionRenderer } from "./QuestionRenderer"
 
 interface CurrentSectionCardProps {
@@ -15,9 +15,9 @@ interface CurrentSectionCardProps {
   signatures: ESignature[]
   dataIntegrations: DataIntegration[]
   fileInputRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
-  onAnswerChange: (questionId: string, value: any) => void
-  onSignatureRequest: (questionId: string) => void
-  onDataIntegration: (integrationId: string, questionId?: string) => void
+  onAnswerChange: (_questionId: string, _value: any) => void
+  onSignatureRequest: (_questionId: string) => void
+  onDataIntegration: (_integrationId: string, _questionId?: string) => void
 }
 
 export function CurrentSectionCard({ section, currentSection, totalSections, answers, realTimeValidation, signatures, dataIntegrations, fileInputRefs, onAnswerChange, onSignatureRequest, onDataIntegration }: CurrentSectionCardProps) {

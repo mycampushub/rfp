@@ -26,7 +26,7 @@ import {
 import { 
   Checkbox,
 } from "@/components/ui/checkbox"
-import { Search, Plus, MoreHorizontal, Eye, Edit, Trash2, CheckCircle, AlertTriangle, Users, Shield, Key, Settings, Filter, RefreshCw, Copy, Lock, Crown, User, Link as LinkIcon } from "lucide-react"
+import { Search, Plus, MoreHorizontal, Eye, Edit, Trash2, CheckCircle, AlertTriangle, Users, Shield, Key, RefreshCw, Copy, Lock, Crown, Link as LinkIcon } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { formatDate } from "@/lib/utils"

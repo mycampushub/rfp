@@ -55,7 +55,7 @@ interface AnalyticsData {
 interface AnalyticsDashboardProps {
   data: AnalyticsData
   timeRange: "7d" | "30d" | "90d" | "1y"
-  onTimeRangeChange: (range: "7d" | "30d" | "90d" | "1y") => void
+  onTimeRangeChange: (_range: "7d" | "30d" | "90d" | "1y") => void
   onRefresh?: () => void
   isLoading?: boolean
 }

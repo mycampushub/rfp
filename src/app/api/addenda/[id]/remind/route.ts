@@ -37,12 +37,12 @@ export async function POST(
       take: 200,
     })
 
-    const invitedVendorIds = invitations
-      .map((inv) => inv.vendorId)
-      .filter((vId): vId is string => vId !== null)
+    const invitedVendorIds: string[] = invitations
+      .map((inv) => inv.vendorId as string)
+      .filter((vId) => vId != null)
 
-    const acknowledgedVendorIds = new Set(
-      addendum.acknowledgments.map((ack) => ack.vendorId)
+    const acknowledgedVendorIds = new Set<string>(
+      addendum.acknowledgments.map((ack) => ack.vendorId as string)
     )
 
     // Find vendors that haven't acknowledged
@@ -65,7 +65,7 @@ export async function POST(
     const notificationPromises = tenantUsers.map((user) =>
       db.notification.create({
         data: {
-          userId: user.id,
+          userId: user.id as string,
           type: "addendum_reminder",
           title: `Reminder: ${addendum.title}`,
           message: `${unacknowledgedVendorIds.length} vendor(s) have not yet acknowledged this addendum for "${addendum.rfp.title}"`,

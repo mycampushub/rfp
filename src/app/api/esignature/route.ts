@@ -19,7 +19,7 @@ const createSignatureSchema = z.object({
   termsAccepted: z.boolean(),
 })
 
-const verifySignatureSchema = z.object({
+const _verifySignatureSchema = z.object({
   signatureId: z.string(),
   documentHash: z.string(),
 })

@@ -83,7 +83,7 @@ export default function CreateRFP() {
 
   const handleSubmit = async (data: WizardSubmitData) => {
     setSubmitting(true)
-    let createdRfpId: string | null = null
+    let _createdRfpId: string | null = null
 
     try {
       const { formData, sections } = data
@@ -118,7 +118,7 @@ export default function CreateRFP() {
         throw new Error(errData?.error || `Failed to create RFP (${rfpRes.status})`)
       }
       const newRfp = await rfpRes.json()
-      createdRfpId = newRfp.id
+      _createdRfpId = newRfp.id
 
       // Step 2: Create sections and questions (with error handling and rollback)
       if (sections.length > 0) {
@@ -185,7 +185,7 @@ export default function CreateRFP() {
         )
 
         const questionErrors = questionResults
-          .map((r, i) => (r.status === 'rejected' ? r.reason?.message : null))
+          .map((r) => (r.status === 'rejected' ? r.reason?.message : null))
           .filter(Boolean)
 
         if (questionErrors.length > 0) {

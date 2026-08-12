@@ -103,7 +103,7 @@ export async function GET() {
         })
       : []
     // Count unique submissions with scores per RFP
-    const evaluatedSubmissionIds = new Set(scoreCounts.map(s => s.submissionId))
+    const _evaluatedSubmissionIds = new Set(scoreCounts.map(s => s.submissionId))
 
     const evaluationProgress = evaluationRfps.map((rfp) => {
       const total = rfp._count.submissions

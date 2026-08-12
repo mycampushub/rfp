@@ -49,7 +49,7 @@ export default function CalendarPage() {
   const router = useRouter()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
-  const [view, setView] = useState("month")
+  const [_view, _setView] = useState("month")
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateEventDialog, setShowCreateEventDialog] = useState(false)

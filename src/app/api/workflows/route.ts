@@ -22,7 +22,7 @@ const createWorkflowSchema = z.object({
   })),
 })
 
-const updateWorkflowSchema = z.object({
+const _updateWorkflowSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   stages: z.array(z.object({

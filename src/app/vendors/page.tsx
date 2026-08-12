@@ -143,7 +143,7 @@ export default function VendorsPage() {
 
   const categories = Array.from(new Set(vendors.flatMap(v => v.categories || [])))
 
-  const getDiversityBadges = (diversityAttrs?: Vendor["diversityAttrs"]) => {
+  const _getDiversityBadges = (diversityAttrs?: Vendor["diversityAttrs"]) => {
     const badges = []
     
     if (diversityAttrs?.isMinorityOwned) {

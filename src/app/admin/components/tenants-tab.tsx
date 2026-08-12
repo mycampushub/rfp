@@ -8,7 +8,7 @@ import type { Tenant } from "../types"
 import { getStatusColor, getPlanColor } from "../lib/admin-helpers"
 import { formatDate } from "@/lib/utils"
 
-export function TenantsTab({ tenants, onAddTenant, onViewTenant, onEditTenant, onSettings }: { tenants: Tenant[], onAddTenant: () => void, onViewTenant: (tenant: Tenant) => void, onEditTenant: (tenant: Tenant) => void, onSettings: () => void }) {
+export function TenantsTab({ tenants, onAddTenant, onViewTenant, onEditTenant, onSettings }: { tenants: Tenant[], onAddTenant: () => void, onViewTenant: (_tenant: Tenant) => void, onEditTenant: (_tenant: Tenant) => void, onSettings: () => void }) {
   return (
     <Card>
       <CardHeader>

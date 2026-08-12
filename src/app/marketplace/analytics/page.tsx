@@ -15,8 +15,8 @@ import { EmptyState } from "@/components/shared/empty-state"
 export default function MarketplaceAnalytics() {
   useEffect(() => { document.title = 'Marketplace Analytics | RFP Platform' }, [])
   const [timeRange, setTimeRange] = useState("30d")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedRegion, setSelectedRegion] = useState("all")
+  const [_selectedCategory, _setSelectedCategory] = useState("all")
+  const [_selectedRegion, _setSelectedRegion] = useState("all")
   const [loading, setLoading] = useState(true)
   const [analyticsData, setAnalyticsData] = useState<any>(null)
 
@@ -143,8 +143,8 @@ export default function MarketplaceAnalytics() {
     weaknesses: [],
   })) ?? []
 
-  const marketTrends: any[] = []
-  const clientInsights: any[] = []
+  const _marketTrends: any[] = []
+  const _clientInsights: any[] = []
 
   const getGrowthColor = (growth: number) => {
     return growth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"

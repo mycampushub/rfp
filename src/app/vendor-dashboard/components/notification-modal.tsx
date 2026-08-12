@@ -27,7 +27,7 @@ interface NotificationModalProps {
     }
     frequency: "instant" | "daily" | "weekly"
   }
-  onSettingsChange: (settings: NotificationModalProps['settings']) => void
+  onSettingsChange: (_settings: NotificationModalProps['settings']) => void
   onSave: () => void
 }
 

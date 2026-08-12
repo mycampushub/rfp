@@ -18,9 +18,9 @@ interface QuestionRendererProps {
   signatures: ESignature[]
   dataIntegrations: DataIntegration[]
   fileInputRefs: React.MutableRefObject<Record<string, HTMLInputElement | null>>
-  onAnswerChange: (questionId: string, value: any) => void
-  onSignatureRequest: (questionId: string) => void
-  onDataIntegration: (integrationId: string, questionId?: string) => void
+  onAnswerChange: (_questionId: string, _value: any) => void
+  onSignatureRequest: (_questionId: string) => void
+  onDataIntegration: (_integrationId: string, _questionId?: string) => void
 }
 
 export function QuestionRenderer({ question, answer, validationError, signatures, dataIntegrations, fileInputRefs, onAnswerChange, onSignatureRequest, onDataIntegration }: QuestionRendererProps) {

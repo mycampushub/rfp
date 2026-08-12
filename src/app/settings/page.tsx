@@ -20,7 +20,7 @@ import { ChangePasswordDialog } from "./components/ChangePasswordDialog"
 
 export default function SettingsPage() {
   useEffect(() => { document.title = 'Settings | RFP Platform' }, [])
-  const { data: session } = useSession()
+  const { data: _session } = useSession()
   const [activeTab, setActiveTab] = useState("profile")
   const [isLoading, setIsLoading] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)

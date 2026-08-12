@@ -346,7 +346,7 @@ export function VendorPrequalification({ vendorId, onComplete }: VendorPrequalif
       
       onComplete(responses, totalScore)
       toast.success("Prequalification submitted successfully!")
-    } catch (err) { toast.error("Failed to submit prequalification") } finally {
+    } catch (_err) { toast.error("Failed to submit prequalification") } finally {
       setIsSubmitting(false)
     }
   }

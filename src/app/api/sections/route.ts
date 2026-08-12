@@ -13,7 +13,7 @@ const createSectionSchema = z.object({
   isRequired: z.boolean().default(false),
 })
 
-const updateSectionSchema = z.object({
+const _updateSectionSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   isRequired: z.boolean().optional(),

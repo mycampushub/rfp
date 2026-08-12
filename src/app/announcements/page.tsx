@@ -112,7 +112,7 @@ export default function AnnouncementsPage() {
       setCreateDialogOpen(false)
       resetForm()
       fetchAnnouncements()
-    } catch (err) { toast.error("Failed to create announcement") } finally {
+    } catch (_err) { toast.error("Failed to create announcement") } finally {
       setFormSubmitting(false)
     }
   }
@@ -139,7 +139,7 @@ export default function AnnouncementsPage() {
       setSelectedAnnouncement(null)
       resetForm()
       fetchAnnouncements()
-    } catch (err) { toast.error("Failed to update announcement") } finally {
+    } catch (_err) { toast.error("Failed to update announcement") } finally {
       setFormSubmitting(false)
     }
   }
@@ -587,10 +587,10 @@ export default function AnnouncementsPage() {
 // Announcement Card Component
 function AnnouncementCard({ announcement, getPriorityColor, getCategoryIcon, onView, onEdit }: {
   announcement: Announcement
-  getPriorityColor: (priority: string) => string
-  getCategoryIcon: (category: string) => React.ReactNode
-  onView: (ann: Announcement) => void
-  onEdit: (ann: Announcement) => void
+  getPriorityColor: (_priority: string) => string
+  getCategoryIcon: (_category: string) => React.ReactNode
+  onView: (_ann: Announcement) => void
+  onEdit: (_ann: Announcement) => void
 }) {
   const handleAttachment = (filename?: string) => {
     if (!filename) {
@@ -610,7 +610,7 @@ function AnnouncementCard({ announcement, getPriorityColor, getCategoryIcon, onV
       const text = `${announcement.title}\n${announcement.content.slice(0, 100)}${announcement.content.length > 100 ? "..." : ""}`
       await navigator.clipboard.writeText(text)
       toast.success("Announcement copied to clipboard")
-    } catch (err) { toast.error("Failed to copy to clipboard") }
+    } catch (_err) { toast.error("Failed to copy to clipboard") }
   }
 
   return (

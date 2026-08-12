@@ -24,7 +24,7 @@ import { NotificationModal } from "./components/notification-modal"
 export default function VendorDashboard() {
   useEffect(() => { document.title = 'Vendor Dashboard | RFP Platform' }, [])
   const [vendorProfile, setVendorProfile] = useState<VendorProfile | null>(null)
-  const [vendorUsers, setVendorUsers] = useState<VendorUser[]>([])
+  const [vendorUsers, _setVendorUsers] = useState<VendorUser[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [bids, setBids] = useState<Bid[]>([])
   const [opportunities, setOpportunities] = useState<MarketplaceOpportunity[]>([])

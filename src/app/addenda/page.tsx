@@ -471,7 +471,7 @@ export default function AddendaPage() {
                                   } else {
                                     toast.error('Failed to send reminder')
                                   }
-                                } catch (err) { toast.error('Failed to send reminder') }
+                                } catch (_err) { toast.error('Failed to send reminder') }
                               }}
                               aria-label="Send reminder"
                             >
@@ -581,7 +581,7 @@ export default function AddendaPage() {
                         } else {
                           toast.error('Failed to send reminder')
                         }
-                      } catch (err) { toast.error('Failed to send reminder') }
+                      } catch (_err) { toast.error('Failed to send reminder') }
                     }}>
                       <Bell className="mr-2 h-4 w-4" />
                       Send Reminder

@@ -97,7 +97,7 @@ export default function Marketplace() {
         } else {
           setTopVendors([])
         }
-      } catch (error) {
+      } catch (_error) {
         toast.error("Failed to load marketplace data")
       } finally {
         setLoading(false)

@@ -16,7 +16,7 @@ interface SubmissionNavigationProps {
   onSubmit: () => void
 }
 
-export function SubmissionNavigation({ currentSection, totalSections, isFirstSection, isLastSection, isSubmitting, isSectionValid, onPrev, onNext, onSaveDraft, onSubmit }: SubmissionNavigationProps) {
+export function SubmissionNavigation({ isFirstSection, isLastSection, isSubmitting, isSectionValid, onPrev, onNext, onSaveDraft, onSubmit }: SubmissionNavigationProps) {
   return (
     <div className="flex justify-between items-center mt-8">
       <Button

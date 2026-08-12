@@ -23,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, Edit, CheckCircle, Users, Shield, Key, UserPlus, Filter, Download, Upload, Mail, Phone, Activity, UserCheck, UserX, UserMinus, MoreVertical, Copy, ExternalLink } from "lucide-react"
+import { Search, Edit, CheckCircle, Users, Shield, Key, UserPlus, Download, Upload, Mail, Phone, Activity, UserCheck, UserX, UserMinus, MoreVertical, Copy, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
@@ -133,7 +133,7 @@ export default function UserManagement() {
           timestamp: log.timestamp || '',
           status: 'success' as const,
         })))
-      } catch (err) { toast.error('Failed to load user management data') } finally {
+      } catch (_err) { toast.error('Failed to load user management data') } finally {
         setLoading(false)
       }
     }
@@ -211,7 +211,7 @@ export default function UserManagement() {
         const err = await res.json()
         toast.error(err.error || 'Failed to add user')
       }
-    } catch (err) { toast.error('Failed to add user') }
+    } catch (_err) { toast.error('Failed to add user') }
   }
 
   const handleEditUser = (user: VendorUser) => {
@@ -237,7 +237,7 @@ export default function UserManagement() {
         const err = await res.json()
         toast.error(err.error || 'Failed to update user')
       }
-    } catch (err) { toast.error('Failed to update user') }
+    } catch (_err) { toast.error('Failed to update user') }
   }
 
   const [statusChangeTarget, setStatusChangeTarget] = useState<{ userId: string; newStatus: "active" | "inactive" | "suspended"; userName: string } | null>(null)
@@ -259,7 +259,7 @@ export default function UserManagement() {
         setUsers(prevUsers)
         toast.error('Failed to update user status')
       }
-    } catch (err) { setUsers(prevUsers)
+    } catch (_err) { setUsers(prevUsers)
       toast.error('Failed to update user status') }
     setStatusChangeTarget(null)
   }
@@ -277,7 +277,7 @@ export default function UserManagement() {
         const err = await res.json()
         toast.error(err.error || 'Failed to send invitation')
       }
-    } catch (err) { toast.error('Failed to send invitation') }
+    } catch (_err) { toast.error('Failed to send invitation') }
   }
 
   const handleResetPassword = async (user: VendorUser) => {
@@ -340,10 +340,10 @@ export default function UserManagement() {
             body: JSON.stringify({ name, email, password: 'TempPass123!' }),
           })
           if (res.ok) { results.success++ } else { results.failed++ }
-        } catch (err) { results.failed++ }
+        } catch (_err) { results.failed++ }
       }
       toast.success(`Import complete: ${results.success} succeeded, ${results.failed} failed`)
-    } catch (err) { toast.error('Failed to parse CSV file') }
+    } catch (_err) { toast.error('Failed to parse CSV file') }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 

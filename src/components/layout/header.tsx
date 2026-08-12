@@ -3,7 +3,7 @@
 import { Bell, Search, Moon, Sun } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect, useCallback, useRef } from "react"
-import { toast } from "sonner"
+import { toast as _toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -49,7 +49,7 @@ export function Header({ title }: HeaderProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, _setSearchQuery] = useState("")
   const [searchOpen, setSearchOpen] = useState(false)
   const [dialogQuery, setDialogQuery] = useState("")
   const dialogInputRef = useRef<HTMLInputElement>(null)
@@ -78,7 +78,7 @@ export function Header({ title }: HeaderProps) {
     fetchNotifications()
   }, [fetchNotifications])
 
-  const handleSearch = (e: React.FormEvent) => {
+  const _handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
       router.push(`/dashboard?search=${encodeURIComponent(searchQuery.trim())}`)

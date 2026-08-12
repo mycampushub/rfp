@@ -62,7 +62,7 @@ export default function MyActivity() {
         const totalBids = bids.length
         const acceptedBids = bids.filter((b: any) => b.status === "accepted").length
         const pendingBids = bids.filter((b: any) => b.status === "submitted" || b.status === "pending").length
-        const unreadNotifs = notifs.filter((n: any) => !n.isRead).length
+        const _unreadNotifs = notifs.filter((n: any) => !n.isRead).length
         setStats({
           totalBids,
           acceptedBids,
@@ -115,7 +115,7 @@ export default function MyActivity() {
     return icons[type] || FileText
   }
 
-  const getCategoryColor = (category: string) => {
+  const _getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
       "IT Services": "bg-sky-500/15 text-sky-700 dark:text-sky-400",
       "Marketing": "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",

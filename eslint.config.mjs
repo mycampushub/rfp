@@ -15,7 +15,7 @@ const eslintConfig = [
     rules: {
       // TypeScript rules - keep important ones ON
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/prefer-as-const": "off",
@@ -32,7 +32,7 @@ const eslintConfig = [
       
       // JS quality rules - re-enable critical ones
       "prefer-const": "warn",
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "no-debugger": "error",
       "no-empty": "warn",

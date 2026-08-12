@@ -17,7 +17,7 @@ interface UserThreadSettings {
   isArchived?: boolean
 }
 
-function getUserSettings(threadSettings: unknown, userId: string): UserThreadSettings {
+function _getUserSettings(threadSettings: unknown, userId: string): UserThreadSettings {
   const settings = (threadSettings as Record<string, UserThreadSettings>) || {}
   return settings[userId] || {}
 }

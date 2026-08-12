@@ -17,7 +17,7 @@ import type { EvaluationDetail, ConsensusScore } from "./types"
 interface ConsensusTabProps {
   evaluation: EvaluationDetail
   consensusData: ConsensusScore[]
-  getConfidenceColor: (confidence: number) => string
+  getConfidenceColor: (_confidence: number) => string
 }
 
 export function ConsensusTab({ evaluation, consensusData, getConfidenceColor }: ConsensusTabProps) {

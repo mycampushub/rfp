@@ -47,7 +47,7 @@ function SignInContent() {
         toast.success("Signed in successfully")
         router.push("/dashboard")
       }
-    } catch (error) {
+    } catch (_error) {
       setError("An error occurred. Please try again.")
     } finally {
       setLoading(false)

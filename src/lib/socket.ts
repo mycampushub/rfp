@@ -52,7 +52,7 @@ export const setupSocket = (io: Server) => {
       }
 
       next();
-    } catch (err) {
+    } catch (_err) {
       next(new Error('Authentication error'));
     }
   });

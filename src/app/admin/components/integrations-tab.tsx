@@ -9,7 +9,7 @@ import type { Integration } from "../types"
 import { getIntegrationStatusColor } from "../lib/admin-helpers"
 import { formatDate } from "@/lib/utils"
 
-export function IntegrationsTab({ integrations, onAddIntegration, onEditIntegration }: { integrations: Integration[], onAddIntegration: () => void, onEditIntegration: (integration: Integration) => void }) {
+export function IntegrationsTab({ integrations, onAddIntegration, onEditIntegration }: { integrations: Integration[], onAddIntegration: () => void, onEditIntegration: (_integration: Integration) => void }) {
   return (
     <Card>
       <CardHeader>

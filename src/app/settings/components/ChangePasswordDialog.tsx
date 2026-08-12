@@ -15,7 +15,7 @@ interface ChangePasswordDialogProps {
     confirmPassword: string
   }
   passwordSubmitting: boolean
-  onOpenChange: (open: boolean) => void
+  onOpenChange: (_open: boolean) => void
   setPasswordForm: React.Dispatch<React.SetStateAction<{
     currentPassword: string
     newPassword: string

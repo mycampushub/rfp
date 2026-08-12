@@ -5,7 +5,7 @@ import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-conte
 import { FileService } from "@/lib/file-service"
 import { z } from "zod"
 
-const createFileSchema = z.object({
+const _createFileSchema = z.object({
   filename: z.string(),
   size: z.number(),
   mime: z.string(),

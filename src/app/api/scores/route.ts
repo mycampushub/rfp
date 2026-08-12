@@ -13,7 +13,7 @@ const createScoreSchema = z.object({
   notes: z.string().optional(),
 })
 
-const updateScoreSchema = z.object({
+const _updateScoreSchema = z.object({
   scoreValue: z.number().optional(),
   notes: z.string().optional(),
 })

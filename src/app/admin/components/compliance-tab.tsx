@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { FileText, CheckCircle, AlertTriangle, Plus, Edit, Eye } from "lucide-react"
+import { FileText, CheckCircle, AlertTriangle, Plus, Eye } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import type { ComplianceFramework, ComplianceControl, ComplianceReport } from "../types"
 import { getStatusColor, getComplianceStatusColor, getReportStatusColor } from "../lib/admin-helpers"
 import { formatDate } from "@/lib/utils"
 
-export function ComplianceTab({ complianceFrameworks, complianceControls, complianceReports, onViewFramework }: { complianceFrameworks: ComplianceFramework[], complianceControls: ComplianceControl[], complianceReports: ComplianceReport[], onViewFramework: (framework: ComplianceFramework) => void }) {
+export function ComplianceTab({ complianceFrameworks, complianceControls, complianceReports, onViewFramework }: { complianceFrameworks: ComplianceFramework[], complianceControls: ComplianceControl[], complianceReports: ComplianceReport[], onViewFramework: (_framework: ComplianceFramework) => void }) {
   const [showAddFramework, setShowAddFramework] = useState(false)
   const [newFramework, setNewFramework] = useState({ name: "", description: "", version: "1.0" })
 

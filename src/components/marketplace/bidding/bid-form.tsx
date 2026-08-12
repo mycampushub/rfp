@@ -16,12 +16,11 @@ interface BidFormProps {
   organization: string
   budget: string
   deadline: string
-  onSubmit: (bidData: any) => void
+  onSubmit: (_bidData: any) => void
   onCancel: () => void
 }
 
 export function BidForm({ 
-  rfpId, 
   rfpTitle, 
   organization, 
   budget, 

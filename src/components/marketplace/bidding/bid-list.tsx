@@ -29,10 +29,10 @@ interface Bid {
 
 interface BidListProps {
   bids: Bid[]
-  onViewBid: (bidId: string) => void
-  onMessageBid: (bidId: string) => void
-  onAcceptBid: (bidId: string) => void
-  onRejectBid: (bidId: string) => void
+  onViewBid: (_bidId: string) => void
+  onMessageBid: (_bidId: string) => void
+  onAcceptBid: (_bidId: string) => void
+  onRejectBid: (_bidId: string) => void
 }
 
 export function BidList({ bids, onViewBid, onMessageBid, onAcceptBid, onRejectBid }: BidListProps) {

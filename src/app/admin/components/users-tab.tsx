@@ -10,7 +10,7 @@ import type { User, Role, Tenant } from "../types"
 import { getStatusColor } from "../lib/admin-helpers"
 import { formatDate } from "@/lib/utils"
 
-export function UsersTab({ users, roles, tenants, onAddUser, onViewUser, onEditUser }: { users: User[], roles: Role[], tenants: Tenant[], onAddUser: () => void, onViewUser: (user: User) => void, onEditUser: (user: User) => void }) {
+export function UsersTab({ users, roles: _roles, tenants: _tenants, onAddUser, onViewUser, onEditUser }: { users: User[], roles: Role[], tenants: Tenant[], onAddUser: () => void, onViewUser: (_user: User) => void, onEditUser: (_user: User) => void }) {
   return (
     <Card>
       <CardHeader>

@@ -18,7 +18,7 @@ export function useCsvExport() {
       document.body.removeChild(link)
       URL.revokeObjectURL(link.href)
       toast.success('Export completed successfully')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to export data')
     } finally {
       setExporting(false)

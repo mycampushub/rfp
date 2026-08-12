@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Eye } from "lucide-react"
 import type { AuditLog } from "../types"
 
-export function AuditTab({ auditLogs, onViewAudit }: { auditLogs: AuditLog[], onViewAudit: (log: AuditLog) => void }) {
+export function AuditTab({ auditLogs, onViewAudit }: { auditLogs: AuditLog[], onViewAudit: (_log: AuditLog) => void }) {
   return (
     <Card>
       <CardHeader>

@@ -15,7 +15,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Shield, AlertCircle, CheckCircle, Clock, XCircle, FileCheck, HelpCircle } from "lucide-react"
+import { AlertCircle, CheckCircle, Clock, XCircle, FileCheck, HelpCircle } from "lucide-react"
 
 interface Vendor {
   id: string

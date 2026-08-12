@@ -12,7 +12,7 @@ import Link from "next/link"
 import type { Invitation } from "../types"
 import { getStatusColor } from "../lib/vendor-helpers"
 
-export function InvitationsTab({ invitations, searchTerm, statusFilter, onSearchChange, onStatusChange }: { invitations: Invitation[], searchTerm: string, statusFilter: string, onSearchChange: (val: string) => void, onStatusChange: (val: string) => void }) {
+export function InvitationsTab({ invitations, searchTerm, statusFilter, onSearchChange, onStatusChange }: { invitations: Invitation[], searchTerm: string, statusFilter: string, onSearchChange: (_val: string) => void, onStatusChange: (_val: string) => void }) {
   const filteredInvitations = invitations.filter(invitation => {
     const matchesSearch = invitation.rfpTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          invitation.organization.toLowerCase().includes(searchTerm.toLowerCase())

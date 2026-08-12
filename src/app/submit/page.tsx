@@ -25,7 +25,7 @@ export default function SubmissionPage() {
   const [loading, setLoading] = useState(true)
   const [signatures, setSignatures] = useState<ESignature[]>([])
   const [dataIntegrations, setDataIntegrations] = useState<DataIntegration[]>([])
-  const [validationErrors, setValidationErrors] = useState<ValidationRule[]>([])
+  const [validationErrors, _setValidationErrors] = useState<ValidationRule[]>([])
   const [showSignatureModal, setShowSignatureModal] = useState(false)
   const [currentSignature, setCurrentSignature] = useState<ESignature | null>(null)
   const [realTimeValidation, setRealTimeValidation] = useState<Record<string, string>>({})
@@ -169,7 +169,7 @@ export default function SubmissionPage() {
     }
   }
 
-  const handleSignatureRequest = async (questionId: string) => {
+  const handleSignatureRequest = async (_questionId: string) => {
     const signature: ESignature = {
       id: `sig_${Date.now()}`,
       name: "",
@@ -402,7 +402,7 @@ export default function SubmissionPage() {
 
       toast.success('Proposal submitted successfully!')
       router.push('/rfps')
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to submit proposal")
     } finally {
       setIsSubmitting(false)

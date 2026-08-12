@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2 } from "lucide-react"
 import type { Role } from "../types"
 
-export function RolesTab({ roles, onAddRole, onEditRole, onDeleteRole }: { roles: Role[], onAddRole: () => void, onEditRole: (role: Role) => void, onDeleteRole: (role: Role) => void }) {
+export function RolesTab({ roles, onAddRole, onEditRole, onDeleteRole }: { roles: Role[], onAddRole: () => void, onEditRole: (_role: Role) => void, onDeleteRole: (_role: Role) => void }) {
   return (
     <Card>
       <CardHeader>

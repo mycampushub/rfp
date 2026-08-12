@@ -6,7 +6,7 @@ import type { Section } from "./types"
 interface SectionNavigationProps {
   sections: Section[]
   currentSection: number
-  setCurrentSection: (index: number) => void
+  setCurrentSection: (_index: number) => void
 }
 
 export function SectionNavigation({ sections, currentSection, setCurrentSection }: SectionNavigationProps) {

@@ -12,11 +12,11 @@ interface MyEvaluationTabProps {
   userScores: Record<string, number>
   userNotes: Record<string, string>
   isSubmitting: boolean
-  onScoreChange: (criterionId: string, score: number) => void
-  onNotesChange: (criterionId: string, notes: string) => void
+  onScoreChange: (_criterionId: string, _score: number) => void
+  onNotesChange: (_criterionId: string, _notes: string) => void
   onSubmit: () => void
   onCancel: () => void
-  calculateWeightedScore: (criterionId: string, score: number) => number
+  calculateWeightedScore: (_criterionId: string, _score: number) => number
 }
 
 export function MyEvaluationTab({ evaluation, userScores, userNotes, isSubmitting, onScoreChange, onNotesChange, onSubmit, onCancel, calculateWeightedScore }: MyEvaluationTabProps) {

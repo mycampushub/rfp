@@ -26,46 +26,46 @@ import { formatDate } from "@/lib/utils"
 interface AdminDialogsProps {
   // User dialogs
   showViewUserDialog: boolean
-  setShowViewUserDialog: (open: boolean) => void
+  setShowViewUserDialog: (_open: boolean) => void
   showCreateUserDialog: boolean
-  setShowCreateUserDialog: (open: boolean) => void
+  setShowCreateUserDialog: (_open: boolean) => void
   showEditUserDialog: boolean
-  setShowEditUserDialog: (open: boolean) => void
+  setShowEditUserDialog: (_open: boolean) => void
   selectedUser: User | null
   // Role dialogs
   showCreateRoleDialog: boolean
-  setShowCreateRoleDialog: (open: boolean) => void
+  setShowCreateRoleDialog: (_open: boolean) => void
   showEditRoleDialog: boolean
-  setShowEditRoleDialog: (open: boolean) => void
+  setShowEditRoleDialog: (_open: boolean) => void
   showDeleteRoleDialog: boolean
-  setShowDeleteRoleDialog: (open: boolean) => void
+  setShowDeleteRoleDialog: (_open: boolean) => void
   selectedRole: Role | null
   // Tenant dialogs
   showCreateTenantDialog: boolean
-  setShowCreateTenantDialog: (open: boolean) => void
+  setShowCreateTenantDialog: (_open: boolean) => void
   showViewTenantDialog: boolean
-  setShowViewTenantDialog: (open: boolean) => void
+  setShowViewTenantDialog: (_open: boolean) => void
   showEditTenantDialog: boolean
-  setShowEditTenantDialog: (open: boolean) => void
+  setShowEditTenantDialog: (_open: boolean) => void
   selectedTenant: Tenant | null
   // Integration dialogs
   showCreateIntegrationDialog: boolean
-  setShowCreateIntegrationDialog: (open: boolean) => void
+  setShowCreateIntegrationDialog: (_open: boolean) => void
   showEditIntegrationDialog: boolean
-  setShowEditIntegrationDialog: (open: boolean) => void
+  setShowEditIntegrationDialog: (_open: boolean) => void
   selectedIntegration: Integration | null
   // Framework/Audit dialogs
   showViewFrameworkDialog: boolean
-  setShowViewFrameworkDialog: (open: boolean) => void
+  setShowViewFrameworkDialog: (_open: boolean) => void
   selectedFramework: ComplianceFramework | null
   showViewAuditDialog: boolean
-  setShowViewAuditDialog: (open: boolean) => void
+  setShowViewAuditDialog: (_open: boolean) => void
   selectedAuditLog: AuditLog | null
   // Form data
   formData: Record<string, string | string[]>
-  setFormData: (data: Record<string, string | string[]>) => void
+  setFormData: (_data: Record<string, string | string[]>) => void
   rolePermissions: string[]
-  setRolePermissions: (perms: string[]) => void
+  setRolePermissions: (_perms: string[]) => void
   // Data for selects
   roles: Role[]
   tenants: Tenant[]

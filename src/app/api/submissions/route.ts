@@ -11,7 +11,7 @@ const createSubmissionSchema = z.object({
   vendorId: z.string(),
 })
 
-const updateSubmissionSchema = z.object({
+const _updateSubmissionSchema = z.object({
   status: z.enum(["draft", "submitted", "reviewed", "awarded", "rejected"]).optional(),
   checksum: z.string().optional(),
 })

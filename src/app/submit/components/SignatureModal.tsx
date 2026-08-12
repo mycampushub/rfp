@@ -9,9 +9,9 @@ import type { ESignature } from "./types"
 
 interface SignatureModalProps {
   currentSignature: ESignature
-  onSignatureChange: (signature: ESignature | null) => void
+  onSignatureChange: (_signature: ESignature | null) => void
   onClose: () => void
-  onSubmit: (signature: ESignature) => void
+  onSubmit: (_signature: ESignature) => void
 }
 
 export function SignatureModal({ currentSignature, onSignatureChange, onClose, onSubmit }: SignatureModalProps) {

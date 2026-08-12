@@ -2,19 +2,19 @@ import { toast } from "sonner"
 import type { Role, Tenant, AuditLog, SystemHealth, Integration } from "../types"
 
 export async function fetchAdminData(setters: {
-  setUsers: (users: never[]) => void
-  setRoles: (roles: Role[]) => void
-  setTenants: (tenants: Tenant[]) => void
-  setAuditLogs: (logs: AuditLog[]) => void
-  setSystemHealth: (health: SystemHealth) => void
-  setIntegrations: (integrations: Integration[]) => void
-  setComplianceFrameworks: (f: never[]) => void
-  setComplianceControls: (c: never[]) => void
-  setComplianceReports: (r: never[]) => void
-  setMarketplaceStats: (s: null) => void
-  setVendorAnalytics: (a: never[]) => void
-  setNotificationTemplates: (t: never[]) => void
-  setLoading: (loading: boolean) => void
+  setUsers: (_users: never[]) => void
+  setRoles: (_roles: Role[]) => void
+  setTenants: (_tenants: Tenant[]) => void
+  setAuditLogs: (_logs: AuditLog[]) => void
+  setSystemHealth: (_health: SystemHealth) => void
+  setIntegrations: (_integrations: Integration[]) => void
+  setComplianceFrameworks: (_f: never[]) => void
+  setComplianceControls: (_c: never[]) => void
+  setComplianceReports: (_r: never[]) => void
+  setMarketplaceStats: (_s: null) => void
+  setVendorAnalytics: (_a: never[]) => void
+  setNotificationTemplates: (_t: never[]) => void
+  setLoading: (_loading: boolean) => void
 }) {
   try {
     const [rolesRes, tenantRes, logsRes, healthRes, integrationsRes] = await Promise.all([
