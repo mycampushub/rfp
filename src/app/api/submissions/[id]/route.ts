@@ -3,26 +3,17 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
 import { createHash } from "crypto"
-
-export const dynamic = "force-dynamic"
 
 const updateSubmissionSchema = z.object({
   status: z.enum(["draft", "submitted", "reviewed", "awarded", "rejected"]).optional(),
   checksum: z.string().optional(),
 })
 
-type SubmissionUpdateData = {
-  status?: string
-  checksum?: string
-  submittedAt?: Date
-}
-
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -30,11 +21,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const submission = await db.submission.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -141,24 +133,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateSubmissionSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("submission:edit")
 
     // Verify submission belongs to tenant
     const existingSubmission = await db.submission.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -169,7 +161,7 @@ export async function PUT(
       return NextResponse.json({ error: "Submission not found" }, { status: 404 })
     }
 
-    const updateData: SubmissionUpdateData = { ...validatedData }
+    const updateData: Record<string, unknown> = { ...validatedData }
 
     // If submitting, set submittedAt and calculate checksum
     if (validatedData.status === "submitted") {
@@ -177,8 +169,9 @@ export async function PUT(
       
       // Calculate checksum based on answers
       const answers = await db.answer.findMany({
-        where: { submissionId: params.id },
+        where: { submissionId: id },
         orderBy: { createdAt: "asc" },
+        take: 200,
       })
 
       const answerData = answers.map(a => ({
@@ -197,7 +190,7 @@ export async function PUT(
     }
 
     const submission = await db.submission.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData,
       include: {
         vendor: {
@@ -230,21 +223,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("submission:delete")
 
     // Verify submission belongs to tenant
     const existingSubmission = await db.submission.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -261,7 +254,7 @@ export async function DELETE(
     }
 
     await db.submission.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({ message: "Submission deleted successfully" })

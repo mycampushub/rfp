@@ -3,10 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const updateSectionSchema = z.object({
   title: z.string().optional(),
@@ -17,7 +14,7 @@ const updateSectionSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -25,11 +22,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const section = await db.section.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -64,24 +62,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateSectionSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("rfp:edit")
 
     // Verify section belongs to tenant
     const existingSection = await db.section.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -93,7 +91,7 @@ export async function PUT(
     }
 
     const section = await db.section.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
       include: {
         questions: {
@@ -117,21 +115,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("rfp:edit")
 
     // Verify section belongs to tenant
     const existingSection = await db.section.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -143,7 +141,7 @@ export async function DELETE(
     }
 
     await db.section.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({ message: "Section deleted successfully" })

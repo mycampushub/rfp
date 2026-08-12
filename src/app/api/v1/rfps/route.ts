@@ -1,13 +1,23 @@
+/**
+ * Versioned RFPs API (v1)
+ *
+ * This is the versioned API under /api/v1/rfps.
+ * The base routes at /api/rfps are considered legacy and will be deprecated in a future release.
+ *
+ * Key differences from the base /api/rfps routes:
+ *   - GET returns paginated results (page/limit query params) wrapped in { data, pagination }
+ *     instead of a flat array.
+ *   - POST creates the RFP and its timeline in a single request.
+ *   - All mutations log activity to the audit trail.
+ *
+ * Consumers should migrate to these v1 endpoints for new integrations.
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { PERMISSIONS } from "@/types/auth"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const createRFPSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -36,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 100)
+    const limit = parseInt(searchParams.get("limit") || "10")
     const status = searchParams.get("status")
     const category = searchParams.get("category")
     const search = searchParams.get("search")
@@ -47,7 +57,10 @@ export async function GET(request: NextRequest) {
     if (status) (where as Record<string, unknown>).status = status
     if (category) (where as Record<string, unknown>).category = category
     if (search) {
-      (where as Record<string, unknown>).title = { contains: search }
+      (where as Record<string, unknown>).OR = [
+        { title: { contains: search } },
+        { description: { contains: search } },
+      ]
     }
 
     const [rfps, total] = await Promise.all([
@@ -83,7 +96,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const ctx = getTenantContext(session)
-    await requirePermission("rfp:create")
 
     const body = await request.json()
     const validatedData = createRFPSchema.parse(body)
@@ -95,6 +107,7 @@ export async function POST(request: NextRequest) {
         category: validatedData.category,
         budget: validatedData.budget,
         confidentiality: validatedData.confidentiality,
+        description: validatedData.description,
         settings: validatedData.settings,
         timeline: validatedData.timeline ? {
           create: {
@@ -129,7 +142,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
-    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error creating RFP:", error)
     return NextResponse.json({ error: "Failed to create RFP" }, { status: 500 })
   }

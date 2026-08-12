@@ -3,10 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const updateScoreSchema = z.object({
   scoreValue: z.number(),
@@ -15,7 +12,7 @@ const updateScoreSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -23,11 +20,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const score = await db.score.findFirst({
       where: {
-        id: params.id,
+        id: id,
         submission: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -87,24 +85,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateScoreSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("evaluation:manage")
 
     // Verify score belongs to tenant and user is the evaluator
     const existingScore = await db.score.findFirst({
       where: {
-        id: params.id,
+        id: id,
         submission: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -138,54 +136,50 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    const score = await db.$transaction(async (tx) => {
-      const updated = await tx.score.update({
-        where: { id: params.id },
-        data: validatedData,
-        include: {
-          submission: {
-            include: {
-              vendor: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-              rfp: {
-                select: {
-                  id: true,
-                  title: true,
-                  status: true,
-                },
+    const score = await db.score.update({
+      where: { id: id },
+      data: validatedData,
+      include: {
+        submission: {
+          include: {
+            vendor: {
+              select: {
+                id: true,
+                name: true,
               },
             },
-          },
-          criterion: {
-            select: {
-              id: true,
-              label: true,
-              weight: true,
-              scaleMin: true,
-              scaleMax: true,
-              guidance: true,
-            },
-          },
-          evaluator: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+            rfp: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+              },
             },
           },
         },
-      })
-
-      // Recalculate consensus
-      const { calculateConsensus } = await import("../route")
-      await calculateConsensus(tx, existingScore.submissionId, existingScore.criterionId)
-
-      return updated
+        criterion: {
+          select: {
+            id: true,
+            label: true,
+            weight: true,
+            scaleMin: true,
+            scaleMax: true,
+            guidance: true,
+          },
+        },
+        evaluator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     })
+
+    // Recalculate consensus
+    const { calculateConsensus } = await import("../route")
+    await calculateConsensus(existingScore.submissionId, existingScore.criterionId)
 
     return NextResponse.json(score)
   } catch (error) {
@@ -201,21 +195,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("evaluation:manage")
 
     // Verify score belongs to tenant and user is the evaluator
     const existingScore = await db.score.findFirst({
       where: {
-        id: params.id,
+        id: id,
         submission: {
           rfp: {
             tenantId: tenantContext.tenantId,
@@ -229,15 +223,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Score not found or access denied" }, { status: 404 })
     }
 
-    await db.$transaction(async (tx) => {
-      await tx.score.delete({
-        where: { id: params.id },
-      })
-
-      // Recalculate consensus
-      const { calculateConsensus } = await import("../route")
-      await calculateConsensus(tx, existingScore.submissionId, existingScore.criterionId)
+    await db.score.delete({
+      where: { id: id },
     })
+
+    // Recalculate consensus
+    const { calculateConsensus } = await import("../route")
+    await calculateConsensus(existingScore.submissionId, existingScore.criterionId)
 
     return NextResponse.json({ message: "Score deleted successfully" })
   } catch (error) {

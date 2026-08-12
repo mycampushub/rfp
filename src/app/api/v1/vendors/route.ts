@@ -1,13 +1,24 @@
+/**
+ * Versioned Vendors API (v1)
+ *
+ * This is the versioned API under /api/v1/vendors.
+ * The base routes at /api/vendors are considered legacy and will be deprecated in a future release.
+ *
+ * Key differences from the base /api/vendors routes:
+ *   - GET returns paginated results (page/limit query params) wrapped in { data, pagination }
+ *     instead of a flat array.
+ *   - GET supports search, category filtering, and isActive query param.
+ *   - POST accepts structured contactInfo, categories, certifications, and diversityAttrs.
+ *   - All mutations log activity to the audit trail.
+ *
+ * Consumers should migrate to these v1 endpoints for new integrations.
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { PERMISSIONS } from "@/types/auth"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const createVendorSchema = z.object({
   name: z.string().min(1, "Vendor name is required"),
@@ -39,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
-    const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 100)
+    const limit = parseInt(searchParams.get("limit") || "10")
     const category = searchParams.get("category")
     const search = searchParams.get("search")
     const isActive = searchParams.get("isActive")
@@ -92,7 +103,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const ctx = getTenantContext(session)
-    await requirePermission("vendor:create")
 
     const body = await request.json()
     const validatedData = createVendorSchema.parse(body)
@@ -128,7 +138,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
-    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error creating vendor:", error)
     return NextResponse.json({ error: "Failed to create vendor" }, { status: 500 })
   }

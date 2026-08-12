@@ -1,248 +1,120 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
-import { getTenantContextAsync } from "@/lib/tenant-context"
-import { db } from "@/lib/db"
-import { AnalyticsContent, type AnalyticsData } from "./analytics-content"
-import { format, differenceInDays } from "date-fns"
+import { EmptyState } from "@/components/shared/empty-state"
+import { LoadingCards } from "@/components/shared/loading-table"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell
+} from "recharts"
+import { TrendingUp, DollarSign, Clock, FileText, Target, Award, Percent, AlertTriangle, BarChart3 } from "lucide-react"
 
-export const dynamic = "force-dynamic"
-
-export default async function AnalyticsPage() {
-  let tenantId: string
-  try {
-    const ctx = await getTenantContextAsync()
-    tenantId = ctx.tenantId
-  } catch {
-    return null
+interface AnalyticsData {
+  rfpMetrics: {
+    total: number
+    published: number
+    inEvaluation: number
+    awarded: number
+    avgCycleTime: number
   }
-
-  // --- RFP metrics ---
-  const [totalRfps, publishedCount, evalCount, awardedCount, allRfps, allVendors] =
-    await Promise.all([
-      db.rFP.count({ where: { tenantId } }),
-      db.rFP.count({ where: { tenantId, status: "published" } }),
-      db.rFP.count({ where: { tenantId, status: "evaluation" } }),
-      db.rFP.count({ where: { tenantId, status: "awarded" } }),
-      db.rFP.findMany({
-        where: { tenantId },
-        select: {
-          id: true, status: true, category: true, budget: true,
-          createdAt: true, publishAt: true, closeAt: true, updatedAt: true,
-        },
-      }),
-      db.vendor.findMany({
-        where: { tenantId },
-        select: { id: true, name: true, isActive: true },
-      }),
-    ])
-
-  // --- Financial metrics ---
-  const budgetResult = await db.rFP.aggregate({
-    where: { tenantId },
-    _sum: { budget: true },
-  })
-  const awardedBudgetResult = await db.rFP.aggregate({
-    where: { tenantId, status: "awarded" },
-    _sum: { budget: true },
-  })
-  const totalBudget = budgetResult._sum.budget ?? 0
-  const totalAwarded = awardedBudgetResult._sum.budget ?? 0
-  const savings = totalBudget - totalAwarded
-
-  // --- Timeline metrics ---
-  const publishedRfps = allRfps.filter(
-    (r) => r.status === "published" && r.publishAt && r.createdAt
-  )
-  const awardedRfps = allRfps.filter(
-    (r) => r.status === "awarded" && r.publishAt && r.createdAt
-  )
-  const evalRfps = allRfps.filter(
-    (r) => r.status === "evaluation" && r.createdAt
-  )
-
-  const avgCreationToPublish =
-    publishedRfps.length > 0
-      ? Math.round(
-          publishedRfps.reduce(
-            (sum, r) => sum + differenceInDays(new Date(r.publishAt!), new Date(r.createdAt)),
-            0
-          ) / publishedRfps.length
-        )
-      : 0
-
-  const avgPublishToAward =
-    awardedRfps.length > 0
-      ? Math.round(
-          awardedRfps.reduce(
-            (sum, r) => sum + differenceInDays(new Date(r.updatedAt), new Date(r.createdAt)),
-            0
-          ) / awardedRfps.length
-        )
-      : 0
-
-  const avgEvaluationTime =
-    evalRfps.length > 0
-      ? Math.round(
-          evalRfps.reduce(
-            (sum, r) => sum + differenceInDays(new Date(r.updatedAt), new Date(r.createdAt)),
-            0
-          ) / evalRfps.length
-        )
-      : 0
-
-  const avgCycleTime =
-    awardedRfps.length > 0
-      ? Math.round(
-          awardedRfps.reduce(
-            (sum, r) => sum + differenceInDays(new Date(r.updatedAt), new Date(r.createdAt)),
-            0
-          ) / awardedRfps.length
-        )
-      : 0
-
-  // --- Monthly data ---
-  const monthMap = new Map<string, { rfps: number; awards: number; budget: number }>()
-  for (const rfp of allRfps) {
-    const month = format(new Date(rfp.createdAt), "MMM yyyy")
-    const entry = monthMap.get(month) ?? { rfps: 0, awards: 0, budget: 0 }
-    entry.rfps++
-    if (rfp.status === "awarded") entry.awards++
-    entry.budget += rfp.budget ?? 0
-    monthMap.set(month, entry)
+  vendorMetrics: {
+    total: number
+    active: number
+    avgResponseRate: number
+    topPerformers: Array<{
+      name: string
+      winRate: number
+      avgScore: number
+    }>
   }
-  // Sort by date (parse back to sort)
-  const monthlyData = Array.from(monthMap.entries())
-    .sort(([a], [b]) => {
-      const dateA = new Date(a + " 1")
-      const dateB = new Date(b + " 1")
-      return dateA.getTime() - dateB.getTime()
-    })
-    .slice(-12) // Last 12 months
-    .map(([month, data]) => ({ month, ...data }))
-
-  // --- Category data ---
-  const categoryMap = new Map<string, { count: number; value: number }>()
-  for (const rfp of allRfps) {
-    if (!rfp.category) continue
-    const entry = categoryMap.get(rfp.category) ?? { count: 0, value: 0 }
-    entry.count++
-    entry.value += rfp.budget ?? 0
-    categoryMap.set(rfp.category, entry)
+  financialMetrics: {
+    totalBudget: number
+    totalAwarded: number
+    budgetRemaining: number
+    avgAwardValue: number
   }
-  const categoryData = Array.from(categoryMap.entries()).map(
-    ([category, data]) => ({ category, ...data })
-  )
+  timelineMetrics: {
+    avgCreationToPublish: number
+    avgPublishToAward: number
+    avgEvaluationTime: number
+  }
+  monthlyData: Array<{
+    month: string
+    rfps: number
+    awards: number
+    budget: number
+  }>
+  categoryData: Array<{
+    category: string
+    count: number
+    value: number
+  }>
+}
 
-  // --- Vendor metrics ---
-  const activeVendors = allVendors.filter((v) => v.isActive).length
-  const vendorIds = allVendors.map((v) => v.id)
+export default function AnalyticsPage() {
+  useEffect(() => { document.title = 'Analytics | RFP Platform' }, [])
+  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
-  // Get submission counts per vendor
-  const submissionCounts = vendorIds.length > 0
-    ? await db.submission.groupBy({
-        by: ["vendorId"],
-        where: { vendorId: { in: vendorIds } },
-        _count: { id: true },
-      })
-    : []
-
-  // Get awarded submission counts per vendor
-  const awardedSubmissions = vendorIds.length > 0
-    ? await db.submission.groupBy({
-        by: ["vendorId"],
-        where: { vendorId: { in: vendorIds }, status: "awarded" },
-        _count: { id: true },
-      })
-    : []
-
-  // Get avg scores per vendor (for vendors that have scores)
-  const scoreAggregates = await db.score.groupBy({
-    by: ["submissionId"],
-    _avg: { scoreValue: true },
-  })
-
-  // Map submission ID to vendor ID
-  const submissionVendorMap: Record<string, string> = {}
-  if (scoreAggregates.length > 0 && vendorIds.length > 0) {
-    const submissions = await db.submission.findMany({
-      where: { id: { in: scoreAggregates.map((s) => s.submissionId) } },
-      select: { id: true, vendorId: true },
-    })
-    for (const sub of submissions) {
-      submissionVendorMap[sub.id] = sub.vendorId
+  const retryFetch = async () => {
+    setFetchError(null)
+    setLoading(true)
+    try {
+      const response = await fetch('/api/analytics?type=full')
+      if (!response.ok) throw new Error('Failed to fetch analytics')
+      const data = await response.json()
+      setData(data)
+    } catch (error) {
+      console.error('Error fetching analytics data:', error)
+      setFetchError('Failed to load analytics data. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Compute avg score per vendor
-  const vendorScores: Record<string, number[]> = {}
-  for (const sa of scoreAggregates) {
-    const vid = submissionVendorMap[sa.submissionId]
-    if (vid && vendorIds.includes(vid)) {
-      if (!vendorScores[vid]) vendorScores[vid] = []
-      vendorScores[vid].push(sa._avg.scoreValue ?? 0)
-    }
+  useEffect(() => {
+    retryFetch()
+  }, [])
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
+
+  if (loading) {
+    return (
+      <MainLayout title="Analytics & Reporting">
+        <LoadingCards count={4} />
+      </MainLayout>
+    )
   }
 
-  // Build top performers
-  const subCountMap = Object.fromEntries(
-    submissionCounts.map((s) => [s.vendorId, s._count.id])
-  )
-  const awardedCountMap = Object.fromEntries(
-    awardedSubmissions.map((s) => [s.vendorId, s._count.id])
-  )
-
-  const topPerformers = allVendors
-    .filter((v) => (subCountMap[v.id] ?? 0) > 0)
-    .sort((a, b) => (subCountMap[b.id] ?? 0) - (subCountMap[a.id] ?? 0))
-    .slice(0, 5)
-    .map((v) => {
-      const total = subCountMap[v.id] ?? 0
-      const awarded = awardedCountMap[v.id] ?? 0
-      const scores = vendorScores[v.id] ?? []
-      const avgScore =
-        scores.length > 0
-          ? scores.reduce((a, b) => a + b, 0) / scores.length
-          : 0
-      return {
-        name: v.name,
-        winRate: total > 0 ? Math.round((awarded / total) * 100) : 0,
-        avgScore: Math.round(avgScore * 10) / 10,
-      }
-    })
-
-  const totalSubs = submissionCounts.reduce((sum, s) => sum + s._count.id, 0)
-  const totalRfpsWithSubs = new Set(allRfps.filter((r) => r.status !== "draft").map((r) => r.id)).size
-  const avgResponseRate =
-    totalRfpsWithSubs > 0
-      ? Math.round((totalSubs / totalRfpsWithSubs) * 100)
-      : 0
-
-  const data: AnalyticsData = {
-    rfpMetrics: {
-      total: totalRfps,
-      published: publishedCount,
-      inEvaluation: evalCount,
-      awarded: awardedCount,
-      avgCycleTime,
-    },
-    vendorMetrics: {
-      total: allVendors.length,
-      active: activeVendors,
-      avgResponseRate,
-      topPerformers,
-    },
-    financialMetrics: {
-      totalBudget,
-      totalAwarded,
-      savings,
-      avgAwardValue: awardedCount > 0 ? totalAwarded / awardedCount : 0,
-    },
-    timelineMetrics: {
-      avgCreationToPublish,
-      avgPublishToAward,
-      avgEvaluationTime,
-    },
-    monthlyData,
-    categoryData,
+  if (!data) {
+    return (
+      <MainLayout title="Analytics & Reporting">
+        {fetchError ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-4">
+            <AlertTriangle className="h-12 w-12 text-destructive" />
+            <h2 className="text-lg font-semibold">Error Loading Analytics</h2>
+            <p className="text-muted-foreground">{fetchError}</p>
+            <Button onClick={retryFetch} variant="outline">Try Again</Button>
+          </div>
+        ) : (
+          <EmptyState icon={BarChart3} title="No analytics data" description="Analytics will populate as you create and manage RFPs." />
+        )}
+      </MainLayout>
+    )
   }
 
   return (
@@ -255,7 +127,259 @@ export default async function AnalyticsPage() {
             Comprehensive insights into your RFP performance and procurement metrics
           </p>
         </div>
-        <AnalyticsContent data={data} />
+
+        {/* Key Metrics */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total RFPs</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data.rfpMetrics.total}</div>
+              <p className="text-xs text-muted-foreground">
+                {data.rfpMetrics.published} published
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Award Rate</CardTitle>
+              <Percent className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {Math.round((data.rfpMetrics.awarded / (data.rfpMetrics.total || 1)) * 100)}%
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {data.rfpMetrics.awarded} awarded
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Budget Remaining</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${(data.financialMetrics.budgetRemaining / 1000000).toFixed(1)}M
+              </div>
+              <p className="text-xs text-muted-foreground">
+                unallocated from total budget
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Cycle Time</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data.rfpMetrics.avgCycleTime} days</div>
+              <p className="text-xs text-muted-foreground">
+                from creation to award
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row 1 */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Monthly Trends */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Trends</CardTitle>
+              <CardDescription>RFPs and awards over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data.monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="rfps" stroke="#8884d8" strokeWidth={2} name="RFPs" />
+                  <Line type="monotone" dataKey="awards" stroke="#82ca9d" strokeWidth={2} name="Awards" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Category Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle>RFPs by Category</CardTitle>
+              <CardDescription>Distribution across procurement categories</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={data.categoryData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ category, count }) => `${category}: ${count}`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="count"
+                  >
+                    {data.categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row 2 */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Budget vs Awarded */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Budget vs Awarded</CardTitle>
+              <CardDescription>Monthly budget allocation and actual awards</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data.monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, "Amount"]} />
+                  <Bar dataKey="budget" fill="#8884d8" name="Budget" />
+                  <Bar dataKey="awards" fill="#82ca9d" name="Awarded" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Timeline Metrics */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Process Timelines</CardTitle>
+              <CardDescription>Average time for each process stage</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                    <span className="text-sm">Creation to Publish</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium">{data.timelineMetrics.avgCreationToPublish} days</span>
+                    {data.timelineMetrics.avgCreationToPublish > 10 && (
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-sm">Evaluation Time</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium">{data.timelineMetrics.avgEvaluationTime} days</span>
+                    {data.timelineMetrics.avgEvaluationTime < 15 && (
+                      <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Award className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    <span className="text-sm">Publish to Award</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium">{data.timelineMetrics.avgPublishToAward} days</span>
+                    {data.timelineMetrics.avgPublishToAward < 30 && (
+                      <TrendingUp className="h-4 w-4 text-emerald-500" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Vendor Performance */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Performing Vendors</CardTitle>
+            <CardDescription>Vendor success rates and average scores</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {data.vendorMetrics.topPerformers.map((vendor, index) => (
+                <div key={vendor.name} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-sky-500/15 dark:bg-sky-500/25 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-bold text-sky-700 dark:text-sky-300">{index + 1}</span>
+                    </div>
+                    <div>
+                      <div className="font-medium">{vendor.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Win Rate: {vendor.winRate}%
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">{vendor.avgScore}/5.0</div>
+                    <div className="text-sm text-muted-foreground">Avg Score</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Financial Summary */}
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Total Budget</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                ${(data.financialMetrics.totalBudget / 1000000).toFixed(1)}M
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Across all RFPs
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Total Awarded</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                ${(data.financialMetrics.totalAwarded / 1000000).toFixed(1)}M
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Final contract values
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Budget Remaining</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                ${(data.financialMetrics.budgetRemaining / 1000000).toFixed(1)}M
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {Math.round((data.financialMetrics.budgetRemaining / (data.financialMetrics.totalBudget || 1)) * 100)}% of total budget unallocated
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </MainLayout>
   )

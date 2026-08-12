@@ -3,13 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-import { PrismaClient } from "@prisma/client"
-
-export const dynamic = "force-dynamic"
-
-type TransactionClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
 
 const createScoreSchema = z.object({
   submissionId: z.string(),
@@ -55,48 +49,60 @@ export async function GET(request: NextRequest) {
       whereClause.evaluatorId = evaluatorId
     }
 
-    const scores = await db.score.findMany({
-      where: whereClause,
-      include: {
-        submission: {
-          include: {
-            vendor: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            rfp: {
-              select: {
-                id: true,
-                title: true,
-                status: true,
-              },
-            },
-          },
-        },
-        criterion: {
-          select: {
-            id: true,
-            label: true,
-            weight: true,
-            scaleMin: true,
-            scaleMax: true,
-            guidance: true,
-          },
-        },
-        evaluator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    })
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(scores)
+    const [scores, total] = await Promise.all([
+      db.score.findMany({
+        where: whereClause,
+        include: {
+          submission: {
+            include: {
+              vendor: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              rfp: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                },
+              },
+            },
+          },
+          criterion: {
+            select: {
+              id: true,
+              label: true,
+              weight: true,
+              scaleMin: true,
+              scaleMax: true,
+              guidance: true,
+            },
+          },
+          evaluator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      db.score.count({ where: whereClause }),
+    ])
+
+    return NextResponse.json({
+      data: scores,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -116,154 +122,140 @@ export async function POST(request: NextRequest) {
     const validatedData = createScoreSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("evaluation:manage")
-
-    // Verify submission belongs to tenant
-    const submission = await db.submission.findFirst({
-      where: {
-        id: validatedData.submissionId,
-        rfp: {
-          tenantId: tenantContext.tenantId,
-        },
-      },
-    })
-
-    if (!submission) {
-      return NextResponse.json({ error: "Submission not found" }, { status: 404 })
-    }
-
-    // Verify criterion belongs to tenant
-    const criterion = await db.rubricCriterion.findFirst({
-      where: {
-        id: validatedData.criterionId,
-        OR: [
-          { rfp: { tenantId: tenantContext.tenantId } },
-          { section: { rfp: { tenantId: tenantContext.tenantId } } },
-        ],
-      },
-    })
-
-    if (!criterion) {
-      return NextResponse.json({ error: "Criterion not found" }, { status: 404 })
-    }
-
-    // Verify evaluator belongs to tenant
-    const evaluator = await db.user.findFirst({
-      where: {
-        id: tenantContext.userId,
-        tenantId: tenantContext.tenantId,
-        isActive: true,
-      },
-    })
-
-    if (!evaluator) {
-      return NextResponse.json({ error: "Evaluator not found" }, { status: 404 })
-    }
-
-    // Validate score is within range
-    if (validatedData.scoreValue < criterion.scaleMin || validatedData.scoreValue > criterion.scaleMax) {
-      return NextResponse.json({ 
-        error: "Score out of range", 
-        details: { 
-          min: criterion.scaleMin, 
-          max: criterion.scaleMax,
-          provided: validatedData.scoreValue 
-        } 
-      }, { status: 400 })
-    }
-
-    // Check if score already exists for this evaluator and criterion
-    const existingScore = await db.score.findFirst({
-      where: {
-        submissionId: validatedData.submissionId,
-        criterionId: validatedData.criterionId,
-        evaluatorId: tenantContext.userId,
-      },
-    })
-
-    const scoreInclude = {
-      submission: {
-        include: {
-          vendor: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          rfp: {
-            select: {
-              id: true,
-              title: true,
-              status: true,
-            },
-          },
-        },
-      },
-      criterion: {
-        select: {
-          id: true,
-          label: true,
-          weight: true,
-          scaleMin: true,
-          scaleMax: true,
-          guidance: true,
-        },
-      },
-      evaluator: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    } as const
 
     const score = await db.$transaction(async (tx) => {
+      // Verify submission belongs to tenant
+      const submission = await tx.submission.findFirst({
+        where: {
+          id: validatedData.submissionId,
+          rfp: {
+            tenantId: tenantContext.tenantId,
+          },
+        },
+      })
+
+      if (!submission) {
+        throw new Error('SUBMISSION_NOT_FOUND')
+      }
+
+      // Verify criterion belongs to tenant
+      const criterion = await tx.rubricCriterion.findFirst({
+        where: {
+          id: validatedData.criterionId,
+          OR: [
+            { rfp: { tenantId: tenantContext.tenantId } },
+            { section: { rfp: { tenantId: tenantContext.tenantId } } },
+          ],
+        },
+      })
+
+      if (!criterion) {
+        throw new Error('CRITERION_NOT_FOUND')
+      }
+
+      // Verify evaluator belongs to tenant
+      const evaluator = await tx.user.findFirst({
+        where: {
+          id: tenantContext.userId,
+          tenantId: tenantContext.tenantId,
+          isActive: true,
+        },
+      })
+
+      if (!evaluator) {
+        throw new Error('EVALUATOR_NOT_FOUND')
+      }
+
+      // Validate score is within range
+      if (validatedData.scoreValue < criterion.scaleMin || validatedData.scoreValue > criterion.scaleMax) {
+        throw new Error('SCORE_OUT_OF_RANGE')
+      }
+
+      // Check if score already exists for this evaluator and criterion
+      const existingScore = await tx.score.findFirst({
+        where: {
+          submissionId: validatedData.submissionId,
+          criterionId: validatedData.criterionId,
+          evaluatorId: tenantContext.userId,
+        },
+      })
+
       let result
       if (existingScore) {
-        // Update existing score
         result = await tx.score.update({
           where: { id: existingScore.id },
           data: {
             scoreValue: validatedData.scoreValue,
             notes: validatedData.notes,
           },
-          include: scoreInclude,
         })
       } else {
-        // Create new score
         result = await tx.score.create({
           data: {
             ...validatedData,
             evaluatorId: tenantContext.userId,
           },
-          include: scoreInclude,
         })
       }
 
-      // Check if all evaluators have scored this submission for all criteria
-      // and calculate consensus if needed
+      // Calculate consensus within the same transaction
       await calculateConsensus(tx, validatedData.submissionId, validatedData.criterionId)
 
       return result
     })
 
-    return NextResponse.json(score, { status: 201 })
+    // Fetch full score with includes after commit
+    const fullScore = await db.score.findUniqueOrThrow({
+      where: { id: score.id },
+      include: {
+        submission: {
+          include: {
+            vendor: { select: { id: true, name: true } },
+            rfp: { select: { id: true, title: true, status: true } },
+          },
+        },
+        criterion: {
+          select: { id: true, label: true, weight: true, scaleMin: true, scaleMax: true, guidance: true },
+        },
+        evaluator: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    })
+
+    return NextResponse.json(fullScore, { status: 201 })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Validation Error", details: error.issues }, { status: 400 })
     }
+    if (error instanceof Error) {
+      switch (error.message) {
+        case 'SUBMISSION_NOT_FOUND':
+          return NextResponse.json({ error: "Submission not found" }, { status: 404 })
+        case 'CRITERION_NOT_FOUND':
+          return NextResponse.json({ error: "Criterion not found" }, { status: 404 })
+        case 'EVALUATOR_NOT_FOUND':
+          return NextResponse.json({ error: "Evaluator not found" }, { status: 404 })
+        case 'SCORE_OUT_OF_RANGE':
+          return NextResponse.json({ error: "Score out of range" }, { status: 400 })
+      }
+    }
     console.error("Error creating/updating score:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
 
-export async function calculateConsensus(tx: TransactionClient | null, submissionId: string, criterionId: string) {
-  const client = tx ?? db
+type TransactionClient = typeof db
+
+async function calculateConsensus(
+  tx: TransactionClient,
+  submissionId: string,
+  criterionId: string,
+) {
   // Get all scores for this submission and criterion
-  const scores = await client.score.findMany({
+  const scores = await tx.score.findMany({
     where: {
       submissionId,
       criterionId,
@@ -271,6 +263,7 @@ export async function calculateConsensus(tx: TransactionClient | null, submissio
     include: {
       evaluator: true,
     },
+    take: 500,
   })
 
   if (scores.length < 2) {
@@ -285,7 +278,7 @@ export async function calculateConsensus(tx: TransactionClient | null, submissio
   const minScore = Math.min(...scores.map(s => s.scoreValue))
   const consensusThreshold = 1.0
 
-  const consensusScore = averageScore
+  let consensusScore = averageScore
   let consensusNotes = `Consensus score based on ${scores.length} evaluators. Average: ${averageScore.toFixed(2)}`
 
   if (maxScore - minScore > consensusThreshold) {
@@ -293,7 +286,7 @@ export async function calculateConsensus(tx: TransactionClient | null, submissio
   }
 
   // Update or create consensus score
-  const existingConsensus = await client.consensusScore.findFirst({
+  const existingConsensus = await tx.consensusScore.findFirst({
     where: {
       submissionId,
       criterionId,
@@ -301,7 +294,7 @@ export async function calculateConsensus(tx: TransactionClient | null, submissio
   })
 
   if (existingConsensus) {
-    await client.consensusScore.update({
+    await tx.consensusScore.update({
       where: { id: existingConsensus.id },
       data: {
         scoreValue: consensusScore,
@@ -309,7 +302,7 @@ export async function calculateConsensus(tx: TransactionClient | null, submissio
       },
     })
   } else {
-    await client.consensusScore.create({
+    await tx.consensusScore.create({
       data: {
         submissionId,
         criterionId,

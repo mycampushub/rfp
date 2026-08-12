@@ -24,38 +24,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
-  Eye, 
-  Edit, 
-  CheckCircle,
-  AlertTriangle,
-  Users,
-  Building,
-  Link as LinkIcon,
-  Unlink,
-  Clock,
-  Mail,
-  Phone,
-  MapPin,
-  Star,
-  Shield,
-  Key,
-  QrCode,
-  Copy,
-  UserPlus,
-  Filter,
-  RefreshCw,
-  Globe,
-  Award,
-  TrendingUp,
-  Activity,
-  X,
-  MessageSquare
-} from "lucide-react"
+import { Search, MoreHorizontal, Eye, Edit, CheckCircle, Users, Link as LinkIcon, Unlink, Clock, Mail, Phone, Star, Shield, QrCode, Copy, UserPlus, RefreshCw, Activity, X, MessageSquare } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+import { formatDate } from "@/lib/utils"
 
 interface BusinessConnection {
   id: string
@@ -122,178 +94,117 @@ export default function BusinessConnections() {
     connectionType: "vendor"
   })
 
-  // Mock data for demonstration
-  const mockConnections: BusinessConnection[] = [
-    {
-      id: "1",
-      businessId: "BUS-2024-002",
-      businessName: "Global IT Services",
-      category: "IT Services",
-      contactInfo: {
-        email: "contact@globalit.com",
-        phone: "+1-555-0456",
-        address: "456 Global Ave, New York, NY"
-      },
-      status: "accepted",
-      connectionType: "partner",
-      connectedAt: "2024-01-15",
-      lastActivity: "2024-12-08",
-      mutualConnections: 12,
-      rating: 4.7,
-      description: "Leading IT infrastructure and cloud services provider",
-      specialties: ["Cloud Computing", "Cybersecurity", "IT Consulting"]
-    },
-    {
-      id: "2",
-      businessId: "BUS-2024-003",
-      businessName: "Marketing Masters Inc",
-      category: "Marketing",
-      contactInfo: {
-        email: "hello@marketingmasters.com",
-        phone: "+1-555-0789",
-        address: "789 Marketing St, Los Angeles, CA"
-      },
-      status: "accepted",
-      connectionType: "client",
-      connectedAt: "2024-02-20",
-      lastActivity: "2024-12-10",
-      mutualConnections: 8,
-      rating: 4.9,
-      description: "Full-service digital marketing agency",
-      specialties: ["Digital Marketing", "Brand Strategy", "Social Media"]
-    },
-    {
-      id: "3",
-      businessId: "BUS-2024-004",
-      businessName: "Construction Pro LLC",
-      category: "Construction",
-      contactInfo: {
-        email: "projects@constructionpro.com",
-        phone: "+1-555-0321",
-        address: "321 Build Rd, Chicago, IL"
-      },
-      status: "pending",
-      connectionType: "supplier",
-      mutualConnections: 5,
-      description: "Commercial construction and renovation experts",
-      specialties: ["Commercial Construction", "Renovation", "Project Management"]
-    }
-  ]
-
-  const mockRequests: ConnectionRequest[] = [
-    {
-      id: "1",
-      fromBusinessId: "BUS-2024-005",
-      fromBusinessName: "Data Analytics Corp",
-      toBusinessId: "BUS-2024-001",
-      message: "We would like to connect for potential data analytics projects collaboration",
-      connectionType: "partner",
-      status: "pending",
-      requestedAt: "2024-12-08"
-    },
-    {
-      id: "2",
-      fromBusinessId: "BUS-2024-006",
-      fromBusinessName: "Cloud Solutions Pro",
-      toBusinessId: "BUS-2024-001",
-      message: "Interested in partnering for cloud migration projects",
-      connectionType: "vendor",
-      status: "pending",
-      requestedAt: "2024-12-07"
-    }
-  ]
-
-  const mockSuggestions: BusinessProfile[] = [
-    {
-      id: "1",
-      businessId: "BUS-2024-007",
-      businessName: "Software Innovations",
-      description: "Custom software development company",
-      categories: ["Software Development", "IT Services"],
-      specialties: ["Web Development", "Mobile Apps", "AI Solutions"],
-      contactInfo: {
-        email: "info@softwareinnovations.com",
-        phone: "+1-555-0987",
-        address: "555 Tech Blvd, Austin, TX",
-        website: "https://softwareinnovations.com"
-      },
-      isVerified: true,
-      rating: 4.8,
-      connectionCount: 45
-    },
-    {
-      id: "2",
-      businessId: "BUS-2024-008",
-      businessName: "CyberShield Security",
-      description: "Cybersecurity and IT protection services",
-      categories: ["Security", "IT Services"],
-      specialties: ["Cybersecurity", "Risk Assessment", "Compliance"],
-      contactInfo: {
-        email: "security@cybershield.com",
-        phone: "+1-555-0654",
-        address: "777 Security Ave, Washington, DC",
-        website: "https://cybershield.com"
-      },
-      isVerified: true,
-      rating: 4.9,
-      connectionCount: 32
-    },
-    {
-      id: "3",
-      businessId: "BUS-2024-009",
-      businessName: "Digital Transformation Co",
-      description: "Digital transformation consulting services",
-      categories: ["Consulting", "IT Services"],
-      specialties: ["Digital Strategy", "Process Automation", "Change Management"],
-      contactInfo: {
-        email: "consulting@digitaltransform.com",
-        phone: "+1-555-0432",
-        address: "888 Digital Way, Seattle, WA",
-        website: "https://digitaltransform.com"
-      },
-      isVerified: false,
-      rating: 4.6,
-      connectionCount: 28
-    }
-  ]
-
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setConnections(mockConnections)
-      setRequests(mockRequests)
-      setSuggestions(mockSuggestions)
-      setLoading(false)
-    }, 1000)
+    const fetchData = async () => {
+      try {
+        const [connRes, vendorsRes] = await Promise.all([
+          fetch('/api/vendor-connections').then(r => r.ok ? r.json() : []),
+          fetch('/api/vendors').then(r => r.ok ? r.json() : []),
+        ])
+
+        const connData = Array.isArray(connRes) ? connRes : []
+        const connectedVendorIds = new Set(connData.map((c: Record<string, unknown>) => c.fromVendorId || c.toVendorId))
+
+        // Map accepted connections
+        const acceptedConns = connData.filter((c: Record<string, unknown>) => c.status === 'accepted')
+        setConnections(acceptedConns.map((c: Record<string, unknown>) => {
+          const other = c.fromVendorId !== undefined ? (c.toVendor as Record<string, unknown> || {}) : (c.fromVendor as Record<string, unknown> || {})
+          const contact = (other as Record<string, unknown>)?.contactInfo as Record<string, unknown> || {}
+          return {
+            id: c.id,
+            businessId: (other as Record<string, unknown>)?.id || '',
+            businessName: (other as Record<string, unknown>)?.name || 'Unknown',
+            category: '',
+            contactInfo: {
+              email: contact.email || '',
+              phone: contact.phone || '',
+              address: contact.address || '',
+            },
+            status: 'accepted' as const,
+            connectionType: 'partner' as const,
+            connectedAt: c.respondedAt || c.createdAt || '',
+            lastActivity: c.updatedAt || '',
+            mutualConnections: 0,
+            rating: (other as Record<string, unknown>)?.rating || 0,
+            description: (other as Record<string, unknown>)?.description || '',
+            specialties: [],
+          }
+        }))
+
+        // Map pending requests
+        const pendingConns = connData.filter((c: Record<string, unknown>) => c.status === 'pending')
+        setRequests(pendingConns.map((c: Record<string, unknown>) => ({
+          id: c.id,
+          fromBusinessId: (c.fromVendor as Record<string, unknown>)?.id || '',
+          fromBusinessName: (c.fromVendor as Record<string, unknown>)?.name || 'Unknown',
+          toBusinessId: (c.toVendor as Record<string, unknown>)?.id || '',
+          message: c.message || '',
+          connectionType: 'vendor',
+          status: 'pending' as const,
+          requestedAt: c.createdAt || '',
+        })))
+
+        // Suggestions: vendors not already connected
+        const vendorsData = Array.isArray(vendorsRes) ? vendorsRes : []
+        setSuggestions(vendorsData
+          .filter((v: Record<string, unknown>) => !connectedVendorIds.has(v.id))
+          .map((v: Record<string, unknown>) => {
+            const contact = v.contactInfo as Record<string, unknown> || {}
+            return {
+              id: v.id,
+              businessId: v.id,
+              businessName: v.name || 'Unknown',
+              description: v.description || '',
+              categories: Array.isArray(v.categories) ? v.categories : [],
+              specialties: [],
+              contactInfo: {
+                email: contact.email || '',
+                phone: contact.phone || '',
+                address: contact.address || '',
+                website: contact.website || '',
+              },
+              isVerified: v.verified || false,
+              rating: v.rating || 0,
+              connectionCount: 0,
+            }
+          })
+        )
+      } catch {
+        toast.error('Failed to load connections data')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
   }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "accepted":
       case "active":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-amber-500/15 text-amber-700 dark:text-amber-400"
       case "declined":
       case "blocked":
-        return "bg-red-100 text-red-800"
+        return "bg-red-500/15 text-red-700 dark:text-red-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
   const getConnectionTypeColor = (type: string) => {
     switch (type) {
       case "vendor":
-        return "bg-blue-100 text-blue-800"
+        return "bg-sky-500/15 text-sky-700 dark:text-sky-400"
       case "client":
-        return "bg-green-100 text-green-800"
+        return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
       case "partner":
-        return "bg-purple-100 text-purple-800"
+        return "bg-violet-500/15 text-violet-700 dark:text-violet-400"
       case "supplier":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-500/15 text-orange-700 dark:text-orange-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -306,22 +217,68 @@ export default function BusinessConnections() {
     return matchesSearch && matchesType && matchesStatus
   })
 
-  const handleConnectRequest = () => {
-    // Handle connection request logic
-    setShowConnectModal(false)
-    setNewConnection({ businessId: "", message: "", connectionType: "vendor" })
+  const handleConnectRequest = async () => {
+    if (!newConnection.businessId) {
+      toast.error('Please select a vendor to connect with')
+      return
+    }
+    try {
+      const res = await fetch('/api/vendor-connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toVendorId: newConnection.businessId, message: newConnection.message }),
+      })
+      if (res.ok) {
+        toast.success('Connection request sent successfully')
+        setShowConnectModal(false)
+        setNewConnection({ businessId: "", message: "", connectionType: "vendor" })
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Failed to send connection request')
+      }
+    } catch {
+      toast.error('Failed to send connection request')
+    }
   }
 
-  const handleAcceptRequest = (requestId: string) => {
-    setRequests(requests.map(req => 
-      req.id === requestId ? { ...req, status: "accepted" as const, respondedAt: new Date().toISOString() } : req
-    ))
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const res = await fetch(`/api/vendor-connections/${requestId}/accept`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      })
+      if (res.ok) {
+        toast.success('Connection accepted')
+        setRequests(requests.map(req => 
+          req.id === requestId ? { ...req, status: "accepted" as const, respondedAt: new Date().toISOString() } : req
+        ))
+      } else {
+        toast.error('Failed to accept connection')
+      }
+    } catch {
+      toast.error('Failed to accept connection')
+    }
   }
 
-  const handleDeclineRequest = (requestId: string) => {
-    setRequests(requests.map(req => 
-      req.id === requestId ? { ...req, status: "declined" as const, respondedAt: new Date().toISOString() } : req
-    ))
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      const res = await fetch(`/api/vendor-connections/${requestId}/accept`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'block' }),
+      })
+      if (res.ok) {
+        toast.success('Connection declined')
+        setRequests(requests.map(req => 
+          req.id === requestId ? { ...req, status: "declined" as const, respondedAt: new Date().toISOString() } : req
+        ))
+      } else {
+        toast.error('Failed to decline connection')
+      }
+    } catch {
+      toast.error('Failed to decline connection')
+    }
   }
 
   const copyBusinessId = (businessId: string) => {
@@ -481,6 +438,7 @@ export default function BusinessConnections() {
                 </div>
 
                 {/* Connections Table */}
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -502,7 +460,7 @@ export default function BusinessConnections() {
                               {connection.businessName}
                               {connection.rating && (
                                 <div className="flex items-center ml-2">
-                                  <Star className="h-3 w-3 text-yellow-500" />
+                                  <Star className="h-3 w-3 text-amber-500 dark:text-amber-400" />
                                   <span className="text-xs ml-1">{connection.rating}</span>
                                 </div>
                               )}
@@ -524,7 +482,7 @@ export default function BusinessConnections() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                            <code className="bg-muted px-2 py-1 rounded text-xs">
                               {connection.businessId}
                             </code>
                             <Button
@@ -561,10 +519,10 @@ export default function BusinessConnections() {
                         <TableCell>
                           {connection.connectedAt ? (
                             <div className="text-sm">
-                              {new Date(connection.connectedAt).toLocaleDateString()}
+                              {formatDate(connection.connectedAt)}
                               {connection.lastActivity && (
                                 <div className="text-xs text-muted-foreground">
-                                  Last: {new Date(connection.lastActivity).toLocaleDateString()}
+                                  Last: {formatDate(connection.lastActivity)}
                                 </div>
                               )}
                             </div>
@@ -575,7 +533,7 @@ export default function BusinessConnections() {
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" aria-label="Connection actions">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -594,7 +552,7 @@ export default function BusinessConnections() {
                                     <Edit className="mr-2 h-4 w-4" />
                                     Edit Connection
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-red-600">
+                                  <DropdownMenuItem className="text-red-600 dark:text-red-400">
                                     <Unlink className="mr-2 h-4 w-4" />
                                     Disconnect
                                   </DropdownMenuItem>
@@ -607,6 +565,7 @@ export default function BusinessConnections() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -641,7 +600,7 @@ export default function BusinessConnections() {
                         
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">
-                            Requested: {new Date(request.requestedAt).toLocaleDateString()}
+                            Requested: {formatDate(request.requestedAt)}
                           </span>
                           <div className="flex space-x-2">
                             <Button 
@@ -690,7 +649,7 @@ export default function BusinessConnections() {
                           <div>
                             <h4 className="font-semibold">To: {request.toBusinessId}</h4>
                             <p className="text-sm text-muted-foreground">
-                              Sent: {new Date(request.requestedAt).toLocaleDateString()}
+                              Sent: {formatDate(request.requestedAt)}
                             </p>
                           </div>
                           <Badge className={getStatusColor(request.status)}>
@@ -702,7 +661,7 @@ export default function BusinessConnections() {
                         
                         {request.respondedAt && (
                           <p className="text-xs text-muted-foreground">
-                            Responded: {new Date(request.respondedAt).toLocaleDateString()}
+                            Responded: {formatDate(request.respondedAt)}
                           </p>
                         )}
                       </div>
@@ -741,7 +700,7 @@ export default function BusinessConnections() {
                             </CardDescription>
                           </div>
                           {suggestion.isVerified && (
-                            <Shield className="h-4 w-4 text-blue-600 mt-1" />
+                            <Shield className="h-4 w-4 text-sky-600 dark:text-sky-400 mt-1" />
                           )}
                         </div>
                       </CardHeader>
@@ -760,7 +719,7 @@ export default function BusinessConnections() {
                         
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center">
-                            <Star className="h-3 w-3 text-yellow-500 mr-1" />
+                            <Star className="h-3 w-3 text-amber-500 dark:text-amber-400 mr-1" />
                             <span>{suggestion.rating}</span>
                           </div>
                           <div className="flex items-center text-muted-foreground">
@@ -824,14 +783,14 @@ export default function BusinessConnections() {
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-center space-x-4">
-                        <div className="bg-gray-100 p-4 rounded-lg">
+                        <div className="bg-muted p-4 rounded-lg">
                           <QrCode className="h-24 w-24" />
                         </div>
                         <div className="flex-1">
                           <div className="mb-2">
                             <Label className="text-sm font-medium">Business ID</Label>
                             <div className="flex items-center space-x-2 mt-1">
-                              <code className="bg-gray-100 px-3 py-2 rounded text-sm font-mono">
+                              <code className="bg-muted px-3 py-2 rounded text-sm font-mono">
                                 BUS-2024-001
                               </code>
                               <Button
@@ -887,7 +846,7 @@ export default function BusinessConnections() {
 
       {/* Connect Modal */}
       {showConnectModal && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
               <CardTitle>Connect to Business</CardTitle>

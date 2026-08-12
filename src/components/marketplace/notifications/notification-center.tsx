@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Bell, 
-  CheckCircle, 
-  X, 
-  Settings,
+import {
+  Bell,
+  CheckCircle,
+  X,
+  Settings as SettingsIcon,
   Filter,
   Search,
   Clock,
@@ -17,21 +17,21 @@ import {
   Star,
   MessageSquare,
   Users,
-  TrendingUp,
-  ExternalLink,
   Eye,
+  ExternalLink,
   Trash2,
-  Archive
+  Archive,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { formatDate as formatDateDisplay } from "@/lib/utils"
 
 interface Notification {
   id: string
-  type: "new_rfp" | "bid_accepted" | "bid_rejected" | "question_answered" | "review_received" | "deadline_reminder" | "vendor_update" | "system" | "marketplace_match" | "price_alert" | "competitor_activity"
+  type: "new_rfp" | "bid_accepted" | "bid_rejected" | "question_answered" | "review_received" | "deadline_reminder" | "vendor_update" | "system"
   title: string
   message: string
-  data?: Record<string, unknown>
+  data?: any
   isRead: boolean
   isDismissed: boolean
   priority: "low" | "medium" | "high" | "urgent"
@@ -89,33 +89,33 @@ export function NotificationCenter({
       review_received: Star,
       deadline_reminder: Clock,
       vendor_update: Users,
-      system: Settings
+      system: SettingsIcon
     }
     return icons[type as keyof typeof icons] || Bell
   }
 
   const getNotificationColor = (type: string) => {
     const colors = {
-      new_rfp: "bg-blue-100 text-blue-800",
-      bid_accepted: "bg-green-100 text-green-800",
-      bid_rejected: "bg-red-100 text-red-800",
-      question_answered: "bg-purple-100 text-purple-800",
-      review_received: "bg-yellow-100 text-yellow-800",
-      deadline_reminder: "bg-orange-100 text-orange-800",
-      vendor_update: "bg-indigo-100 text-indigo-800",
-      system: "bg-gray-100 text-gray-800"
+      new_rfp: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+      bid_accepted: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+      bid_rejected: "bg-red-500/15 text-red-700 dark:text-red-400",
+      question_answered: "bg-violet-500/15 text-violet-700 dark:text-violet-400",
+      review_received: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+      deadline_reminder: "bg-orange-500/15 text-orange-700 dark:text-orange-400",
+      vendor_update: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400",
+      system: "bg-muted text-muted-foreground"
     }
-    return colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[type as keyof typeof colors] || "bg-muted text-muted-foreground"
   }
 
   const getPriorityColor = (priority: string) => {
     const colors = {
-      low: "bg-gray-100 text-gray-800",
-      medium: "bg-blue-100 text-blue-800",
-      high: "bg-orange-100 text-orange-800",
-      urgent: "bg-red-100 text-red-800"
+      low: "bg-muted text-muted-foreground",
+      medium: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+      high: "bg-orange-500/15 text-orange-700 dark:text-orange-400",
+      urgent: "bg-red-500/15 text-red-700 dark:text-red-400"
     }
-    return colors[priority as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[priority as keyof typeof colors] || "bg-muted text-muted-foreground"
   }
 
   const formatDate = (dateString: string) => {
@@ -126,7 +126,7 @@ export function NotificationCenter({
     if (diffInHours < 1) return "Just now"
     if (diffInHours < 24) return `${diffInHours}h ago`
     if (diffInHours < 48) return "Yesterday"
-    return date.toLocaleDateString()
+    return formatDateDisplay(date)
   }
 
   const isExpired = (expiresAt?: string) => {
@@ -142,7 +142,7 @@ export function NotificationCenter({
           <Bell className="h-6 w-6" />
           <h2 className="text-2xl font-bold">Notifications</h2>
           {unreadCount > 0 && (
-            <Badge className="bg-red-500 text-white">
+            <Badge className="bg-red-500 text-primary-foreground">
               {unreadCount} unread
             </Badge>
           )}
@@ -248,7 +248,7 @@ export function NotificationCenter({
                                 {notification.priority}
                               </Badge>
                               {isExpired(notification.expiresAt) && (
-                                <Badge className="bg-gray-100 text-gray-800">
+                                <Badge className="bg-muted text-muted-foreground">
                                   Expired
                                 </Badge>
                               )}
@@ -438,10 +438,8 @@ interface NotificationSettingsProps {
     }
     frequency: "instant" | "daily" | "weekly"
   }
-  onSettingsChange: (settings: NotificationSettingsProps["settings"]) => void
+  onSettingsChange: (settings: any) => void
 }
-
-type SettingsValue = boolean | string | Record<string, boolean> | { enabled: boolean; start: string; end: string }
 
 export function NotificationSettings({ settings, onSettingsChange }: NotificationSettingsProps) {
   const notificationTypes = [
@@ -455,11 +453,11 @@ export function NotificationSettings({ settings, onSettingsChange }: Notificatio
     { key: "system", label: "System notifications", description: "Important system updates and announcements" }
   ]
 
-  const handleSettingChange = (key: string, value: SettingsValue) => {
+  const handleSettingChange = (key: string, value: any) => {
     onSettingsChange({
       ...settings,
       [key]: value
-    } as NotificationSettingsProps["settings"])
+    })
   }
 
   const handleNotificationTypeChange = (type: string, enabled: boolean) => {

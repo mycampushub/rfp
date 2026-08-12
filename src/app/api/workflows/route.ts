@@ -3,12 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-import type { Prisma } from "@prisma/client"
 import { v4 as uuidv4 } from "uuid"
-
-export const dynamic = "force-dynamic"
 
 const createWorkflowSchema = z.object({
   name: z.string(),
@@ -48,23 +44,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
-    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
-
     const tenantContext = getTenantContext(session)
 
-    const workflows = await db.approvalWorkflow.findMany({
-      where: {
-        tenantId: tenantContext.tenantId,
-        isActive: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-    })
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(workflows)
+    const where = {
+      tenantId: tenantContext.tenantId,
+      isActive: true,
+    }
+
+    const [workflows, total] = await Promise.all([
+      db.approvalWorkflow.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      db.approvalWorkflow.count({ where }),
+    ])
+
+    return NextResponse.json({
+      data: workflows,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -84,7 +89,6 @@ export async function POST(request: NextRequest) {
     const validatedData = createWorkflowSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("approval:manage")
 
     // Add IDs to stages
     const stagesWithIds = validatedData.stages.map(stage => ({
@@ -97,7 +101,7 @@ export async function POST(request: NextRequest) {
         tenantId: tenantContext.tenantId,
         name: validatedData.name,
         description: validatedData.description,
-        stages: stagesWithIds as unknown as Prisma.InputJsonValue,
+        stages: stagesWithIds,
         isActive: true,
       },
     })

@@ -1,13 +1,25 @@
+/**
+ * Versioned Submissions API (v1) — Single Submission
+ *
+ * This is the versioned API under /api/v1/submissions/[id].
+ * The base routes at /api/submissions/[id] are considered legacy and will be deprecated.
+ *
+ * Key differences from the base /api/submissions/[id] routes:
+ *   - Uses PATCH (not PUT) for partial updates — specifically for updating answers on
+ *     draft submissions. Replaces all existing answers with the provided array.
+ *   - Uses a dedicated POST to transition a draft submission to "submitted" status,
+ *     which validates that all required RFP questions have been answered and the
+ *     deadline has not passed. The base route uses PUT with `status: "submitted"` instead.
+ *   - All mutations log activity to the audit trail.
+ *
+ * Consumers should migrate to these v1 endpoints for new integrations.
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { requireAuth, requirePermission } from "@/lib/auth-utils"
+import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { db } from "@/lib/db"
-import { AuthError, PermissionError } from "@/lib/tenant-context"
-import { PERMISSIONS } from "@/types/auth"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const updateAnswersSchema = z.object({
   answers: z.array(z.object({
@@ -20,25 +32,26 @@ const updateAnswersSchema = z.object({
 })
 
 interface RouteParams {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }>
 }
 
 // GET /api/v1/submissions/[id] - Get single submission
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    await requireAuth()
-    await requirePermission(PERMISSIONS.VIEW_RFP)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const ctx = getTenantContext(session)
+    const { id } = await params
 
-    const submission = await db.submission.findUnique({
-      where: { id: params.id },
+    const submission = await db.submission.findFirst({
+      where: { id, rfp: { tenantId: ctx.tenantId } },
       include: {
         rfp: {
           select: {
             id: true,
             title: true,
             status: true,
+            description: true,
             budget: true,
             confidentiality: true,
             timeline: true,
@@ -119,15 +132,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/v1/submissions/[id] - Update submission answers
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await requireAuth()
-    await requirePermission(PERMISSIONS.VIEW_RFP)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const ctx = getTenantContext(session)
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateAnswersSchema.parse(body)
 
     // Check if submission exists and is in draft status
-    const existingSubmission = await db.submission.findUnique({
-      where: { id: params.id },
+    const existingSubmission = await db.submission.findFirst({
+      where: { id, rfp: { tenantId: ctx.tenantId } },
       include: {
         rfp: {
           include: { timeline: true }
@@ -160,13 +175,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Update answers - delete existing and create new ones
     await db.answer.deleteMany({
-      where: { submissionId: params.id }
+      where: { submissionId: id }
     })
 
     if (validatedData.answers.length > 0) {
       await db.answer.createMany({
         data: validatedData.answers.map(answer => ({
-          submissionId: params.id,
+          submissionId: id,
           questionId: answer.questionId,
           valueText: answer.valueText,
           valueNumber: answer.valueNumber,
@@ -176,8 +191,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       })
     }
 
-    const updatedSubmission = await db.submission.findUnique({
-      where: { id: params.id },
+    const updatedSubmission = await db.submission.findFirst({
+      where: { id, rfp: { tenantId: ctx.tenantId } },
       include: {
         rfp: {
           select: {
@@ -202,11 +217,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: user.tenantId,
-        actor: user.id,
+        tenantId: session.user.tenantId,
+        actor: session.user.id,
         action: "UPDATE_SUBMISSION",
         targetType: "Submission",
-        targetId: params.id,
+        targetId: id,
         metadata: {
           answersCount: validatedData.answers.length
         }
@@ -235,12 +250,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // POST /api/v1/submissions/[id]/submit - Submit submission
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const user = await requireAuth()
-    await requirePermission(PERMISSIONS.VIEW_RFP)
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const ctx = getTenantContext(session)
+    const { id } = await params
 
     // Check if submission exists and is in draft status
-    const existingSubmission = await db.submission.findUnique({
-      where: { id: params.id },
+    const existingSubmission = await db.submission.findFirst({
+      where: { id, rfp: { tenantId: ctx.tenantId } },
       include: {
         rfp: {
           include: { 
@@ -283,8 +300,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const requiredQuestions = allQuestions.filter(q => q.required)
     
     const answeredQuestions = await db.answer.findMany({
-      where: { submissionId: params.id },
-      include: { question: true }
+      where: { submissionId: existingSubmission.id },
+      include: { question: true },
+      take: 200,
     })
 
     const answeredQuestionIds = answeredQuestions.map(a => a.questionId)
@@ -302,7 +320,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Submit the submission
     const updatedSubmission = await db.submission.update({
-      where: { id: params.id },
+      where: { id: existingSubmission.id },
       data: {
         status: "submitted",
         submittedAt: new Date(),
@@ -326,11 +344,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Log activity
     await db.activityLog.create({
       data: {
-        tenantId: user.tenantId,
-        actor: user.id,
+        tenantId: session.user.tenantId,
+        actor: session.user.id,
         action: "SUBMIT_SUBMISSION",
         targetType: "Submission",
-        targetId: params.id,
+        targetId: id,
         metadata: {
           rfpId: existingSubmission.rfpId,
           vendorId: existingSubmission.vendorId,

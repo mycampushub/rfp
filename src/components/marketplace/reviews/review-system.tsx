@@ -8,22 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Star, 
-  ThumbsUp, 
-  ThumbsDown, 
-  Flag,
-  Send,
-  Calendar,
-  User,
-  Briefcase,
-  CheckCircle,
-  AlertTriangle,
-  MessageSquare,
-  Filter,
-  TrendingUp
-} from "lucide-react"
+import { Star, ThumbsUp, ThumbsDown, Flag, Send, Calendar, User, Briefcase, CheckCircle, AlertTriangle, MessageSquare, Filter } from "lucide-react"
+import { formatDate } from "@/lib/utils"
 
 interface Review {
   id: string
@@ -122,7 +108,7 @@ export function ReviewForm({
             className={`h-6 w-6 cursor-pointer transition-colors ${
               star <= (interactive ? hoveredRating : rating)
                 ? "text-yellow-500 fill-current"
-                : "text-gray-300"
+                : "text-muted-foreground/50"
             }`}
             onClick={interactive ? () => handleRatingClick(star) : undefined}
             onMouseEnter={interactive ? () => setHoveredRating(star) : undefined}
@@ -270,10 +256,10 @@ export function ReviewForm({
             </div>
 
             {/* Guidelines */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-sky-500/10 dark:bg-sky-500/20 border border-sky-500/30 dark:border-sky-500/40 rounded-lg p-4">
               <div className="flex items-start space-x-2">
-                <AlertTriangle className="h-5 w-5 text-blue-500 mt-0.5" />
-                <div className="text-sm text-blue-800">
+                <AlertTriangle className="h-5 w-5 text-sky-500 mt-0.5" />
+                <div className="text-sm text-sky-700 dark:text-sky-400">
                   <p className="font-medium mb-1">Review Guidelines</p>
                   <ul className="list-disc list-inside space-y-1">
                     <li>Be honest and objective in your assessment</li>
@@ -359,17 +345,13 @@ export function ReviewList({
             className={`h-4 w-4 ${
               star <= rating 
                 ? "text-yellow-500 fill-current" 
-                : "text-gray-300"
+                : "text-muted-foreground/50"
             }`}
           />
         ))}
         <span className="ml-1 text-sm">{rating}</span>
       </div>
     )
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString()
   }
 
   const calculateAverageRating = () => {
@@ -420,9 +402,9 @@ export function ReviewList({
                 return (
                   <div key={rating} className="flex items-center space-x-2">
                     <span className="text-sm w-8">{rating} star</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div className="flex-1 bg-muted-foreground/20 rounded-full h-2">
                       <div 
-                        className="bg-yellow-500 h-2 rounded-full" 
+                        className="bg-amber-500 h-2 rounded-full" 
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -510,13 +492,13 @@ export function ReviewList({
                       <div className="flex items-center space-x-2 mb-2">
                         {renderStars(review.rating)}
                         {review.verified && (
-                          <Badge className="bg-blue-100 text-blue-800">
+                          <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-400">
                             <CheckCircle className="mr-1 h-3 w-3" />
                             Verified Purchase
                           </Badge>
                         )}
                         {review.status === "flagged" && (
-                          <Badge className="bg-yellow-100 text-yellow-800">
+                          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
                             <Flag className="mr-1 h-3 w-3" />
                             Under Review
                           </Badge>
@@ -547,7 +529,7 @@ export function ReviewList({
                       variant="ghost"
                       size="sm"
                       onClick={() => onFlagReview(review.id)}
-                      className="text-gray-400 hover:text-red-500"
+                      className="text-muted-foreground hover:text-red-500 dark:hover:text-red-400"
                     >
                       <Flag className="h-4 w-4" />
                     </Button>
@@ -559,17 +541,17 @@ export function ReviewList({
                     
                     {/* Response */}
                     {review.response && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="bg-sky-500/10 dark:bg-sky-500/20 border border-sky-500/30 dark:border-sky-500/40 rounded-lg p-4">
                         <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          <div className="w-8 h-8 bg-sky-500 text-white dark:text-white rounded-full flex items-center justify-center text-sm font-bold">
                             {vendorName.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-medium text-blue-900">{vendorName}</p>
-                            <p className="text-xs text-blue-600">Vendor Response</p>
+                            <p className="font-medium text-sky-900 dark:text-sky-100">{vendorName}</p>
+                            <p className="text-xs text-sky-600 dark:text-sky-400">Vendor Response</p>
                           </div>
                         </div>
-                        <p className="text-sm text-blue-800">{review.response}</p>
+                        <p className="text-sm text-sky-700 dark:text-sky-400">{review.response}</p>
                       </div>
                     )}
                   </div>
@@ -583,7 +565,7 @@ export function ReviewList({
                           size="sm"
                           onClick={() => onHelpfulVote(review.id, true)}
                           className={`flex items-center space-x-1 ${
-                            review.helpful > 0 ? 'text-green-600' : ''
+                            review.helpful > 0 ? 'text-emerald-600 dark:text-emerald-400' : ''
                           }`}
                         >
                           <ThumbsUp className="h-4 w-4" />
@@ -594,7 +576,7 @@ export function ReviewList({
                           size="sm"
                           onClick={() => onHelpfulVote(review.id, false)}
                           className={`flex items-center space-x-1 ${
-                            review.unhelpful > 0 ? 'text-red-600' : ''
+                            review.unhelpful > 0 ? 'text-red-600 dark:text-red-400' : ''
                           }`}
                         >
                           <ThumbsDown className="h-4 w-4" />

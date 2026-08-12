@@ -3,10 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
+import NotificationService from "@/lib/notification-service"
 
 const updateAddendumSchema = z.object({
   title: z.string().optional(),
@@ -17,7 +15,7 @@ const updateAddendumSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -25,11 +23,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const addendum = await db.addendum.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -70,7 +69,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -78,16 +77,16 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const validatedData = updateAddendumSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("rfp:edit")
 
     // Verify addendum belongs to tenant
     const existingAddendum = await db.addendum.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -99,7 +98,7 @@ export async function PUT(
     }
 
     const addendum = await db.addendum.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
       include: {
         rfp: {
@@ -122,8 +121,13 @@ export async function PUT(
       },
     })
 
-    // TODO: Send notification for addendum update
-    // This would integrate with a notification system
+    // Send notification for addendum update
+    await NotificationService.send({
+      userId: tenantContext.userId,
+      type: "addendum_updated",
+      title: "Addendum Updated",
+      message: "Addendum has been updated for the RFP",
+    })
 
     return NextResponse.json(addendum)
   } catch (error) {
@@ -139,7 +143,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -147,13 +151,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
-    await requirePermission("rfp:edit")
 
     // Verify addendum belongs to tenant
     const existingAddendum = await db.addendum.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -165,7 +169,7 @@ export async function DELETE(
     }
 
     await db.addendum.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({ message: "Addendum deleted successfully" })

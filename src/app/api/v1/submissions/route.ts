@@ -1,12 +1,26 @@
+/**
+ * Versioned Submissions API (v1)
+ *
+ * This is the versioned API under /api/v1/submissions.
+ * The base routes at /api/submissions are considered legacy and will be deprecated in a future release.
+ *
+ * Key differences from the base /api/submissions routes:
+ *   - GET returns paginated results (page/limit query params) wrapped in { data, pagination }
+ *     instead of a flat array.
+ *   - POST accepts an `answers` array and creates both the submission and its answers
+ *     in a single request (the base route only creates the submission record).
+ *   - POST validates that the RFP is published and that the submission deadline has
+ *     not passed before allowing creation.
+ *   - All mutations log activity to the audit trail.
+ *
+ * Consumers should migrate to these v1 endpoints for new integrations.
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const createSubmissionSchema = z.object({
   rfpId: z.string(),
@@ -30,12 +44,13 @@ export async function GET(request: NextRequest) {
     const ctx = getTenantContext(session)
 
     const { searchParams } = new URL(request.url)
-    const limit = Math.min(Number(searchParams.get('limit')) || 20, 100)
-    const offset = Number(searchParams.get('offset')) || 0
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "10")
     const rfpId = searchParams.get("rfpId")
     const vendorId = searchParams.get("vendorId")
     const status = searchParams.get("status")
 
+    const skip = (page - 1) * limit
     const where: Record<string, unknown> = { rfp: { tenantId: ctx.tenantId } }
 
     if (rfpId) (where as Record<string, unknown>).rfpId = rfpId
@@ -57,8 +72,7 @@ export async function GET(request: NextRequest) {
           },
           _count: { select: { answers: true, scores: true } }
         },
-        skip: offset,
-        take: limit,
+        skip, take: limit,
         orderBy: { submittedAt: "desc" }
       }),
       db.submission.count({ where })
@@ -66,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: submissions,
-      pagination: { limit, offset, total }
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
@@ -84,7 +98,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const ctx = getTenantContext(session)
-    await requirePermission("submission:create")
 
     const body = await request.json()
     const validatedData = createSubmissionSchema.parse(body)
@@ -102,9 +115,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Submission deadline has passed" }, { status: 400 })
     }
 
-    const vendor = await db.vendor.findUnique({ where: { id: validatedData.vendorId } })
+    const vendor = await db.vendor.findFirst({ where: { id: validatedData.vendorId, tenantId: ctx.tenantId } })
     if (!vendor) {
-      return NextResponse.json({ error: "Vendor not found" }, { status: 404 })
+      return NextResponse.json({ error: "Vendor not found or not in your tenant" }, { status: 403 })
     }
 
     const submission = await db.submission.create({
@@ -149,7 +162,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
-    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error creating submission:", error)
     return NextResponse.json({ error: "Failed to create submission" }, { status: 500 })
   }

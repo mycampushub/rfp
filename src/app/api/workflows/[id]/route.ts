@@ -3,10 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const updateWorkflowSchema = z.object({
   name: z.string().optional(),
@@ -20,14 +17,14 @@ const updateWorkflowSchema = z.object({
     approverRole: z.string(),
     slaHours: z.number(),
     autoApprove: z.boolean().optional(),
-    conditions: z.array(z.any()).optional(),
+    conditions: z.array(z.record(z.string(), z.unknown())).optional(),
   })).optional(),
   isActive: z.boolean().optional(),
 })
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -35,11 +32,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const workflow = await db.approvalWorkflow.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: tenantContext.tenantId,
       },
       include: {
@@ -83,24 +81,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateWorkflowSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("approval:manage")
 
     // Verify workflow belongs to tenant
     const existingWorkflow = await db.approvalWorkflow.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: tenantContext.tenantId,
       },
     })
@@ -110,7 +108,7 @@ export async function PUT(
     }
 
     const workflow = await db.approvalWorkflow.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
     })
 
@@ -128,21 +126,21 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("approval:manage")
 
     // Verify workflow belongs to tenant
     const existingWorkflow = await db.approvalWorkflow.findFirst({
       where: {
-        id: params.id,
+        id: id,
         tenantId: tenantContext.tenantId,
       },
     })
@@ -154,7 +152,7 @@ export async function DELETE(
     // Check if workflow is being used by any active processes
     const activeProcesses = await db.approvalProcess.count({
       where: {
-        workflowId: params.id,
+        workflowId: id,
         status: "in_progress",
       },
     })
@@ -167,7 +165,7 @@ export async function DELETE(
     }
 
     await db.approvalWorkflow.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { isActive: false },
     })
 

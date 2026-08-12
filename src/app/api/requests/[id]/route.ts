@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
+import { AuthError, PermissionError } from "@/lib/tenant-context"
 import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
+import NotificationService from "@/lib/notification-service"
 
 const updateRequestSchema = z.object({
   status: z.enum(["approved", "rejected"]),
@@ -15,27 +12,22 @@ const updateRequestSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+const { id } = await params
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const { ctx } = await requirePermission('approval:edit')
 
     const body = await request.json()
     const validatedData = updateRequestSchema.parse(body)
 
-    const tenantContext = getTenantContext(session)
-    await requirePermission("approval:manage")
-
-    // Verify request belongs to tenant and user is the approver
+    // Verify request belongs to tenant
     const requestRecord = await db.approvalRequest.findFirst({
       where: {
-        id: params.id,
+        id: id,
         process: {
           rfp: {
-            tenantId: tenantContext.tenantId,
+            tenantId: ctx.tenantId,
           },
         },
       },
@@ -58,12 +50,20 @@ export async function PUT(
       return NextResponse.json({ error: "Request is not pending approval" }, { status: 400 })
     }
 
+    // Verify the acting user is the assigned approver for the current stage
+    if (requestRecord.approverId !== ctx.userId) {
+      return NextResponse.json(
+        { error: "Only the assigned approver can process this approval" },
+        { status: 403 }
+      )
+    }
+
     // Update request
     const updatedRequest = await db.approvalRequest.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         status: validatedData.status,
-        approverId: tenantContext.userId,
+        approverId: ctx.userId,
         decidedAt: new Date(),
         comments: validatedData.comments,
       },
@@ -71,7 +71,7 @@ export async function PUT(
 
     // Get the process and handle workflow progression
     const process = requestRecord.process
-    const currentIndex = process.requests.findIndex(r => r.id === params.id)
+    const currentIndex = process.requests.findIndex(r => r.id === id)
     const nextRequest = process.requests[currentIndex + 1]
 
     if (validatedData.status === "approved") {
@@ -91,7 +91,16 @@ export async function PUT(
           },
         })
 
-        // TODO: Send notification to next approver
+        // Notify next approver
+        const nextApproverId = nextRequest.approverId
+        if (nextApproverId) {
+          await NotificationService.send({
+            userId: nextApproverId,
+            type: "approval_request_pending",
+            title: "Pending Approval",
+            message: "You have a new approval request",
+          })
+        }
       } else {
         // All stages completed
         await db.approvalProcess.update({
@@ -129,7 +138,13 @@ export async function PUT(
       })
     }
 
-    // TODO: Send notifications about the decision
+    // Notify about final decision
+    await NotificationService.send({
+      userId: ctx.userId,
+      type: "approval_process_completed",
+      title: "Approval Completed",
+      message: "An approval process has been completed",
+    })
 
     return NextResponse.json(updatedRequest)
   } catch (error) {

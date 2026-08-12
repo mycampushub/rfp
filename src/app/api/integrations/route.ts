@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
-import { PERMISSIONS } from "@/types/auth"
+import { db } from "@/lib/db"
 import ZAI from "z-ai-web-dev-sdk"
-
-export const dynamic = "force-dynamic"
 
 // Mock external APIs for data integration
 const EXTERNAL_APIS = {
@@ -39,12 +36,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tenantContext = getTenantContext(session)
-    await requirePermission(PERMISSIONS.MANAGE_INTEGRATIONS)
-
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
-    const query = searchParams.get("query") || undefined
+    const query = searchParams.get("query")
 
     if (!type || !EXTERNAL_APIS[type as keyof typeof EXTERNAL_APIS]) {
       return NextResponse.json({ 
@@ -64,7 +58,8 @@ export async function GET(request: NextRequest) {
       endpoint: integration.endpoint,
       data: mockData,
       timestamp: new Date().toISOString(),
-      status: "success"
+      status: "success",
+      demo: true
     })
 
   } catch (error) {
@@ -93,7 +88,6 @@ export async function POST(request: NextRequest) {
     }
 
     const tenantContext = getTenantContext(session)
-    await requirePermission(PERMISSIONS.MANAGE_INTEGRATIONS)
 
     // Handle different actions
     switch (action) {
@@ -192,7 +186,7 @@ function generateMockData(type: string, query?: string) {
   
   if (query) {
     return data.filter((item: Record<string, unknown>) => 
-      Object.values(item).some((value: unknown) => 
+      Object.values(item).some((value) => 
         String(value).toLowerCase().includes(query.toLowerCase())
       )
     )
@@ -236,7 +230,7 @@ async function validateData(type: string, data: Record<string, unknown>) {
   // Check patterns
   if (rules.patterns) {
     Object.entries(rules.patterns).forEach(([field, pattern]) => {
-      if (data[field] && !pattern.test(String(data[field]))) {
+      if (data[field] && !pattern.test(data[field])) {
         errors.push(`Invalid format for ${field}`)
       }
     })
@@ -307,7 +301,7 @@ async function enrichData(type: string, data: Record<string, unknown>) {
   }
 }
 
-async function syncData(type: string, data: Record<string, unknown>, tenantId: string) {
+async function syncData(type: string, data: any, tenantId: string) {
   // Simulate data synchronization
   const syncRecord = {
     id: `sync_${Date.now()}`,
@@ -319,7 +313,17 @@ async function syncData(type: string, data: Record<string, unknown>, tenantId: s
     recordCount: Array.isArray(data) ? data.length : 1
   }
 
-  // In a real implementation, this would store the sync record in the database
+  // Store sync record in ActivityLog
+  await db.activityLog.create({
+    data: {
+      tenantId,
+      actor: "system",
+      action: "integration_sync",
+      targetType: type,
+      targetId: syncRecord.id,
+      metadata: syncRecord as unknown as object,
+    },
+  })
 
   return NextResponse.json({
     success: true,

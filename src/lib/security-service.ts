@@ -1,7 +1,6 @@
-import type { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import type { Prisma } from "@prisma/client"
-import { randomBytes, createCipheriv, createDecipheriv } from "crypto"
+import { AuditLogger } from "@/lib/audit-logger"
+import { createHash, randomBytes, createCipheriv, createDecipheriv } from "crypto"
 
 export interface SecurityConfig {
   encryptionKey: string
@@ -31,26 +30,20 @@ export interface AuditEvent {
   action: string
   resource: string
   resourceId?: string
-  details?: Record<string, unknown>
+  details?: any
   severity: "info" | "warning" | "error" | "critical"
   category: "authentication" | "authorization" | "data_access" | "data_modification" | "system" | "compliance"
 }
 
 export class SecurityService {
   private static readonly ALGORITHM = "aes-256-gcm"
-  private static get ENCRYPTION_KEY(): string {
-    const key = process.env.ENCRYPTION_KEY
-    if (!key || key.length < 32) {
-      throw new Error("ENCRYPTION_KEY environment variable is required and must be at least 32 characters")
-    }
-    return key.slice(0, 32)
-  }
+  private static readonly ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!
 
   static encryptData(data: string): { encrypted: string; iv: string; tag: string } {
     const iv = randomBytes(16)
     const cipher = createCipheriv(
       this.ALGORITHM,
-      Buffer.from(this.ENCRYPTION_KEY),
+      Buffer.from(this.ENCRYPTION_KEY.slice(0, 32)),
       iv
     )
     
@@ -69,7 +62,7 @@ export class SecurityService {
   static decryptData(encryptedData: string, iv: string, tag: string): string {
     const decipher = createDecipheriv(
       this.ALGORITHM,
-      Buffer.from(this.ENCRYPTION_KEY),
+      Buffer.from(this.ENCRYPTION_KEY.slice(0, 32)),
       Buffer.from(iv, "hex")
     )
     
@@ -81,12 +74,16 @@ export class SecurityService {
     return decrypted
   }
 
+  static hashPassword(password: string): string {
+    return createHash("sha256").update(password).digest("hex")
+  }
+
   static validatePassword(password: string, policy: SecurityConfig["passwordPolicy"]): boolean {
     if (password.length < policy.minLength) return false
     if (policy.requireUppercase && !/[A-Z]/.test(password)) return false
     if (policy.requireLowercase && !/[a-z]/.test(password)) return false
     if (policy.requireNumbers && !/\d/.test(password)) return false
-    if (policy.requireSpecialChars && !/[!@#$%^&*(),?:"{}|<>]/.test(password)) return false
+    if (policy.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) return false
     return true
   }
 
@@ -94,34 +91,27 @@ export class SecurityService {
     return randomBytes(length).toString("hex")
   }
 
+  /**
+   * Log a security audit event via the canonical AuditLogger.
+   * Delegates the DB write to AuditLogger.log() and then checks for alerts.
+   */
   static async logAuditEvent(
     tenantId: string,
     userId: string,
     event: AuditEvent,
-    request?: NextRequest
+    _request?: NextRequest
   ): Promise<void> {
     try {
-      const ipAddress = request?.headers.get("x-forwarded-for") || 
-                      request?.headers.get("x-real-ip") || 
-                      "unknown"
-      
-      const userAgent = request?.headers.get("user-agent") || "unknown"
-
-      await db.activityLog.create({
-        data: {
-          tenantId,
-          actor: userId,
-          action: event.action,
-          targetType: event.resource,
-          targetId: event.resourceId || "",
-          timestamp: new Date(),
-          ip: ipAddress,
-          metadata: {
-            severity: event.severity,
-            category: event.category,
-            details: event.details,
-            userAgent,
-          } as Prisma.InputJsonValue,
+      await AuditLogger.log({
+        action: event.action,
+        targetType: event.resource,
+        targetId: event.resourceId || "",
+        userId,
+        tenantId,
+        metadata: {
+          severity: event.severity,
+          category: event.category,
+          details: event.details,
         },
       })
 
@@ -134,7 +124,7 @@ export class SecurityService {
 
   private static async checkSecurityAlerts(tenantId: string, event: AuditEvent): Promise<void> {
     // Implement security alert detection logic
-    const alerts: Array<{ type: string; message: string; severity: string }> = []
+    const alerts = []
 
     // Failed login attempts
     if (event.category === "authentication" && event.action === "login_failed") {
@@ -162,7 +152,10 @@ export class SecurityService {
       const recentUnauthorized = await db.activityLog.count({
         where: {
           tenantId,
-          metadata: { path: "category", equals: "authorization" },
+          category: "authorization",
+          metadata: {
+            path: { contains: "/api/" },
+          },
           timestamp: {
             gte: new Date(Date.now() - 5 * 60 * 1000), // Last 5 minutes
           },
@@ -211,8 +204,8 @@ export class SecurityService {
           severity: alert.severity,
           status: "active",
           metadata: {
-            triggerEvent: event as unknown as Record<string, unknown>,
-          } as Prisma.InputJsonValue,
+            triggerEvent: event,
+          },
         },
       })
     }
@@ -224,7 +217,7 @@ export class SecurityService {
     limit?: number
     offset?: number
   }) {
-    const where: Prisma.SecurityAlertWhereInput = { tenantId }
+    const where: any = { tenantId }
     
     if (options?.status) where.status = options.status
     if (options?.severity) where.severity = options.severity
@@ -253,15 +246,7 @@ export class SecurityService {
     })
   }
 
-  static async getComplianceReport(tenantId: string): Promise<{
-    auditSummary: { totalEvents: number; securityEvents: number; complianceEvents: number }
-    alerts: { active: number }
-    dataRetention: {
-      files: { total: number; underRetention: number; expired: number }
-      logs: { total: number; underRetention: number }
-    }
-    generatedAt: string
-  }> {
+  static async getComplianceReport(tenantId: string): Promise<any> {
     const [
       totalEvents,
       securityEvents,
@@ -274,15 +259,15 @@ export class SecurityService {
         where: {
           tenantId,
           OR: [
-            { metadata: { path: "severity", equals: "error" } },
-            { metadata: { path: "severity", equals: "critical" } },
+            { metadata: { path: ["severity"], equals: "error" } },
+            { metadata: { path: ["severity"], equals: "critical" } },
           ],
         },
       }),
       db.activityLog.count({
         where: {
           tenantId,
-          metadata: { path: "category", equals: "compliance" },
+          metadata: { path: ["category"], equals: "compliance" },
         },
       }),
       db.securityAlert.count({
@@ -377,11 +362,7 @@ export class SecurityService {
       throw new Error("Tenant not found")
     }
 
-    const settings = tenant.settings as Record<string, unknown> | null
-    const securitySettings = (settings?.security ?? {}) as Partial<SecurityConfig>
-
     return {
-      encryptionKey: this.ENCRYPTION_KEY,
       dataRetention: {
         standard: 7,
         short: 1,
@@ -402,7 +383,7 @@ export class SecurityService {
         maxConcurrentSessions: 3,
         requireMFA: true,
       },
-      ...securitySettings,
+      ...tenant.settings?.security,
     }
   }
 
@@ -418,19 +399,16 @@ export class SecurityService {
       throw new Error("Tenant not found")
     }
 
-    const currentSettings = (tenant.settings as Record<string, unknown>) || {}
-    const currentSecurity = (currentSettings.security as Record<string, unknown>) || {}
-
     await db.tenant.update({
       where: { id: tenantId },
       data: {
         settings: {
-          ...currentSettings,
+          ...tenant.settings,
           security: {
-            ...currentSecurity,
+            ...tenant.settings?.security,
             ...config,
           },
-        } as Prisma.InputJsonValue,
+        },
       },
     })
 
@@ -444,82 +422,150 @@ export class SecurityService {
     })
   }
 
-  static async runSecurityScan(tenantId: string): Promise<{
-    vulnerabilities: Array<Record<string, unknown>>
-    recommendations: string[]
-    score: number
-  }> {
-    const scanResults = {
-      vulnerabilities: [] as Array<Record<string, unknown>>,
-      recommendations: [] as string[],
-      score: 100, // Start with perfect score
+  static async runSecurityScan(tenantId: string): Promise<any> {
+    const findings: Array<{
+      type: string
+      severity: "low" | "medium" | "high" | "critical"
+      description: string
+      category: "infrastructure" | "tenant"
+    }> = []
+    const recommendations: string[] = []
+    let score = 100
+
+    // --- Infrastructure-level checks (not tenant-specific) ---
+
+    // 1. Check ENCRYPTION_KEY
+    const encryptionKey = process.env.ENCRYPTION_KEY
+    const knownWeakKeys = ["changeme", "default-encryption-key", "secret", "", undefined]
+    if (!encryptionKey || encryptionKey.length < 32 || knownWeakKeys.includes(encryptionKey.toLowerCase())) {
+      const detail = !encryptionKey
+        ? "ENCRYPTION_KEY is not set in environment variables"
+        : encryptionKey.length < 32
+          ? `ENCRYPTION_KEY is only ${encryptionKey.length} characters (minimum 32 required for AES-256)`
+          : "ENCRYPTION_KEY appears to be a default/weak value"
+      findings.push({
+        type: "weak_encryption_key",
+        severity: "critical",
+        description: detail,
+        category: "infrastructure",
+      })
+      score -= 35
+      recommendations.push("Set a strong ENCRYPTION_KEY (at least 32 random characters) in your .env file")
     }
 
-    // Check for weak passwords
-    const usersWithWeakPasswords = await db.user.count({
-      where: {
-        tenantId,
-        // This would need to be implemented based on your password storage
-      },
-    })
-
-    if (usersWithWeakPasswords > 0) {
-      scanResults.vulnerabilities.push({
-        type: "weak_passwords",
+    // 2. Check NEXTAUTH_SECRET (session secret)
+    const sessionSecret = process.env.NEXTAUTH_SECRET
+    const knownWeakSecrets = [
+      "dev-secret-key-change-in-production",
+      "changeme",
+      "secret",
+      "default-secret",
+    ]
+    if (!sessionSecret) {
+      findings.push({
+        type: "missing_session_secret",
+        severity: "critical",
+        description: "NEXTAUTH_SECRET is not set; sessions are not cryptographically secured",
+        category: "infrastructure",
+      })
+      score -= 35
+      recommendations.push("Set a strong NEXTAUTH_SECRET (at least 32 characters) in your .env file")
+    } else if (sessionSecret.length < 32) {
+      findings.push({
+        type: "short_session_secret",
         severity: "high",
-        count: usersWithWeakPasswords,
+        description: `NEXTAUTH_SECRET is only ${sessionSecret.length} characters; recommended minimum is 32`,
+        category: "infrastructure",
       })
-      scanResults.score -= 20
-      scanResults.recommendations.push("Enforce stronger password policies")
+      score -= 15
+      recommendations.push("Increase NEXTAUTH_SECRET length to at least 32 characters")
+    } else if (knownWeakSecrets.includes(sessionSecret)) {
+      findings.push({
+        type: "default_session_secret",
+        severity: "critical",
+        description: "NEXTAUTH_SECRET matches a known default value; sessions can be forged",
+        category: "infrastructure",
+      })
+      score -= 35
+      recommendations.push("Replace NEXTAUTH_SECRET with a cryptographically random value")
     }
 
-    // Check for inactive users
-    const inactiveUsers = await db.user.count({
-      where: {
-        tenantId,
-        isActive: true,
-        // Last login more than 90 days ago
-        // This would need last login tracking
-      },
+    // --- Tenant-level checks ---
+
+    // 3. Check for users with MFA disabled
+    const [totalUsers, usersWithoutMFA] = await Promise.all([
+      db.user.count({ where: { tenantId, isActive: true } }),
+      db.user.count({ where: { tenantId, isActive: true, mfaEnabled: false } }),
+    ])
+
+    if (totalUsers > 0 && usersWithoutMFA === totalUsers) {
+      findings.push({
+        type: "no_mfa_users",
+        severity: "medium",
+        description: `None of the ${totalUsers} active user(s) have MFA enabled`,
+        category: "tenant",
+      })
+      score -= 10
+      recommendations.push("Enable MFA for at least admin accounts to protect against credential compromise")
+    } else if (usersWithoutMFA > 0) {
+      findings.push({
+        type: "partial_mfa_adoption",
+        severity: "low",
+        description: `${usersWithoutMFA} of ${totalUsers} active user(s) do not have MFA enabled`,
+        category: "tenant",
+      })
+      score -= 5
+      recommendations.push(`Enable MFA for the remaining ${usersWithoutMFA} user(s) without it`)
+    }
+
+    // 4. Check for active unresolved security alerts
+    const activeAlerts = await db.securityAlert.count({
+      where: { tenantId, status: "active" },
     })
 
-    if (inactiveUsers > 0) {
-      scanResults.vulnerabilities.push({
-        type: "inactive_users",
-        severity: "medium",
-        count: inactiveUsers,
+    if (activeAlerts > 0) {
+      findings.push({
+        type: "unresolved_security_alerts",
+        severity: activeAlerts > 5 ? "high" : "medium",
+        description: `${activeAlerts} unresolved security alert(s) require attention`,
+        category: "tenant",
       })
-      scanResults.score -= 10
-      scanResults.recommendations.push("Review and deactivate inactive user accounts")
+      score -= activeAlerts > 5 ? 15 : 8
+      recommendations.push("Review and resolve open security alerts in the admin dashboard")
     }
 
-    // Check for recent security events
+    // 5. Check for recent high-severity audit events (last 7 days)
     const recentSecurityEvents = await db.activityLog.count({
       where: {
         tenantId,
-        timestamp: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
-        },
+        timestamp: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
         OR: [
-          { metadata: { path: "severity", equals: "error" } },
-          { metadata: { path: "severity", equals: "critical" } },
+          { action: "login_failed" },
+          { metadata: { path: ["severity"], equals: "error" } },
+          { metadata: { path: ["severity"], equals: "critical" } },
         ],
       },
     })
 
     if (recentSecurityEvents > 10) {
-      scanResults.vulnerabilities.push({
+      findings.push({
         type: "recent_security_events",
         severity: "medium",
-        count: recentSecurityEvents,
+        description: `${recentSecurityEvents} high-severity audit event(s) in the last 7 days`,
+        category: "tenant",
       })
-      scanResults.score -= 15
-      scanResults.recommendations.push("Investigate recent security events")
+      score -= 10
+      recommendations.push("Investigate recent high-severity audit events for potential threats")
     }
 
-    // Ensure score doesn't go below 0
-    scanResults.score = Math.max(0, scanResults.score)
+    // Clamp score to 0–100
+    score = Math.max(0, Math.min(100, score))
 
-    return scanResults
+    return {
+      score,
+      findings,
+      recommendations,
+      scannedAt: new Date().toISOString(),
+    }
   }
 }

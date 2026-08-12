@@ -6,8 +6,6 @@ import { SecurityService } from "@/lib/security-service"
 import { TenantService } from "@/lib/tenant-service"
 import { z } from "zod"
 
-export const dynamic = "force-dynamic"
-
 const updateConfigSchema = z.object({
   passwordPolicy: z.object({
     minLength: z.number().min(8).max(128),
@@ -58,14 +56,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(config)
 
       case "alerts":
-        const status: string | null = searchParams.get("status")
-        const severity: string | null = searchParams.get("severity")
-        const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100)
-        const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
+        const status = searchParams.get("status") as any
+        const severity = searchParams.get("severity") as any
+        const limit = parseInt(searchParams.get("limit") || "50")
+        const offset = parseInt(searchParams.get("offset") || "0")
 
         const alerts = await SecurityService.getSecurityAlerts(tenantContext.tenantId, {
-          status: (status || undefined) as "active" | "resolved" | "dismissed" | undefined,
-          severity: (severity || undefined) as "low" | "medium" | "high" | "critical" | undefined,
+          status,
+          severity,
           limit,
           offset,
         })

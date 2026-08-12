@@ -2,17 +2,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
+import { getTenantContext, AuthError } from "@/lib/tenant-context"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const createRFPSchema = z.object({
   title: z.string().min(1),
   category: z.string().optional(),
-  budget: z.string().optional(),
+  budget: z.coerce.number().positive().optional(),
   confidentiality: z.enum(["internal", "confidential", "restricted"]).default("internal"),
+  description: z.string().optional(),
   timeline: z.object({
     qnaStart: z.string().optional(),
     qnaEnd: z.string().optional(),
@@ -32,8 +30,6 @@ export async function GET(request: NextRequest) {
     const ctx = getTenantContext(session)
 
     const { searchParams } = new URL(request.url)
-    const limit = Math.min(Number(searchParams.get('limit')) || 20, 100)
-    const offset = Number(searchParams.get('offset')) || 0
     const status = searchParams.get("status")
     const category = searchParams.get("category")
     const search = searchParams.get("search")
@@ -45,32 +41,24 @@ export async function GET(request: NextRequest) {
     if (search) {
       (where as Record<string, unknown>).OR = [
         { title: { contains: search } },
+        { description: { contains: search } },
       ]
     }
 
-    const [rfps, total] = await Promise.all([
-      db.rFP.findMany({
-        where,
-        include: {
-          timeline: true,
-          _count: {
-            select: { submissions: true, invitations: true },
-          },
+    const rfps = await db.rFP.findMany({
+      where,
+      include: {
+        timeline: true,
+        _count: {
+          select: { submissions: true, invitations: true },
         },
-        take: limit,
-        skip: offset,
-        orderBy: { createdAt: "desc" },
-      }),
-      db.rFP.count({ where }),
-    ])
-
-    return NextResponse.json({
-      data: rfps,
-      pagination: { limit, offset, total },
+      },
+      orderBy: { createdAt: "desc" },
     })
+
+    return NextResponse.json(rfps)
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
-    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error fetching RFPs:", error)
     return NextResponse.json({ error: "Failed to fetch RFPs" }, { status: 500 })
   }
@@ -84,7 +72,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const ctx = getTenantContext(session)
-    await requirePermission("rfp:create")
 
     const body = await request.json()
     const validatedData = createRFPSchema.parse(body)
@@ -94,8 +81,9 @@ export async function POST(request: NextRequest) {
         tenantId: ctx.tenantId,
         title: validatedData.title,
         category: validatedData.category,
-        budget: validatedData.budget ? parseFloat(validatedData.budget.replace(/[^0-9.-]+/g, "")) : null,
+        budget: validatedData.budget ?? null,
         confidentiality: validatedData.confidentiality,
+        description: validatedData.description,
         timeline: validatedData.timeline ? {
           create: {
             qnaStart: validatedData.timeline.qnaStart ? new Date(validatedData.timeline.qnaStart) : null,
@@ -115,7 +103,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
-    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error creating RFP:", error)
     return NextResponse.json({ error: "Failed to create RFP" }, { status: 500 })
   }

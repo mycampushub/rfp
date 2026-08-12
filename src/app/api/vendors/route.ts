@@ -2,27 +2,44 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
+import { getTenantContext, AuthError } from "@/lib/tenant-context"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const createVendorSchema = z.object({
   name: z.string().min(1),
-  contactInfo: z.object({
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-    address: z.string().optional(),
-  }).optional(),
+  description: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  website: z.string().optional(),
+  location: z.string().optional(),
+  contactInfo: z.record(z.unknown()).optional(),
   categories: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
+  specialties: z.array(z.string()).optional(),
+  portfolio: z.array(z.string()).optional(),
+  serviceAreas: z.array(z.string()).optional(),
+  languages: z.array(z.string()).optional(),
+  paymentMethods: z.array(z.string()).optional(),
+  references: z.array(z.string()).optional(),
+  socialMedia: z.record(z.string()).optional(),
   diversityAttrs: z.object({
     isMinorityOwned: z.boolean().optional(),
     isWomenOwned: z.boolean().optional(),
     isVeteranOwned: z.boolean().optional(),
     isDisabilityOwned: z.boolean().optional(),
   }).optional(),
+  // Additional business detail fields stored in contactInfo JSON
+  businessType: z.string().optional(),
+  taxId: z.string().optional(),
+  insurance: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  employees: z.string().optional(),
+  yearFounded: z.string().optional(),
+  hourlyRate: z.string().optional(),
+  responseTime: z.string().optional(),
+  availability: z.string().optional(),
+  ndaSigned: z.boolean().optional(),
+  backgroundCheck: z.boolean().optional(),
 })
 
 // GET /api/vendors - List vendors
@@ -35,8 +52,6 @@ export async function GET(request: NextRequest) {
     const ctx = getTenantContext(session)
 
     const { searchParams } = new URL(request.url)
-    const limit = Math.min(Number(searchParams.get('limit')) || 20, 100)
-    const offset = Number(searchParams.get('offset')) || 0
     const category = searchParams.get("category")
     const certification = searchParams.get("certification")
     const search = searchParams.get("search")
@@ -56,6 +71,10 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
+
     const [vendors, total] = await Promise.all([
       db.vendor.findMany({
         where,
@@ -64,16 +83,16 @@ export async function GET(request: NextRequest) {
             select: { invitations: true, submissions: true },
           },
         },
-        take: limit,
-        skip: offset,
         orderBy: { name: "asc" },
+        take: limit,
+        skip,
       }),
       db.vendor.count({ where }),
     ])
 
     return NextResponse.json({
       data: vendors,
-      pagination: { limit, offset, total },
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
@@ -90,16 +109,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const ctx = getTenantContext(session)
-    await requirePermission("vendor:create")
 
     const body = await request.json()
     const validatedData = createVendorSchema.parse(body)
+
+    // Build the contactInfo JSON from legacy contactInfo + extra fields
+    // that don't have direct columns on the Vendor model
+    const enrichedContactInfo: Record<string, unknown> = {
+      ...(typeof validatedData.contactInfo === 'object' && validatedData.contactInfo !== null
+        ? validatedData.contactInfo as Record<string, unknown>
+        : {}),
+      // Store extra business details inside contactInfo JSON
+    }
+    if (validatedData.businessType) enrichedContactInfo.businessType = validatedData.businessType
+    if (validatedData.taxId) enrichedContactInfo.taxId = validatedData.taxId
+    if (validatedData.insurance) enrichedContactInfo.insurance = validatedData.insurance
+    if (validatedData.licenseNumber) enrichedContactInfo.licenseNumber = validatedData.licenseNumber
+    if (validatedData.employees) enrichedContactInfo.employees = validatedData.employees
+    if (validatedData.yearFounded) enrichedContactInfo.yearFounded = validatedData.yearFounded
+    if (validatedData.hourlyRate) enrichedContactInfo.hourlyRate = validatedData.hourlyRate
+    if (validatedData.responseTime) enrichedContactInfo.responseTime = validatedData.responseTime
+    if (validatedData.availability) enrichedContactInfo.availability = validatedData.availability
+    if (validatedData.ndaSigned != null) enrichedContactInfo.ndaSigned = validatedData.ndaSigned
+    if (validatedData.backgroundCheck != null) enrichedContactInfo.backgroundCheck = validatedData.backgroundCheck
+    if (validatedData.specialties?.length) enrichedContactInfo.specialties = validatedData.specialties
+    if (validatedData.portfolio?.length) enrichedContactInfo.portfolio = validatedData.portfolio
+    if (validatedData.serviceAreas?.length) enrichedContactInfo.serviceAreas = validatedData.serviceAreas
+    if (validatedData.languages?.length) enrichedContactInfo.languages = validatedData.languages
+    if (validatedData.paymentMethods?.length) enrichedContactInfo.paymentMethods = validatedData.paymentMethods
+    if (validatedData.references?.length) enrichedContactInfo.references = validatedData.references
+    if (validatedData.socialMedia && Object.keys(validatedData.socialMedia).length > 0) {
+      enrichedContactInfo.socialMedia = validatedData.socialMedia
+    }
 
     const vendor = await db.vendor.create({
       data: {
         tenantId: ctx.tenantId,
         name: validatedData.name,
-        contactInfo: validatedData.contactInfo,
+        description: validatedData.description,
+        email: validatedData.email,
+        phone: validatedData.phone,
+        website: validatedData.website,
+        location: validatedData.location,
+        contactInfo: enrichedContactInfo,
         categories: validatedData.categories,
         certifications: validatedData.certifications,
         diversityAttrs: validatedData.diversityAttrs,
@@ -112,7 +164,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Validation failed", details: error.issues }, { status: 400 })
     }
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
-    if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
     console.error("Error creating vendor:", error)
     return NextResponse.json({ error: "Failed to create vendor" }, { status: 500 })
   }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useForm, useFieldArray, type Resolver } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
@@ -13,60 +13,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  GripVertical, 
-  FileText,
-  Hash,
-  List,
-  CheckSquare,
-  FileImage,
-  Calendar,
-  Settings,
-  Copy,
-  Eye,
-  Save
-} from "lucide-react"
+
+import { Plus, Edit, Trash2, GripVertical, FileText, Hash, List, CheckSquare, FileImage, Calendar, Settings } from "lucide-react"
 import { toast } from "sonner"
+import { type RFPQuestion, type RFPSection } from "./types"
 
-interface Question {
-  id: string
-  type: "text" | "number" | "multiple_choice" | "checkbox" | "file" | "date"
-  prompt: string
-  required: boolean
-  constraints?: {
-    maxLength?: number
-    minLength?: number
-    minValue?: number
-    maxValue?: number
-    pattern?: string
-  }
-  options?: string[]
-  order: number
-}
-
-interface Section {
-  id: string
-  title: string
-  description?: string
-  isRequired: boolean
-  order: number
-  questions: Question[]
-}
+type Question = RFPQuestion
+type Section = RFPSection
 
 const sectionSchema = z.object({
   title: z.string().min(1, "Section title is required"),
   description: z.string().optional(),
-  isRequired: z.boolean().default(false),
+  isRequired: z.boolean(),
 })
 
 const questionSchema = z.object({
   type: z.enum(["text", "number", "multiple_choice", "checkbox", "file", "date"]),
   prompt: z.string().min(1, "Question prompt is required"),
-  required: z.boolean().default(false),
+  required: z.boolean(),
   constraints: z.object({
     maxLength: z.number().optional(),
     minLength: z.number().optional(),
@@ -93,14 +57,14 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
   const [currentSectionId, setCurrentSectionId] = useState<string | null>(null)
 
   const sectionForm = useForm<SectionFormData>({
-    resolver: zodResolver(sectionSchema) as unknown as Resolver<SectionFormData>,
+    resolver: zodResolver(sectionSchema),
     defaultValues: {
       isRequired: false,
     },
   })
 
   const questionForm = useForm<QuestionFormData>({
-    resolver: zodResolver(questionSchema) as unknown as Resolver<QuestionFormData>,
+    resolver: zodResolver(questionSchema),
     defaultValues: {
       type: "text",
       required: false,
@@ -288,7 +252,7 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
     setCurrentSectionId(sectionId)
     setEditingQuestion(question)
     questionForm.reset({
-      type: question.type,
+      type: question.type as QuestionFormData["type"],
       prompt: question.prompt,
       required: question.required,
       constraints: question.constraints,
@@ -323,7 +287,7 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
                 Create a new section to organize your RFP content
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={sectionForm.handleSubmit((editingSection ? updateSection : addSection) as unknown as (data: SectionFormData) => void)} className="space-y-4">
+            <form onSubmit={sectionForm.handleSubmit(editingSection ? updateSection : addSection)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Section Title *</Label>
                 <Input
@@ -332,7 +296,7 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
                   placeholder="e.g., Company Overview, Technical Approach"
                 />
                 {sectionForm.formState.errors.title && (
-                  <p className="text-sm text-red-600">{sectionForm.formState.errors.title.message}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400">{sectionForm.formState.errors.title.message}</p>
                 )}
               </div>
 
@@ -423,7 +387,7 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteSection(section.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -432,7 +396,7 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
               </CardHeader>
               <CardContent>
                 {section.questions.length === 0 ? (
-                  <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
+                  <div className="text-center py-6 border-2 border-dashed border-border rounded-lg">
                     <p className="text-muted-foreground mb-2">No questions in this section</p>
                     <Button variant="outline" size="sm" onClick={() => openAddQuestion(section.id)}>
                       <Plus className="h-4 w-4 mr-1" />
@@ -479,7 +443,7 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
                             variant="ghost"
                             size="sm"
                             onClick={() => deleteQuestion(section.id, question.id)}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -505,7 +469,7 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
               Create a question for vendors to respond to
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={questionForm.handleSubmit((editingQuestion ? updateQuestion : addQuestion) as unknown as (data: QuestionFormData) => void)} className="space-y-4">
+          <form onSubmit={questionForm.handleSubmit(editingQuestion ? updateQuestion : addQuestion)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="prompt">Question Prompt *</Label>
               <Textarea
@@ -515,13 +479,13 @@ export function SectionQuestionBuilder({ sections, onSectionsChange }: SectionQu
                 rows={3}
               />
               {questionForm.formState.errors.prompt && (
-                <p className="text-sm text-red-600">{questionForm.formState.errors.prompt.message}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{questionForm.formState.errors.prompt.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="type">Question Type *</Label>
-              <Select onValueChange={(value) => questionForm.setValue("type", value as QuestionFormData["type"])}>
+              <Select onValueChange={(value) => questionForm.setValue("type", value as any)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select question type" />
                 </SelectTrigger>

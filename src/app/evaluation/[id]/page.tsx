@@ -3,88 +3,22 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { MainLayout } from "@/components/layout/main-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { 
-  Star,
-  Users,
-  FileText,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  TrendingUp,
-  Target,
-  Award,
-  Eye,
-  EyeOff,
-  MessageSquare,
-  Calculator,
-  ThumbsUp,
-  ThumbsDown,
-  AlertTriangle
-} from "lucide-react"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-interface RubricCriterion {
-  id: string
-  label: string
-  weight: number
-  scaleMin: number
-  scaleMax: number
-  guidance?: string
-}
-
-interface EvaluatorScore {
-  id: string
-  evaluatorId: string
-  evaluatorName: string
-  evaluatorRole: string
-  score: number
-  notes?: string
-  submittedAt: string
-}
-
-interface ConsensusScore {
-  criterionId: string
-  finalScore: number
-  notes?: string
-  confidence: number
-  disagreements: number
-}
-
-interface EvaluationDetail {
-  id: string
-  rfpTitle: string
-  vendorName: string
-  vendorId: string
-  status: "pending" | "in_progress" | "completed" | "finalized"
-  isBlind: boolean
-  rubricCriteria: RubricCriterion[]
-  evaluatorScores: EvaluatorScore[]
-  consensusScores: ConsensusScore[]
-  overallScore: number
-  maxPossibleScore: number
-  requiredEvaluators: number
-  deadline: string
-  submittedAt?: string
-}
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/shared/empty-state"
+import { SearchX } from "lucide-react"
+import { toast } from "sonner"
+import type { EvaluationDetail, RubricCriterion, EvaluatorScore, ConsensusScore } from "./components/types"
+import { EvaluationHeader } from "./components/EvaluationHeader"
+import { StatsCards } from "./components/StatsCards"
+import { OverviewTab } from "./components/OverviewTab"
+import { MyEvaluationTab } from "./components/MyEvaluationTab"
+import { ConsensusTab } from "./components/ConsensusTab"
+import { ComparisonTab } from "./components/ComparisonTab"
 
 export default function EvaluationDetailPage() {
   const params = useParams()
+  useEffect(() => { document.title = 'Evaluation Details | RFP Platform' }, [])
   const router = useRouter()
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,132 +28,94 @@ export default function EvaluationDetailPage() {
   const [userNotes, setUserNotes] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Mock data for demonstration
-  const mockEvaluation: EvaluationDetail = {
-    id: params.id as string,
-    rfpTitle: "IT Managed Services 2024",
-    vendorName: "Tech Solutions Inc",
-    vendorId: "vendor-1",
-    status: "in_progress",
-    isBlind: true,
-    rubricCriteria: [
-      {
-        id: "1",
-        label: "Technical Expertise",
-        weight: 0.3,
-        scaleMin: 1,
-        scaleMax: 5,
-        guidance: "Evaluate the vendor's technical capabilities and expertise in the required domain."
-      },
-      {
-        id: "2",
-        label: "Cost Effectiveness",
-        weight: 0.25,
-        scaleMin: 1,
-        scaleMax: 5,
-        guidance: "Assess the value for money and overall cost competitiveness."
-      },
-      {
-        id: "3",
-        label: "Project Management",
-        weight: 0.2,
-        scaleMin: 1,
-        scaleMax: 5,
-        guidance: "Evaluate the vendor's approach to project management and delivery."
-      },
-      {
-        id: "4",
-        label: "Innovation & Creativity",
-        weight: 0.15,
-        scaleMin: 1,
-        scaleMax: 5,
-        guidance: "Assess the innovative aspects and creative solutions proposed."
-      },
-      {
-        id: "5",
-        label: "Risk Management",
-        weight: 0.1,
-        scaleMin: 1,
-        scaleMax: 5,
-        guidance: "Evaluate the vendor's approach to identifying and mitigating risks."
-      }
-    ],
-    evaluatorScores: [
-      {
-        id: "1",
-        evaluatorId: "eval-1",
-        evaluatorName: "John Doe",
-        evaluatorRole: "Technical Lead",
-        score: 4.2,
-        notes: "Strong technical proposal with good innovation",
-        submittedAt: "2024-11-15T10:00:00Z"
-      },
-      {
-        id: "2",
-        evaluatorId: "eval-2",
-        evaluatorName: "Jane Smith",
-        evaluatorRole: "Project Manager",
-        score: 3.8,
-        notes: "Good approach but concerns about timeline",
-        submittedAt: "2024-11-15T14:30:00Z"
-      }
-    ],
-    consensusScores: [
-      {
-        criterionId: "1",
-        finalScore: 4.0,
-        notes: "Consensus on strong technical capabilities",
-        confidence: 0.85,
-        disagreements: 1
-      },
-      {
-        criterionId: "2",
-        finalScore: 3.5,
-        notes: "Moderate cost effectiveness",
-        confidence: 0.90,
-        disagreements: 0
-      }
-    ],
-    overallScore: 3.8,
-    maxPossibleScore: 5.0,
-    requiredEvaluators: 3,
-    deadline: "2024-12-20",
-    submittedAt: undefined
-  }
-
   useEffect(() => {
-    setTimeout(() => {
-      setEvaluation(mockEvaluation)
-      setLoading(false)
-    }, 1000)
+    const fetchEvaluation = async () => {
+      try {
+        const id = params.id as string
+        const res = await fetch(`/api/evaluations/${id}`)
+        if (!res.ok) throw new Error('Failed to fetch evaluation')
+        const data = await res.json()
+
+        // Extract rubric criteria from sections' rubricCriteria
+        const rubricCriteria: RubricCriterion[] = []
+        if (data.sections && Array.isArray(data.sections)) {
+          for (const section of data.sections) {
+            if (section.rubricCriteria && Array.isArray(section.rubricCriteria)) {
+              for (const rc of section.rubricCriteria) {
+                if (!rubricCriteria.find(c => c.id === rc.id)) {
+                  rubricCriteria.push({
+                    id: rc.id,
+                    label: rc.label || rc.name || 'Criterion',
+                    weight: rc.weight || 1,
+                    scaleMin: rc.scaleMin || 1,
+                    scaleMax: rc.scaleMax || 5,
+                    guidance: rc.guidance || undefined,
+                  })
+                }
+              }
+            }
+          }
+        }
+
+        // Build evaluator scores from submissions' scores
+        const evaluatorScores: EvaluatorScore[] = []
+        if (data.submissions && Array.isArray(data.submissions)) {
+          for (const sub of data.submissions) {
+            if (sub.scores && Array.isArray(sub.scores)) {
+              for (const s of sub.scores) {
+                evaluatorScores.push({
+                  id: s.id,
+                  evaluatorId: s.id,
+                  evaluatorName: s.evaluatorName || 'Evaluator',
+                  evaluatorRole: s.rubricName || 'Reviewer',
+                  score: s.totalScore || 0,
+                  notes: s.comments || undefined,
+                  submittedAt: sub.submittedAt || '',
+                })
+              }
+            }
+          }
+        }
+
+        // Pick a vendor name from the first submission if available
+        const vendorName = data.submissions?.[0]?.vendorName || 'Unknown Vendor'
+        const vendorId = data.submissions?.[0]?.vendorId || ''
+
+        const mapped: EvaluationDetail = {
+          id: data.id,
+          rfpTitle: data.rfpTitle || 'Untitled RFP',
+          vendorName,
+          vendorId,
+          status: data.status || 'pending',
+          isBlind: false,
+          rubricCriteria,
+          evaluatorScores,
+          consensusScores: [],
+          overallScore: data.averageScore || 0,
+          maxPossibleScore: 5,
+          requiredEvaluators: Math.max(evaluatorScores.length, 1),
+          deadline: data.deadline || '',
+          submittedAt: undefined,
+          submissions: data.submissions,
+        }
+
+        setEvaluation(mapped)
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to load evaluation details')
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (params.id) {
+      fetchEvaluation()
+    }
   }, [params.id])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-800"
-      case "in_progress":
-        return "bg-blue-100 text-blue-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "finalized":
-        return "bg-purple-100 text-purple-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getScoreColor = (score: number, maxScore: number) => {
-    const percentage = (score / maxScore) * 100
-    if (percentage >= 80) return "text-green-600"
-    if (percentage >= 60) return "text-yellow-600"
-    return "text-red-600"
-  }
-
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return "text-green-600"
-    if (confidence >= 0.6) return "text-yellow-600"
-    return "text-red-600"
+    if (confidence >= 0.8) return "text-emerald-600 dark:text-emerald-400"
+    if (confidence >= 0.6) return "text-amber-600 dark:text-amber-400"
+    return "text-red-600 dark:text-red-400"
   }
 
   const calculateWeightedScore = (criterionId: string, score: number) => {
@@ -241,27 +137,61 @@ export default function EvaluationDetailPage() {
 
     const missingScores = evaluation.rubricCriteria.filter(c => !userScores[c.id])
     if (missingScores.length > 0) {
-      alert("Please provide scores for all criteria")
+      toast.error("Please provide scores for all criteria")
       return
     }
 
     setIsSubmitting(true)
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
-      alert("Evaluation submitted successfully!")
+    try {
+      // Submit scores for each criterion
+      const submissions = evaluation.submissions || [] as any
+      const firstSubmission = submissions[0]?.id
+      if (!firstSubmission) {
+        toast.error('No submission found to score')
+        return
+      }
+
+      for (const [criterionId, scoreValue] of Object.entries(userScores)) {
+        const res = await fetch('/api/scores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submissionId: firstSubmission,
+            criterionId,
+            scoreValue,
+            notes: userNotes[criterionId] || undefined,
+          }),
+        })
+        if (!res.ok) {
+          throw new Error('Failed to submit score')
+        }
+      }
+
+      toast.success("Evaluation submitted successfully!")
       router.push("/evaluation")
-    }, 1500)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to submit evaluation')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const calculateConsensus = () => {
+  const calculateConsensus = (): ConsensusScore[] => {
     if (!evaluation) return []
+    if (evaluation.evaluatorScores.length === 0) return []
+
+    // Use existing evaluator scores to derive consensus
+    // Since evaluatorScores are per-evaluator totals, derive per-criterion estimates
+    const avgOverall = evaluation.evaluatorScores.reduce((sum, s) => sum + s.score, 0) / evaluation.evaluatorScores.length
 
     return evaluation.rubricCriteria.map(criterion => {
+      // Derive per-criterion scores proportionally from evaluator totals
+      const maxTotal = evaluation.rubricCriteria.reduce((sum, c) => sum + c.scaleMax, 0) || 1
+      const criterionWeight = criterion.scaleMax / maxTotal
       const scores = evaluation.evaluatorScores.map(score => {
-        // In a real implementation, this would be mapped to criterion scores
-        return Math.random() * 4 + 1 // Mock score for demonstration
+        const derived = (score.score / evaluation.maxPossibleScore) * criterion.scaleMax * criterionWeight * 2
+        return Math.max(criterion.scaleMin, Math.min(criterion.scaleMax, derived))
       })
 
       const average = scores.reduce((sum, score) => sum + score, 0) / scores.length
@@ -283,8 +213,14 @@ export default function EvaluationDetailPage() {
   if (loading) {
     return (
       <MainLayout title="Evaluation Details">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading evaluation details...</div>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
         </div>
       </MainLayout>
     )
@@ -293,105 +229,34 @@ export default function EvaluationDetailPage() {
   if (!evaluation) {
     return (
       <MainLayout title="Evaluation Details">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Evaluation not found</div>
-        </div>
+        <EmptyState 
+          icon={SearchX}
+          title="Evaluation not found"
+          description="The evaluation you're looking for doesn't exist or you don't have access."
+          action={{ label: "Go to Evaluations", onClick: () => router.push('/evaluation') }}
+        />
       </MainLayout>
     )
   }
 
   const consensusData = calculateConsensus()
-  const completionProgress = (evaluation.evaluatorScores.length / evaluation.requiredEvaluators) * 100
+  const completionProgress = evaluation.requiredEvaluators > 0 ? (evaluation.evaluatorScores.length / evaluation.requiredEvaluators) * 100 : 0
 
   return (
     <MainLayout title={`Evaluation: ${evaluation.rfpTitle}`}>
+      <h1 className="text-2xl font-bold tracking-tight">Evaluation</h1>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold">{evaluation.rfpTitle}</h1>
-            <div className="flex items-center space-x-4 mt-2">
-              <div className="flex items-center space-x-2">
-                {evaluation.isBlind && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowVendorInfo(!showVendorInfo)}
-                  >
-                    {showVendorInfo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    {showVendorInfo ? "Hide Vendor" : "Show Vendor"}
-                  </Button>
-                )}
-                {showVendorInfo && (
-                  <span className="text-lg font-semibold">{evaluation.vendorName}</span>
-                )}
-              </div>
-              <Badge className={getStatusColor(evaluation.status)}>
-                {evaluation.status.replace("_", " ")}
-              </Badge>
-              {evaluation.isBlind && (
-                <Badge variant="outline">
-                  Blind Evaluation
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-muted-foreground">Deadline</div>
-            <div className="font-medium">
-              {new Date(evaluation.deadline).toLocaleDateString()}
-            </div>
-          </div>
-        </div>
+        <EvaluationHeader
+          evaluation={evaluation}
+          showVendorInfo={showVendorInfo}
+          onToggleVendorInfo={() => setShowVendorInfo(!showVendorInfo)}
+        />
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Overall Score</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${getScoreColor(evaluation.overallScore, evaluation.maxPossibleScore)}`}>
-                {evaluation.overallScore.toFixed(1)}/{evaluation.maxPossibleScore}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Evaluator Progress</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {evaluation.evaluatorScores.length}/{evaluation.requiredEvaluators}
-              </div>
-              <Progress value={completionProgress} className="mt-2" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Criteria</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {evaluation.rubricCriteria.length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Consensus</CardTitle>
-              <ThumbsUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {consensusData.length > 0 ? Math.round(consensusData.reduce((sum, c) => sum + c.confidence, 0) / consensusData.length * 100) : 0}%
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <StatsCards
+          evaluation={evaluation}
+          consensusData={consensusData}
+          completionProgress={completionProgress}
+        />
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -403,281 +268,36 @@ export default function EvaluationDetailPage() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Evaluation Overview</CardTitle>
-                <CardDescription>
-                  Summary of the evaluation process and current status
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Rubric Criteria</h4>
-                  <div className="space-y-2">
-                    {evaluation.rubricCriteria.map((criterion) => (
-                      <div key={criterion.id} className="flex justify-between items-center p-2 border rounded">
-                        <div>
-                          <span className="font-medium">{criterion.label}</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            (Weight: {(criterion.weight * 100).toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {criterion.scaleMin} - {criterion.scaleMax}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Evaluator Progress</h4>
-                  <div className="space-y-2">
-                    {evaluation.evaluatorScores.map((score) => (
-                      <div key={score.id} className="flex justify-between items-center p-2 border rounded">
-                        <div>
-                          <span className="font-medium">{score.evaluatorName}</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            ({score.evaluatorRole})
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`font-medium ${getScoreColor(score.score, evaluation.maxPossibleScore)}`}>
-                            {score.score.toFixed(1)}
-                          </span>
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        </div>
-                      </div>
-                    ))}
-                    {Array.from({ length: evaluation.requiredEvaluators - evaluation.evaluatorScores.length }).map((_, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 border rounded bg-gray-50">
-                        <div>
-                          <span className="font-medium text-muted-foreground">Pending Evaluator</span>
-                        </div>
-                        <Clock className="h-4 w-4 text-yellow-600" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <OverviewTab evaluation={evaluation} />
           </TabsContent>
 
           <TabsContent value="evaluation" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Submit Your Evaluation</CardTitle>
-                <CardDescription>
-                  Evaluate the submission based on the rubric criteria below
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {evaluation.rubricCriteria.map((criterion) => (
-                  <div key={criterion.id} className="space-y-4 p-4 border rounded-lg">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium">{criterion.label}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Weight: {(criterion.weight * 100).toFixed(0)}% • Scale: {criterion.scaleMin} - {criterion.scaleMax}
-                        </p>
-                        {criterion.guidance && (
-                          <p className="text-sm text-muted-foreground mt-1">{criterion.guidance}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">Score:</span>
-                        <Select
-                          value={userScores[criterion.id]?.toString() || ""}
-                          onValueChange={(value) => handleScoreChange(criterion.id, parseFloat(value))}
-                        >
-                          <SelectTrigger className="w-20">
-                            <SelectValue placeholder="Score" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: criterion.scaleMax - criterion.scaleMin + 1 }, (_, i) => {
-                              const score = criterion.scaleMin + i
-                              return (
-                                <SelectItem key={score} value={score.toString()}>
-                                  {score}
-                                </SelectItem>
-                              )
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor={`notes-${criterion.id}`}>Notes (Optional)</Label>
-                      <Textarea
-                        id={`notes-${criterion.id}`}
-                        value={userNotes[criterion.id] || ""}
-                        onChange={(e) => handleNotesChange(criterion.id, e.target.value)}
-                        placeholder="Provide your rationale for this score..."
-                        rows={2}
-                      />
-                    </div>
-
-                    {userScores[criterion.id] && (
-                      <div className="text-sm text-muted-foreground">
-                        Weighted Score: {calculateWeightedScore(criterion.id, userScores[criterion.id]).toFixed(2)}
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setActiveTab("overview")}>
-                    Cancel
-                  </Button>
-                  <Button onClick={submitEvaluation} disabled={isSubmitting}>
-                    {isSubmitting ? "Submitting..." : "Submit Evaluation"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <MyEvaluationTab
+              evaluation={evaluation}
+              userScores={userScores}
+              userNotes={userNotes}
+              isSubmitting={isSubmitting}
+              onScoreChange={handleScoreChange}
+              onNotesChange={handleNotesChange}
+              onSubmit={submitEvaluation}
+              onCancel={() => setActiveTab("overview")}
+              calculateWeightedScore={calculateWeightedScore}
+            />
           </TabsContent>
 
           <TabsContent value="consensus" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Consensus Analysis</CardTitle>
-                <CardDescription>
-                  Analysis of evaluator consensus and disagreements
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Criterion</TableHead>
-                      <TableHead>Final Score</TableHead>
-                      <TableHead>Confidence</TableHead>
-                      <TableHead>Disagreements</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {consensusData.map((consensus) => {
-                      const criterion = evaluation.rubricCriteria.find(c => c.id === consensus.criterionId)
-                      return (
-                        <TableRow key={consensus.criterionId}>
-                          <TableCell className="font-medium">{criterion?.label}</TableCell>
-                          <TableCell>
-                            <span className={`font-medium ${getScoreColor(consensus.finalScore, criterion?.scaleMax || 5)}`}>
-                              {consensus.finalScore.toFixed(1)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className={`font-medium ${getConfidenceColor(consensus.confidence)}`}>
-                              {(consensus.confidence * 100).toFixed(0)}%
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-1">
-                              <span>{consensus.disagreements}</span>
-                              {consensus.disagreements > 0 && (
-                                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {consensus.confidence >= 0.8 ? (
-                              <Badge className="bg-green-100 text-green-800">
-                                High Confidence
-                              </Badge>
-                            ) : consensus.confidence >= 0.6 ? (
-                              <Badge className="bg-yellow-100 text-yellow-800">
-                                Moderate Confidence
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-red-100 text-red-800">
-                                Low Confidence
-                              </Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-
-                {consensusData.some(c => c.disagreements > 0) && (
-                  <Card className="border-yellow-200 bg-yellow-50">
-                    <CardHeader>
-                      <CardTitle className="flex items-center text-yellow-800">
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        Disagreements Detected
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-yellow-700">
-                        Some criteria show significant disagreement among evaluators. Consider facilitating a discussion to reach consensus.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </CardContent>
-            </Card>
+            <ConsensusTab
+              evaluation={evaluation}
+              consensusData={consensusData}
+              getConfidenceColor={getConfidenceColor}
+            />
           </TabsContent>
 
           <TabsContent value="comparison" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Evaluator Comparison</CardTitle>
-                <CardDescription>
-                  Side-by-side comparison of all evaluator scores
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Criterion</TableHead>
-                      {evaluation.evaluatorScores.map((score) => (
-                        <TableHead key={score.id}>{score.evaluatorName}</TableHead>
-                      ))}
-                      <TableHead>Average</TableHead>
-                      <TableHead>Consensus</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {evaluation.rubricCriteria.map((criterion) => {
-                      const consensus = consensusData.find(c => c.criterionId === criterion.id)
-                      const evaluatorScoresForCriterion = evaluation.evaluatorScores.map(() => 
-                        Math.random() * 4 + 1 // Mock scores for demonstration
-                      )
-                      const average = evaluatorScoresForCriterion.reduce((sum, score) => sum + score, 0) / evaluatorScoresForCriterion.length
-
-                      return (
-                        <TableRow key={criterion.id}>
-                          <TableCell className="font-medium">{criterion.label}</TableCell>
-                          {evaluatorScoresForCriterion.map((score, index) => (
-                            <TableCell key={index}>
-                              <span className={`font-medium ${getScoreColor(score, criterion.scaleMax)}`}>
-                                {score.toFixed(1)}
-                              </span>
-                            </TableCell>
-                          ))}
-                          <TableCell>
-                            <span className={`font-medium ${getScoreColor(average, criterion.scaleMax)}`}>
-                              {average.toFixed(1)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {consensus && (
-                              <span className={`font-medium ${getScoreColor(consensus.finalScore, criterion.scaleMax)}`}>
-                                {consensus.finalScore.toFixed(1)}
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <ComparisonTab
+              evaluation={evaluation}
+              consensusData={consensusData}
+            />
           </TabsContent>
         </Tabs>
       </div>

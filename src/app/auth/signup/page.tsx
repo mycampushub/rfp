@@ -146,7 +146,7 @@ export default function SignupPage() {
           if (response.status === 400 && data.details) {
             // Validation errors
             const fieldErrors: Record<string, string> = {}
-            data.details.forEach((err: { field: string; message: string }) => {
+            data.details.forEach((err: any) => {
               fieldErrors[err.field] = err.message
             })
             setErrors(fieldErrors)
@@ -185,8 +185,8 @@ export default function SignupPage() {
 
   const getStrengthColor = (strength: number) => {
     if (strength < 30) return "bg-red-500"
-    if (strength < 70) return "bg-yellow-500"
-    return "bg-green-500"
+    if (strength < 70) return "bg-amber-500"
+    return "bg-emerald-500"
   }
 
   const getStrengthText = (strength: number) => {
@@ -196,11 +196,11 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-sky-500/10 to-violet-500/15 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-600">Join thousands of organizations managing their RFP process efficiently</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Create Account</h1>
+          <p className="text-muted-foreground/80">Join thousands of organizations managing their RFP process efficiently</p>
         </div>
 
         <Card>
@@ -208,20 +208,20 @@ export default function SignupPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  step >= 1 ? 'bg-sky-500 text-white' : 'bg-muted-foreground/20 text-muted-foreground/80'
                 }`}>
                   1
                 </div>
                 <div className={`h-1 w-16 ${
-                  step >= 2 ? 'bg-blue-600' : 'bg-gray-200'
+                  step >= 2 ? 'bg-sky-500' : 'bg-muted-foreground/20'
                 }`} />
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  step >= 2 ? 'bg-sky-500 text-white' : 'bg-muted-foreground/20 text-muted-foreground/80'
                 }`}>
                   2
                 </div>
               </div>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground/80">
                 Step {step} of 2
               </span>
             </div>
@@ -243,7 +243,7 @@ export default function SignupPage() {
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name *</Label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                         <Input
                           id="firstName"
                           type="text"
@@ -254,7 +254,7 @@ export default function SignupPage() {
                         />
                       </div>
                       {errors.firstName && (
-                        <p className="text-sm text-red-600 flex items-center">
+                        <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
                           {errors.firstName}
                         </p>
@@ -264,7 +264,7 @@ export default function SignupPage() {
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name *</Label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                         <Input
                           id="lastName"
                           type="text"
@@ -275,7 +275,7 @@ export default function SignupPage() {
                         />
                       </div>
                       {errors.lastName && (
-                        <p className="text-sm text-red-600 flex items-center">
+                        <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                           <AlertCircle className="h-4 w-4 mr-1" />
                           {errors.lastName}
                         </p>
@@ -286,7 +286,7 @@ export default function SignupPage() {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address *</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
                         id="email"
                         type="email"
@@ -297,7 +297,7 @@ export default function SignupPage() {
                       />
                     </div>
                     {errors.email && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.email}
                       </p>
@@ -307,7 +307,7 @@ export default function SignupPage() {
                   <div className="space-y-2">
                     <Label htmlFor="password">Password *</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
@@ -318,7 +318,7 @@ export default function SignupPage() {
                       />
                       <button
                         type="button"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/80"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -327,23 +327,23 @@ export default function SignupPage() {
                     {formData.password && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div className="flex-1 bg-muted-foreground/20 rounded-full h-2">
                             <div 
                               className={`h-2 rounded-full transition-all duration-300 ${getStrengthColor(getPasswordStrength(formData.password))}`}
                               style={{ width: `${getPasswordStrength(formData.password)}%` }}
                             />
                           </div>
-                          <span className="text-sm text-gray-600 ml-2">
+                          <span className="text-sm text-muted-foreground/80 ml-2">
                             {getStrengthText(getPasswordStrength(formData.password))}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-muted-foreground/80">
                           Must be at least 8 characters with uppercase, lowercase, and numbers
                         </p>
                       </div>
                     )}
                     {errors.password && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.password}
                       </p>
@@ -353,7 +353,7 @@ export default function SignupPage() {
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirm Password *</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
                         id="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
@@ -364,14 +364,14 @@ export default function SignupPage() {
                       />
                       <button
                         type="button"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/80"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                     {errors.confirmPassword && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.confirmPassword}
                       </p>
@@ -392,7 +392,7 @@ export default function SignupPage() {
                   <div className="space-y-2">
                     <Label htmlFor="company">Company Name *</Label>
                     <div className="relative">
-                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
                         id="company"
                         type="text"
@@ -403,7 +403,7 @@ export default function SignupPage() {
                       />
                     </div>
                     {errors.company && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.company}
                       </p>
@@ -413,7 +413,7 @@ export default function SignupPage() {
                   <div className="space-y-2">
                     <Label htmlFor="businessId">Business ID *</Label>
                     <div className="relative">
-                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
                         id="businessId"
                         type="text"
@@ -424,7 +424,7 @@ export default function SignupPage() {
                       />
                     </div>
                     {errors.businessId && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.businessId}
                       </p>
@@ -434,7 +434,7 @@ export default function SignupPage() {
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number *</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                       <Input
                         id="phone"
                         type="tel"
@@ -445,7 +445,7 @@ export default function SignupPage() {
                       />
                     </div>
                     {errors.phone && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.phone}
                       </p>
@@ -462,7 +462,7 @@ export default function SignupPage() {
                       <div className="flex-1">
                         <Label htmlFor="agreeToTerms" className="text-sm">
                           I agree to the{" "}
-                          <Link href="/terms" className="text-blue-600 hover:underline">
+                          <Link href="/terms" className="text-sky-600 dark:text-sky-400 hover:underline">
                             Terms and Conditions
                           </Link>{" "}
                           *
@@ -470,7 +470,7 @@ export default function SignupPage() {
                       </div>
                     </div>
                     {errors.agreeToTerms && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.agreeToTerms}
                       </p>
@@ -487,7 +487,7 @@ export default function SignupPage() {
                       <div className="flex-1">
                         <Label htmlFor="agreeToPrivacy" className="text-sm">
                           I agree to the{" "}
-                          <Link href="/privacy" className="text-blue-600 hover:underline">
+                          <Link href="/privacy" className="text-sky-600 dark:text-sky-400 hover:underline">
                             Privacy Policy
                           </Link>{" "}
                           *
@@ -495,7 +495,7 @@ export default function SignupPage() {
                       </div>
                     </div>
                     {errors.agreeToPrivacy && (
-                      <p className="text-sm text-red-600 flex items-center">
+                      <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         {errors.agreeToPrivacy}
                       </p>
@@ -531,9 +531,9 @@ export default function SignupPage() {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground/80">
                 Already have an account?{" "}
-                <Link href="/auth/signin" className="text-blue-600 hover:underline font-medium">
+                <Link href="/auth/signin" className="text-sky-600 dark:text-sky-400 hover:underline font-medium">
                   Sign in here
                 </Link>
               </p>

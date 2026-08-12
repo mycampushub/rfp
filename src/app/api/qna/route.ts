@@ -3,10 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
+import NotificationService from "@/lib/notification-service"
 
 const createQnASchema = z.object({
   rfpId: z.string(),
@@ -27,8 +25,6 @@ export async function GET(request: NextRequest) {
     const vendorId = searchParams.get("vendorId")
     const status = searchParams.get("status")
     const isPublic = searchParams.get("public")
-    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
-    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -51,29 +47,39 @@ export async function GET(request: NextRequest) {
       whereClause.isPublic = isPublic === "true"
     }
 
-    const qnaItems = await db.qnA.findMany({
-      where: whereClause,
-      include: {
-        rfp: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-          },
-        },
-        vendor: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-    })
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(qnaItems)
+    const [qnaItems, total] = await Promise.all([
+      db.qnA.findMany({
+        where: whereClause,
+        include: {
+          rfp: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+            },
+          },
+          vendor: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      db.qnA.count({ where: whereClause }),
+    ])
+
+    return NextResponse.json({
+      data: qnaItems,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -93,7 +99,6 @@ export async function POST(request: NextRequest) {
     const validatedData = createQnASchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("rfp:edit")
 
     // Verify RFP belongs to tenant
     const rfp = await db.rFP.findFirst({
@@ -139,8 +144,13 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // TODO: Send notification for new question
-    // This would integrate with a notification system
+    // Send notification for new question
+    await NotificationService.send({
+      userId: tenantContext.userId,
+      type: "question_asked",
+      title: "New Question",
+      message: "A new question has been asked about an RFP",
+    })
 
     return NextResponse.json(qna, { status: 201 })
   } catch (error) {

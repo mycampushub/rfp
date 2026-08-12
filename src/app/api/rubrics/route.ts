@@ -3,10 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
 
 const createRubricSchema = z.object({
   rfpId: z.string().optional(),
@@ -28,8 +25,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const rfpId = searchParams.get("rfpId")
     const sectionId = searchParams.get("sectionId")
-    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
-    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -69,28 +64,38 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    const rubrics = await db.rubricCriterion.findMany({
-      where: whereClause,
-      include: {
-        rfp: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-        section: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-      },
-      orderBy: { label: "asc" },
-      take: limit,
-      skip: offset,
-    })
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(rubrics)
+    const [rubrics, total] = await Promise.all([
+      db.rubricCriterion.findMany({
+        where: whereClause,
+        include: {
+          rfp: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          section: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: { label: "asc" },
+        take: limit,
+        skip,
+      }),
+      db.rubricCriterion.count({ where: whereClause }),
+    ])
+
+    return NextResponse.json({
+      data: rubrics,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })
@@ -110,7 +115,6 @@ export async function POST(request: NextRequest) {
     const validatedData = createRubricSchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("rfp:edit")
 
     // Verify either RFP or section belongs to tenant
     if (validatedData.rfpId) {

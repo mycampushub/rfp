@@ -4,8 +4,6 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 
-export const dynamic = "force-dynamic"
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -18,8 +16,6 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const approverId = searchParams.get("approverId")
     const overdue = searchParams.get("overdue")
-    const limit = Math.min(parseInt(searchParams.get('limit') || '10') || 10, 100)
-    const offset = Math.max(0, parseInt(searchParams.get('offset') || '0') || 0)
 
     const tenantContext = getTenantContext(session)
     
@@ -47,40 +43,50 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const requests = await db.approvalRequest.findMany({
-      where: whereClause,
-      include: {
-        process: {
-          include: {
-            rfp: {
-              select: {
-                id: true,
-                title: true,
-                status: true,
-              },
-            },
-            workflow: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-    })
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(requests)
+    const [requests, total] = await Promise.all([
+      db.approvalRequest.findMany({
+        where: whereClause,
+        include: {
+          process: {
+            include: {
+              rfp: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                },
+              },
+              workflow: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      db.approvalRequest.count({ where: whereClause }),
+    ])
+
+    return NextResponse.json({
+      data: requests,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    })
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: 401 })
     if (error instanceof PermissionError) return NextResponse.json({ error: error.message }, { status: 403 })

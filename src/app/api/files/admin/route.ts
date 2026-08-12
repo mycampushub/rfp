@@ -5,8 +5,6 @@ import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-conte
 import { FileService } from "@/lib/file-service"
 import { TenantService } from "@/lib/tenant-service"
 
-export const dynamic = "force-dynamic"
-
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)

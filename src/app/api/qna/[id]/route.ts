@@ -3,10 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-
-export const dynamic = "force-dynamic"
+import NotificationService from "@/lib/notification-service"
 
 const updateQnASchema = z.object({
   answerText: z.string().optional(),
@@ -16,7 +14,7 @@ const updateQnASchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -24,11 +22,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const tenantContext = getTenantContext(session)
 
     const qna = await db.qnA.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -65,24 +64,24 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const { id } = await params
 
     const body = await request.json()
     const validatedData = updateQnASchema.parse(body)
 
     const tenantContext = getTenantContext(session)
-    await requirePermission("rfp:edit")
 
     // Verify Q&A belongs to tenant
     const existingQnA = await db.qnA.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -94,7 +93,7 @@ export async function PUT(
     }
 
     const qna = await db.qnA.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
       include: {
         rfp: {
@@ -113,8 +112,15 @@ export async function PUT(
       },
     })
 
-    // TODO: Send notification for answer
-    // This would integrate with a notification system
+    // Send notification to the vendor who asked the question
+    if (qna.vendorId) {
+      await NotificationService.send({
+        userId: qna.vendorId,
+        type: "question_answered",
+        title: "Question Answered",
+        message: "Your question has been answered",
+      })
+    }
 
     return NextResponse.json(qna)
   } catch (error) {
@@ -130,12 +136,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })      
+          const { id } = await params
     }
 
     const tenantContext = getTenantContext(session)
@@ -143,7 +150,7 @@ export async function DELETE(
     // Verify Q&A belongs to tenant
     const existingQnA = await db.qnA.findFirst({
       where: {
-        id: params.id,
+        id: id,
         rfp: {
           tenantId: tenantContext.tenantId,
         },
@@ -155,7 +162,7 @@ export async function DELETE(
     }
 
     await db.qnA.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({ message: "Q&A item deleted successfully" })
