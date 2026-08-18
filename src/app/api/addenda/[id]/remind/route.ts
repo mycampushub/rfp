@@ -37,17 +37,20 @@ export async function POST(
       take: 200,
     })
 
-    const invitedVendorIds: string[] = invitations
-      .map((inv) => inv.vendorId as string)
-      .filter((vId) => vId != null)
+    // Extract vendor IDs with explicit types to avoid implicit any in build worker
+    const invitationRecords = invitations as Array<{ vendorId: string | null }>
+    const invitedVendorIds: string[] = invitationRecords
+      .map((inv: { vendorId: string | null }) => inv.vendorId)
+      .filter((vId: string | null): vId is string => vId !== null)
 
+    const ackRecords = addendum.acknowledgments as Array<{ vendorId: string }>
     const acknowledgedVendorIds = new Set<string>(
-      addendum.acknowledgments.map((ack) => ack.vendorId as string)
+      ackRecords.map((ack: { vendorId: string }) => ack.vendorId)
     )
 
     // Find vendors that haven't acknowledged
     const unacknowledgedVendorIds = invitedVendorIds.filter(
-      (vId) => !acknowledgedVendorIds.has(vId)
+      (vId: string) => !acknowledgedVendorIds.has(vId)
     )
 
     if (unacknowledgedVendorIds.length === 0) {
@@ -61,11 +64,12 @@ export async function POST(
       take: 500,
     })
 
+    const userRecords = tenantUsers as Array<{ id: string }>
     let reminderCount = 0
-    const notificationPromises = tenantUsers.map((user) =>
+    const notificationPromises = userRecords.map((user: { id: string }) =>
       db.notification.create({
         data: {
-          userId: user.id as string,
+          userId: user.id,
           type: "addendum_reminder",
           title: `Reminder: ${addendum.title}`,
           message: `${unacknowledgedVendorIds.length} vendor(s) have not yet acknowledged this addendum for "${addendum.rfp.title}"`,

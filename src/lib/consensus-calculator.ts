@@ -1,9 +1,10 @@
-import { db } from "@/lib/db"
+import { PrismaClient } from "@prisma/client"
 
-// Accepts both PrismaClient and Prisma transaction client (Omit<PrismaClient, ...>)
-export type TransactionClient =
-  | typeof db
-  | Omit<typeof db, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">
+// Self-contained transaction client type — no cross-file db dependency
+export type TransactionClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends" | "$use" | "$applyPendingMigrations"
+>
 
 /**
  * Calculate and persist a consensus score for a given submission + criterion.

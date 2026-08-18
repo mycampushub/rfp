@@ -93,11 +93,11 @@ export class AnalyticsService {
     ])
 
     // Calculate average cycle time (limited to recent records)
-    const rfpsForCycle = await db.rFP.findMany({
+    const rfpsForCycle = (await db.rFP.findMany({
       where: { ...tenantWhere },
       include: { timeline: true },
       take: 1000,
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const cycleTimes = rfpsForCycle
       .filter(r => r.timeline && r.timeline.awardTarget)
@@ -139,7 +139,7 @@ export class AnalyticsService {
       : 0
 
     // Calculate top performers (limited set)
-    const submissions = await db.submission.findMany({
+    const submissions = (await db.submission.findMany({
       where: {
         rfp: { tenantId },
         status: "awarded",
@@ -149,7 +149,7 @@ export class AnalyticsService {
         consensus: true,
       },
       take: 1000,
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const vendorStats = new Map<string, {
       submissions: number
@@ -243,13 +243,13 @@ export class AnalyticsService {
   }
 
   private static async getTimelineMetrics(tenantId: string): Promise<TimelineMetrics> {
-    const rfps = await db.rFP.findMany({
+    const rfps = (await db.rFP.findMany({
       where: { tenantId },
       include: {
         timeline: true,
       },
       take: 1000,
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const creationToPublishTimes: number[] = []
     const publishToAwardTimes: number[] = []
@@ -289,7 +289,7 @@ export class AnalyticsService {
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
-    const rfps = await db.rFP.findMany({
+    const rfps = (await db.rFP.findMany({
       where: {
         tenantId,
         createdAt: {
@@ -301,7 +301,7 @@ export class AnalyticsService {
         budget: true,
         status: true,
       },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const monthlyData: MonthlyData[] = []
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -333,12 +333,12 @@ export class AnalyticsService {
 
   private static async getCategoryData(tenantId: string): Promise<CategoryData[]> {
     // Use groupBy for efficient aggregation instead of loading all records
-    const grouped = await db.rFP.groupBy({
+    const grouped = (await db.rFP.groupBy({
       by: ['category'],
       where: { tenantId },
       _count: true,
       _sum: { budget: true },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     return grouped
       .map(item => ({
@@ -409,7 +409,7 @@ export class AnalyticsService {
   }
 
   private static async getAverageResponseTime(tenantId: string): Promise<number> {
-    const invitations = await db.invitation.findMany({
+    const invitations = (await db.invitation.findMany({
       where: {
         rfp: { tenantId },
         status: "accepted",
@@ -419,7 +419,7 @@ export class AnalyticsService {
         updatedAt: true,
       },
       take: 1000,
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     if (invitations.length === 0) return 0
 

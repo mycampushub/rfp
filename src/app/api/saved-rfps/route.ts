@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       isDismissed: false,
     }
 
-    const [savedNotifications, total] = await Promise.all([
+    const [savedNotificationsRaw, total] = await Promise.all([
       db.notification.findMany({
         where,
         select: { data: true },
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       }),
       db.notification.count({ where }),
     ])
+    const savedNotifications = savedNotificationsRaw as Array<{ data: unknown }>
 
     const savedRfpIds = savedNotifications
       .map((n) => (n.data as Record<string, string>)?.rfpId)

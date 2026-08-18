@@ -296,8 +296,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if all required questions are answered
-    const allQuestions = existingSubmission.rfp.sections.flatMap(section => section.questions)
-    const requiredQuestions = allQuestions.filter(q => q.required)
+    const allQuestions = (existingSubmission.rfp.sections as Array<{ questions: Array<{ id: string; required: boolean; prompt: string }> }>).flatMap(section => section.questions)
+    const requiredQuestions = allQuestions.filter((q: { required: boolean }) => q.required)
     
     const answeredQuestions = await db.answer.findMany({
       where: { submissionId: existingSubmission.id },
@@ -305,14 +305,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       take: 200,
     })
 
-    const answeredQuestionIds = answeredQuestions.map(a => a.questionId)
-    const unansweredRequired = requiredQuestions.filter(q => !answeredQuestionIds.includes(q.id))
+    const answeredQuestionIds = (answeredQuestions as Array<{ questionId: string }>).map((a: { questionId: string }) => a.questionId)
+    const unansweredRequired = requiredQuestions.filter((q: { id: string }) => !answeredQuestionIds.includes(q.id))
 
     if (unansweredRequired.length > 0) {
       return NextResponse.json(
         { 
           error: "Required questions not answered",
-          unanswered: unansweredRequired.map(q => ({ id: q.id, prompt: q.prompt }))
+          unanswered: unansweredRequired.map((q: { id: string; prompt: string }) => ({ id: q.id, prompt: q.prompt }))
         },
         { status: 400 }
       )

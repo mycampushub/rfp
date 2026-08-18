@@ -14,11 +14,12 @@ export async function GET() {
     const tenantId = ctx.tenantId
 
     // 1. RFP Status Distribution
-    const statusCounts = await db.rFP.groupBy({
+    const statusCountsRaw = await db.rFP.groupBy({
       by: ["status"],
       where: { tenantId },
       _count: { status: true },
     })
+    const statusCounts = statusCountsRaw as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const statusOrder = ["draft", "published", "closed", "awarded", "archived"]
     const statusDistribution = statusOrder
@@ -34,15 +35,15 @@ export async function GET() {
     sixMonthsAgo.setDate(1)
     sixMonthsAgo.setHours(0, 0, 0, 0)
 
-    const rfpsCreated = await db.rFP.findMany({
+    const rfpsCreated = (await db.rFP.findMany({
       where: { tenantId, createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
-    const submissionsCreated = await db.submission.findMany({
+    const submissionsCreated = (await db.submission.findMany({
       where: { rfp: { tenantId }, createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const monthlyActivity: Array<{ month: string; created: number; submissions: number }> = []
     const now = new Date()
@@ -59,7 +60,7 @@ export async function GET() {
     }
 
     // 3. Vendor Response Rate (per RFP: submissions vs max possible)
-    const rfpsWithSubmissions = await db.rFP.findMany({
+    const rfpsWithSubmissions = (await db.rFP.findMany({
       where: { tenantId, status: { in: ["published", "closed", "awarded"] } },
       select: {
         id: true,
@@ -68,7 +69,7 @@ export async function GET() {
       },
       orderBy: { createdAt: "desc" },
       take: 6,
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const vendorResponseRate = rfpsWithSubmissions.map((rfp) => {
       const responses = rfp._count.submissions
@@ -82,7 +83,7 @@ export async function GET() {
 
     // 4. Evaluation Progress — RFPs that have been evaluated vs pending evaluation
     //    An RFP is "evaluated" if it has at least one score.
-    const evaluationRfps = await db.rFP.findMany({
+    const evaluationRfps = (await db.rFP.findMany({
       where: { tenantId, status: { in: ["published", "closed", "awarded"] } },
       select: {
         id: true,
@@ -91,19 +92,20 @@ export async function GET() {
       },
       orderBy: { createdAt: "desc" },
       take: 6,
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     // Get score counts per RFP in a single query
-    const rfpIds = evaluationRfps.map(r => r.id)
-    const scoreCounts = rfpIds.length > 0
+    const rfpIds = (evaluationRfps as Array<{ id: string }>).map((r: { id: string }) => r.id)
+    const scoreCountsRaw = rfpIds.length > 0
       ? await db.score.groupBy({
           by: ["submissionId"],
           where: { submission: { rfpId: { in: rfpIds } } },
           _count: true,
         })
       : []
+    const scoreCounts = (scoreCountsRaw || []) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
     // Count unique submissions with scores per RFP
-    const _evaluatedSubmissionIds = new Set(scoreCounts.map(s => s.submissionId))
+    const _evaluatedSubmissionIds = new Set((scoreCounts as Array<{ submissionId: string }>).map((s: { submissionId: string }) => s.submissionId))
 
     const evaluationProgress = evaluationRfps.map((rfp) => {
       const total = rfp._count.submissions

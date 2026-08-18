@@ -82,10 +82,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       if (roleIds.length === 0) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
-      const roles = await db.role.findMany({
+      const roles = (await db.role.findMany({
         where: { id: { in: roleIds }, tenantId: ctx.tenantId },
         select: { permissions: true },
-      })
+      })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
       const allPerms = roles.flatMap((r) => (r.permissions as string[]) || [])
       const isAdmin = allPerms.some(
         (p) => p === "admin:all" || p === "template:delete" || p === "rfp:manage"

@@ -24,7 +24,7 @@ export async function GET(
     const { id } = await params
     const tenantContext = getTenantContext(session)
 
-    const submission = await db.submission.findFirst({
+    const submission = (await db.submission.findFirst({
       where: {
         id: id,
         rfp: {
@@ -106,7 +106,7 @@ export async function GET(
           },
         },
       },
-    })
+    })) as any // eslint-disable-line @typescript-eslint/no-explicit-any
 
     if (!submission) {
       return NextResponse.json({ error: "Submission not found" }, { status: 404 })
@@ -185,7 +185,7 @@ export async function PUT(
         take: 200,
       })
 
-      const answerData = answers.map(a => ({
+      const answerData = (answers as Array<{ questionId: string; valueText: string | null; valueNumber: number | null; valueOption: string | null; fileRef: string | null }>).map((a: { questionId: string; valueText: string | null; valueNumber: number | null; valueOption: string | null; fileRef: string | null }) => ({
         questionId: a.questionId,
         valueText: a.valueText,
         valueNumber: a.valueNumber,

@@ -109,12 +109,13 @@ export async function DELETE(
         },
         take: 500,
       })
-      const matchingIds = allCopies
-        .filter((n) => {
+      const copies = allCopies as Array<{ id: string; data: unknown }>
+      const matchingIds = copies
+        .filter((n: { id: string; data: unknown }) => {
           const d = n.data as Record<string, unknown> | null
           return d?.announcementId === announcementData.announcementId
         })
-        .map((n) => n.id)
+        .map((n: { id: string }) => n.id)
 
       if (matchingIds.length > 0) {
         await db.notification.deleteMany({ where: { id: { in: matchingIds } } })

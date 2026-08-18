@@ -32,7 +32,7 @@ export async function GET(
     const format = searchParams.get("format") ?? "csv"
 
     // Fetch all scores for this RFP with vendor, evaluator, and criterion info
-    const scores = await db.score.findMany({
+    const scores = (await db.score.findMany({
       where: {
         submission: { rfpId },
       },
@@ -53,7 +53,7 @@ export async function GET(
         { submission: { vendor: { name: "asc" } } },
         { criterion: { label: "asc" } },
       ],
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const headers = [
       "Vendor Name",

@@ -16,7 +16,7 @@ export async function GET(_request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const ctx = getTenantContext(session)
 
-    const threads = await db.messageThread.findMany({
+    const threads = (await db.messageThread.findMany({
       where: { tenantId: ctx.tenantId },
       include: {
         messages: {
@@ -26,7 +26,7 @@ export async function GET(_request: NextRequest) {
         },
       },
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     // Filter to only threads where the current user is a participant
     const filtered = threads.filter((t) => {

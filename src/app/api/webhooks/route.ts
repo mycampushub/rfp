@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
-    const [webhooks, total] = await Promise.all([
+    const [webhooksRaw, total] = await Promise.all([
       db.webhookEndpoint.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
       }),
       db.webhookEndpoint.count({ where: whereClause }),
     ])
+
+    const webhooks = webhooksRaw as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     // Omit secrets from list response
     const safeWebhooks = webhooks.map(({ secret: _s, ...w }) => w)

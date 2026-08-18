@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Send notification to first stage approvers
-    const firstStageRequest = requests.find(r => r.status === "pending")
+    const firstStageRequest = (requests as Array<{ status: string }>).find((r: { status: string }) => r.status === "pending")
     if (firstStageRequest && workflowStages[0]) {
       const stageApproverIds = workflowStages[0].approvers as string[] | undefined
       if (stageApproverIds) {

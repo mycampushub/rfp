@@ -338,8 +338,7 @@ async function generateDocumentHash(submission: Record<string, unknown>): Promis
   const submissionString = JSON.stringify(submission)
   const data = encoder.encode(submissionString)
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map((b: number) => b.toString(16).padStart(2, '0')).join('')
   return hashHex
 }
 

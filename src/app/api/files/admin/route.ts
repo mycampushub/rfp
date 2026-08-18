@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
       case "integrity":
         const integrityResults = await FileService.checkIntegrity()
-        const corruptedFiles = integrityResults.filter(r => !r.isIntact)
+        const corruptedFiles = (integrityResults as Array<{ isIntact: boolean }>).filter((r: { isIntact: boolean }) => !r.isIntact)
         
         return NextResponse.json({
           message: "Integrity check completed",

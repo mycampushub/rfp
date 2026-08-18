@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get("format") ?? "csv"
 
     // 1. RFP counts by status
-    const rfpStatusGroups = await db.rFP.groupBy({
+    const rfpStatusGroupsRaw = await db.rFP.groupBy({
       by: ["status"],
       where: { tenantId: ctx.tenantId },
       _count: { id: true },
     })
+    const rfpStatusGroups = rfpStatusGroupsRaw as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const statusRows = rfpStatusGroups.map((g) => [
       "RFPs by Status",
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     ])
 
     // 2. Vendor response rates per RFP
-    const rfpsWithCounts = await db.rFP.findMany({
+    const rfpsWithCounts = (await db.rFP.findMany({
       where: { tenantId: ctx.tenantId },
       select: {
         id: true,
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
         responseCount: true,
         _count: { select: { submissions: true, invitations: true } },
       },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const vendorResponseRows = rfpsWithCounts.map((rfp) => {
       const invited = rfp._count.invitations
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     })
 
     // 3. Average evaluation scores per RFP
-    const avgScores = await db.score.findMany({
+    const avgScores = (await db.score.findMany({
       where: {
         submission: { rfp: { tenantId: ctx.tenantId } },
       },
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
           select: { rfpId: true },
         },
       },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     // Group by rfpId and compute average
     const rfpScoreMap = new Map<string, number[]>()

@@ -34,7 +34,7 @@ export class TenantService {
     })
 
     // Create default roles for the tenant
-    const roles = await Promise.all(
+    const roles = (await Promise.all(
       Object.entries(DEFAULT_ROLES).map(([key, roleData]) =>
         db.role.create({
           data: {
@@ -44,7 +44,7 @@ export class TenantService {
           },
         })
       )
-    )
+    )) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     // Create admin user with hashed password
     const rawPassword = data.adminPassword || crypto.randomBytes(16).toString("hex")
@@ -55,7 +55,7 @@ export class TenantService {
         email: data.adminEmail,
         name: data.adminName,
         password: hashedPassword,
-        roleIds: [roles.find(r => r.name === "Tenant Admin")!.id],
+        roleIds: [roles.find((r: any) => r.name === "Tenant Admin")!.id], // eslint-disable-line @typescript-eslint/no-explicit-any
         isActive: true,
       },
     })

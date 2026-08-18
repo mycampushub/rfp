@@ -55,7 +55,7 @@ export async function PUT(
       select: { id: true },
       take: 200,
     })
-    const existingIds = existingSections.map(s => s.id)
+    const existingIds = (existingSections as Array<{ id: string }>).map((s: { id: string }) => s.id)
 
     // Delete all existing sections
     if (existingIds.length > 0) {

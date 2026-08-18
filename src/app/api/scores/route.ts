@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
-import { calculateConsensus } from "@/lib/consensus-calculator"
+import { calculateConsensus, type TransactionClient } from "@/lib/consensus-calculator"
 import { z } from "zod"
 
 const createScoreSchema = z.object({
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     const tenantContext = getTenantContext(session)
 
-    const score = await db.$transaction(async (tx) => {
+    const score = await db.$transaction(async (tx: TransactionClient) => {
       // Verify submission belongs to tenant
       const submission = await tx.submission.findFirst({
         where: {

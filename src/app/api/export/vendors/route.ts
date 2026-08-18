@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const format = searchParams.get("format") ?? "csv"
 
-    const vendors = await db.vendor.findMany({
+    const vendors = (await db.vendor.findMany({
       where: { tenantId: ctx.tenantId },
       orderBy: { createdAt: "desc" },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const headers = [
       "Company Name",

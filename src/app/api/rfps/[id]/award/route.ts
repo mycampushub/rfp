@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/rbac"
 import { db } from "@/lib/db"
 import { AuditLogger, AUDIT_EVENTS } from "@/lib/audit-logger"
 import { z } from "zod"
+import type { TransactionClient } from "@/lib/consensus-calculator"
 
 const awardSchema = z.object({
   submissionId: z.string().min(1),
@@ -63,7 +64,7 @@ export async function POST(
     }
 
     // Perform the award in a transaction
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: TransactionClient) => {
       // Mark the submission as awarded
       const awardedSubmission = await tx.submission.update({
         where: { id: submissionId },

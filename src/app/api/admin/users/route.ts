@@ -6,6 +6,7 @@ import { AuthError, PermissionError } from "@/lib/tenant-context"
 import { requireSystemAdmin } from "@/lib/auth-utils"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
+import type { TransactionClient } from "@/lib/consensus-calculator"
 
 const createUserSchema = z.object({
   name: z.string().optional(),
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(data.password, 12)
 
-    const user = await db.$transaction(async (tx) => {
+    const user = await db.$transaction(async (tx: TransactionClient) => {
       // Verify tenant exists
       const tenant = await tx.tenant.findUnique({ where: { id: data.tenantId } })
       if (!tenant) {

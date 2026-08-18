@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
     const announcementId = `ann-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 
     // Create a notification for every tenant user (tenant-wide broadcast)
-    const notifications = tenantUsers.map((user: { id: string }) => ({
+    const userRecords = tenantUsers as Array<{ id: string }>
+    const notifications = userRecords.map((user: { id: string }) => ({
       userId: user.id,
       type: "announcement" as const,
       title: data.title,

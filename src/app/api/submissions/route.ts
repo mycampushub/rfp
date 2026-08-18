@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 import { dispatchWebhooks } from "@/lib/webhook-dispatcher"
+import type { TransactionClient } from "@/lib/consensus-calculator"
 
 const createSubmissionSchema = z.object({
   rfpId: z.string(),
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
 
-    const [submissions, total] = await Promise.all([
+    const [submissionsRaw, total] = await Promise.all([
       db.submission.findMany({
         where: whereClause,
         include: {
@@ -122,10 +123,12 @@ export async function GET(request: NextRequest) {
       db.submission.count({ where: whereClause }),
     ])
 
+    const submissions = submissionsRaw as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+
     // Calculate total scores for each submission
     const submissionsWithScores = await Promise.all(
       submissions.map(async (submission) => {
-        const totalScore = submission.consensus.reduce((sum, consensus) => {
+        const totalScore = submission.consensus.reduce((sum: number, consensus: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           return sum + (consensus.scoreValue * (consensus.criterion.weight || 1))
         }, 0)
 
@@ -171,7 +174,7 @@ export async function POST(request: NextRequest) {
 
     const tenantContext = getTenantContext(session)
 
-    const submission = await db.$transaction(async (tx) => {
+    const submission = await db.$transaction(async (tx: TransactionClient) => {
       // Verify RFP belongs to tenant
       const rfp = await tx.rFP.findFirst({
         where: {

@@ -5,6 +5,7 @@ import { db } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { randomUUID } from "crypto"
+import type { TransactionClient } from "@/lib/consensus-calculator"
 
 const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(validatedData.password, 12)
 
     // Wrap multi-step writes in a transaction
-    const result = await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx: TransactionClient) => {
       // Check if user already exists
       const existingUser = await tx.user.findFirst({
         where: {

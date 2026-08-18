@@ -71,8 +71,9 @@ const { id } = await params
 
     // Get the process and handle workflow progression
     const process = requestRecord.process
-    const currentIndex = process.requests.findIndex(r => r.id === id)
-    const nextRequest = process.requests[currentIndex + 1]
+    const requests = process.requests as Array<{ id: string; status: string; approverId: string | null }>
+    const currentIndex = requests.findIndex((r: { id: string }) => r.id === id)
+    const nextRequest = requests[currentIndex + 1]
 
     if (validatedData.status === "approved") {
       if (nextRequest) {

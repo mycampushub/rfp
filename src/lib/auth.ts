@@ -49,10 +49,10 @@ export const authOptions: NextAuthOptions = {
         const roleIds = (Array.isArray(rawRoleIds) ? rawRoleIds : []) as string[]
         let roleNames: string[] = []
         if (roleIds.length > 0) {
-          const roles = await db.role.findMany({
+          const roles = (await db.role.findMany({
             where: { id: { in: roleIds } },
             select: { name: true },
-          })
+          })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
           roleNames = roles.map(r => r.name)
         }
 
