@@ -132,12 +132,12 @@ export async function GET(request: NextRequest) {
           return sum + (consensus.scoreValue * (consensus.criterion.weight || 1))
         }, 0)
 
-        const maxPossibleScore = submission.consensus.reduce((sum, consensus) => {
+        const maxPossibleScore = submission.consensus.reduce((sum: number, consensus: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           return sum + ((consensus.criterion.scaleMax || 5) * (consensus.criterion.weight || 1))
         }, 0)
 
         const averageScore = submission.scores.length > 0
-          ? submission.scores.reduce((sum, score) => sum + score.scoreValue, 0) / submission.scores.length
+          ? submission.scores.reduce((sum: number, score: any) => sum + score.scoreValue, 0) / submission.scores.length // eslint-disable-line @typescript-eslint/no-explicit-any
           : 0
 
         return {

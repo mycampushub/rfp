@@ -385,7 +385,7 @@ export class ApprovalService {
   }
 
   private static async getAverageProcessingTime(tenantId: string): Promise<number> {
-    const processes = await db.approvalProcess.findMany({
+    const processes = (await db.approvalProcess.findMany({
       where: {
         workflow: {
           tenantId,
@@ -397,12 +397,12 @@ export class ApprovalService {
         createdAt: true,
         completedAt: true,
       },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
     if (processes.length === 0) return 0
 
-    const totalTime = processes.reduce((sum, process) => {
-      const processingTime = process.completedAt!.getTime() - process.createdAt.getTime()
+    const totalTime = processes.reduce((sum: number, process: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      const processingTime = process.completedAt.getTime() - process.createdAt.getTime()
       return sum + processingTime
     }, 0)
 

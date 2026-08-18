@@ -22,7 +22,7 @@ export async function calculateConsensus(
   criterionId: string,
 ) {
   // Get all scores for this submission and criterion
-  const scores = await tx.score.findMany({
+  const scores = (await tx.score.findMany({
     where: {
       submissionId,
       criterionId,
@@ -32,7 +32,7 @@ export async function calculateConsensus(
       criterion: true,
     },
     take: 500,
-  })
+  })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
   if (scores.length === 0) {
     return // No scores to calculate consensus

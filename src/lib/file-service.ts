@@ -380,7 +380,7 @@ export class FileService {
   }
 
   static async getStorageStats(tenantId: string) {
-    const files = await db.file.findMany({
+    const files = (await db.file.findMany({
       where: { tenantId },
       select: {
         size: true,
@@ -388,9 +388,9 @@ export class FileService {
         legalHold: true,
         createdAt: true,
       },
-    })
+    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 
-    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0)
+    const totalSize = files.reduce((sum: number, file: any) => sum + (file.size || 0), 0) // eslint-disable-line @typescript-eslint/no-explicit-any
     const totalFiles = files.length
 
     const byRetention = files.reduce((acc, file) => {

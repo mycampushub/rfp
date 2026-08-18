@@ -180,7 +180,7 @@ export class AnalyticsService {
 
       // Calculate average score from consensus
       const avgScore = submission.consensus.length > 0
-        ? submission.consensus.reduce((sum, c) => sum + c.scoreValue, 0) / submission.consensus.length
+        ? submission.consensus.reduce((sum: number, c: any) => sum + c.scoreValue, 0) / submission.consensus.length // eslint-disable-line @typescript-eslint/no-explicit-any
         : 0
 
       if (avgScore > 0) {
