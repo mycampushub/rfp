@@ -5,7 +5,6 @@ import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
 import { v4 as uuidv4 } from "uuid"
-import { Prisma } from "@prisma/client"
 
 const createWorkflowSchema = z.object({
   name: z.string(),
@@ -102,7 +101,7 @@ export async function POST(request: NextRequest) {
         tenantId: tenantContext.tenantId,
         name: validatedData.name,
         description: validatedData.description,
-        stages: stagesWithIds as unknown as Prisma.InputJsonValue,
+        stages: stagesWithIds as unknown as object,
         isActive: true,
       },
     })

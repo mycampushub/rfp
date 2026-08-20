@@ -93,11 +93,12 @@ export class AnalyticsService {
     ])
 
     // Calculate average cycle time (limited to recent records)
-    const rfpsForCycle = (await db.rFP.findMany({
+    const rfpsForCycleRaw = await db.rFP.findMany({
       where: { ...tenantWhere },
       include: { timeline: true },
       take: 1000,
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const rfpsForCycle = rfpsForCycleRaw as any[]
 
     const cycleTimes = rfpsForCycle
       .filter(r => r.timeline && r.timeline.awardTarget)
@@ -139,7 +140,7 @@ export class AnalyticsService {
       : 0
 
     // Calculate top performers (limited set)
-    const submissions = (await db.submission.findMany({
+    const submissionsRaw = await db.submission.findMany({
       where: {
         rfp: { tenantId },
         status: "awarded",
@@ -149,7 +150,8 @@ export class AnalyticsService {
         consensus: true,
       },
       take: 1000,
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const submissions = submissionsRaw as any[]
 
     const vendorStats = new Map<string, {
       submissions: number
@@ -160,7 +162,7 @@ export class AnalyticsService {
 
     submissions.forEach(submission => {
       const vendorId = submission.vendorId
-      const vendorName = submission.vendor.name
+      const _vendorName = submission.vendor.name
 
       if (!vendorStats.has(vendorId)) {
         vendorStats.set(vendorId, {
@@ -180,7 +182,7 @@ export class AnalyticsService {
 
       // Calculate average score from consensus
       const avgScore = submission.consensus.length > 0
-        ? submission.consensus.reduce((sum: number, c: any) => sum + c.scoreValue, 0) / submission.consensus.length // eslint-disable-line @typescript-eslint/no-explicit-any
+        ? submission.consensus.reduce((sum: number, c: any) => sum + c.scoreValue, 0) / submission.consensus.length
         : 0
 
       if (avgScore > 0) {
@@ -243,13 +245,14 @@ export class AnalyticsService {
   }
 
   private static async getTimelineMetrics(tenantId: string): Promise<TimelineMetrics> {
-    const rfps = (await db.rFP.findMany({
+    const rfpsRaw = await db.rFP.findMany({
       where: { tenantId },
       include: {
         timeline: true,
       },
       take: 1000,
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const rfps = rfpsRaw as any[]
 
     const creationToPublishTimes: number[] = []
     const publishToAwardTimes: number[] = []
@@ -289,7 +292,7 @@ export class AnalyticsService {
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
-    const rfps = (await db.rFP.findMany({
+    const rfpsRaw = await db.rFP.findMany({
       where: {
         tenantId,
         createdAt: {
@@ -301,7 +304,8 @@ export class AnalyticsService {
         budget: true,
         status: true,
       },
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const rfps = rfpsRaw as any[]
 
     const monthlyData: MonthlyData[] = []
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -310,7 +314,7 @@ export class AnalyticsService {
       const date = new Date()
       date.setMonth(date.getMonth() - i)
       const month = monthNames[date.getMonth()]
-      const year = date.getFullYear()
+      const _year = date.getFullYear()
 
       const monthRfps = rfps.filter(rfp => {
         const rfpDate = new Date(rfp.createdAt)
@@ -333,12 +337,13 @@ export class AnalyticsService {
 
   private static async getCategoryData(tenantId: string): Promise<CategoryData[]> {
     // Use groupBy for efficient aggregation instead of loading all records
-    const grouped = (await db.rFP.groupBy({
+    const groupedRaw = await db.rFP.groupBy({
       by: ['category'],
       where: { tenantId },
       _count: true,
       _sum: { budget: true },
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const grouped = groupedRaw as any[]
 
     return grouped
       .map(item => ({
@@ -356,7 +361,7 @@ export class AnalyticsService {
 
   static async getRealTimeMetrics(tenantId: string) {
     const now = new Date()
-    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const _last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
     const [
@@ -409,7 +414,7 @@ export class AnalyticsService {
   }
 
   private static async getAverageResponseTime(tenantId: string): Promise<number> {
-    const invitations = (await db.invitation.findMany({
+    const invitationsRaw = await db.invitation.findMany({
       where: {
         rfp: { tenantId },
         status: "accepted",
@@ -419,7 +424,8 @@ export class AnalyticsService {
         updatedAt: true,
       },
       take: 1000,
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const invitations = invitationsRaw as any[]
 
     if (invitations.length === 0) return 0
 

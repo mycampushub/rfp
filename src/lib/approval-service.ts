@@ -60,7 +60,7 @@ export class ApprovalService {
     const { tenantId: _tid, ...updateData } = data as Partial<ApprovalWorkflow> & { tenantId?: string }
     return await db.approvalWorkflow.updateMany({
       where: { id, tenantId },
-      data: updateData as Parameters<typeof db.approvalWorkflow.updateMany>[0]['data'],
+      data: updateData as any,
     })
   }
 
@@ -192,17 +192,17 @@ export class ApprovalService {
     })
 
     // Get the process and move to next stage
-    const process = await db.approvalProcess.findUnique({
+    const process = (await db.approvalProcess.findUnique({
       where: { id: request.processId },
       include: {
         requests: {
           orderBy: { createdAt: "asc" },
         },
       },
-    })
+    })) as any
 
     if (process) {
-      const currentIndex = process.requests.findIndex(r => r.id === requestId)
+      const currentIndex = (process.requests as any[]).findIndex((r: any) => r.id === requestId)
       const nextRequest = process.requests[currentIndex + 1]
 
       if (nextRequest) {
@@ -385,7 +385,7 @@ export class ApprovalService {
   }
 
   private static async getAverageProcessingTime(tenantId: string): Promise<number> {
-    const processes = (await db.approvalProcess.findMany({
+    const processesRaw = await db.approvalProcess.findMany({
       where: {
         workflow: {
           tenantId,
@@ -397,11 +397,12 @@ export class ApprovalService {
         createdAt: true,
         completedAt: true,
       },
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const processes = processesRaw as any[]
 
     if (processes.length === 0) return 0
 
-    const totalTime = processes.reduce((sum: number, process: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const totalTime = processes.reduce((sum: number, process: any) => {
       const processingTime = process.completedAt.getTime() - process.createdAt.getTime()
       return sum + processingTime
     }, 0)
@@ -416,7 +417,7 @@ export class ApprovalService {
   }
 
   static async checkSLACompliance() {
-    const overdueRequests = await db.approvalRequest.findMany({
+    const overdueRequestsRaw = await db.approvalRequest.findMany({
       where: {
         status: "pending",
         dueAt: {
@@ -435,10 +436,12 @@ export class ApprovalService {
         },
       },
     })
+    const overdueRequests = overdueRequestsRaw as any[]
 
     // Send notifications for overdue requests
     for (const request of overdueRequests) {
-      console.log(`SLA breach detected for request ${request.id} in tenant ${request.process.rfp.tenantId}`)
+      const r = request as any
+      console.log(`SLA breach detected for request ${r.id} in tenant ${r.process?.rfp?.tenantId}`)
     }
 
     return overdueRequests

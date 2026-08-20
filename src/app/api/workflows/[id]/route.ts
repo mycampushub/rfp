@@ -4,8 +4,6 @@ import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { z } from "zod"
-import { Prisma } from "@prisma/client"
-
 const updateWorkflowSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
@@ -110,7 +108,7 @@ export async function PUT(
 
     const workflow = await db.approvalWorkflow.update({
       where: { id: id },
-      data: validatedData as unknown as Prisma.ApprovalWorkflowUpdateInput,
+      data: validatedData as Record<string, unknown>,
     })
 
     return NextResponse.json(workflow)

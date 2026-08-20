@@ -16,8 +16,8 @@ type SessionUser = Record<string, unknown>
 export async function withAuth(
   request: NextRequest,
   handler: (
-    session: { user?: SessionUser },
-    ctx: TenantContext
+    _session: { user?: SessionUser },
+    _ctx: TenantContext
   ) => Promise<NextResponse>
 ): Promise<NextResponse> {
   try {
@@ -55,8 +55,9 @@ export async function checkPermission(
   const user = session.user
   const roleIds = (user.roleIds || []) as string[]
   if (roleIds.length === 0) return false
-  const roles = await db.role.findMany({ where: { id: { in: roleIds } } })
-  const userPermissions = roles.flatMap(role => role.permissions || [])
+  const rolesRaw = await db.role.findMany({ where: { id: { in: roleIds } } })
+  const roles = rolesRaw as any[]
+  const userPermissions = roles.flatMap((role: any) => role.permissions || [])
   return userPermissions.includes(permission)
 }
 

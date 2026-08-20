@@ -34,8 +34,8 @@ export class TenantService {
     })
 
     // Create default roles for the tenant
-    const roles = (await Promise.all(
-      Object.entries(DEFAULT_ROLES).map(([key, roleData]) =>
+    const rolesRaw = await Promise.all(
+      Object.entries(DEFAULT_ROLES).map(([_key, roleData]) =>
         db.role.create({
           data: {
             tenantId: tenant.id,
@@ -44,7 +44,8 @@ export class TenantService {
           },
         })
       )
-    )) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    )
+    const roles = rolesRaw as any[]
 
     // Create admin user with hashed password
     const rawPassword = data.adminPassword || crypto.randomBytes(16).toString("hex")
@@ -55,7 +56,7 @@ export class TenantService {
         email: data.adminEmail,
         name: data.adminName,
         password: hashedPassword,
-        roleIds: [roles.find((r: any) => r.name === "Tenant Admin")!.id], // eslint-disable-line @typescript-eslint/no-explicit-any
+        roleIds: [roles.find((r: any) => r.name === "Tenant Admin")!.id],
         isActive: true,
       },
     })
@@ -167,7 +168,7 @@ export class TenantService {
       return []
     }
 
-    const roles = await db.role.findMany({
+    const rolesRaw = await db.role.findMany({
       where: {
         id: {
           in: (user.roleIds || []) as string[],
@@ -175,8 +176,9 @@ export class TenantService {
         tenantId,
       },
     })
+    const roles = rolesRaw as any[]
 
-    return roles.flatMap(role => role.permissions || [])
+    return roles.flatMap((role: any) => role.permissions || [])
   }
 
   static async hasPermission(userId: string, tenantId: string, permission: string) {

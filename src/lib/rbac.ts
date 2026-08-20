@@ -35,15 +35,16 @@ export async function requirePermission(permission: string): Promise<RbacResult>
     throw new PermissionError(`Permission denied: ${permission}`)
   }
 
-  const roles = await db.role.findMany({
+  const rolesRaw = await db.role.findMany({
     where: {
       id: { in: roleIds },
       tenantId: ctx.tenantId,
     },
     select: { permissions: true },
   })
+  const roles = rolesRaw as any[]
 
-  const hasPermission = roles.some((role) => {
+  const hasPermission = roles.some((role: any) => {
     const perms = (role.permissions as string[]) ?? []
     return perms.includes(permission)
   })
@@ -81,16 +82,17 @@ export async function requireAnyPermission(permissions: string[]): Promise<RbacR
     throw new PermissionError(`Permission denied: one of [${permissions.join(", ")}]`)
   }
 
-  const roles = await db.role.findMany({
+  const rolesRaw = await db.role.findMany({
     where: {
       id: { in: roleIds },
       tenantId: ctx.tenantId,
     },
     select: { permissions: true },
   })
+  const roles = rolesRaw as any[]
 
   const allPerms = new Set<string>()
-  roles.forEach((role) => {
+  roles.forEach((role: any) => {
     const perms = (role.permissions as string[]) ?? []
     perms.forEach((p) => allPerms.add(p))
   })

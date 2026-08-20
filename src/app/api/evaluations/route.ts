@@ -63,24 +63,24 @@ export async function GET(request: NextRequest) {
       }),
     ])
     // Cast to any[] — Prisma types not inferred in next build worker
-    const rfpsWithData = rfpsRaw as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    const rfpsWithData = rfpsRaw as any[]
 
     const evaluations = rfpsWithData
-      .filter((rfp: any) => rfp._count.submissions > 0) // eslint-disable-line @typescript-eslint/no-explicit-any
-      .map((rfp: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        const allScores = rfp.submissions.flatMap((s: any) => s.scores) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .filter((rfp: any) => rfp._count.submissions > 0)
+      .map((rfp: any) => {
+        const allScores = rfp.submissions.flatMap((s: any) => s.scores)
         const avgScore = allScores.length > 0
-          ? allScores.reduce((sum: number, s: any) => sum + (s.scoreValue || 0), 0) / allScores.length // eslint-disable-line @typescript-eslint/no-explicit-any
+          ? allScores.reduce((sum: number, s: any) => sum + (s.scoreValue || 0), 0) / allScores.length
           : 0
 
         // Evaluator progress: unique evaluator IDs who have scored vs total assigned evaluators
-        const evaluatorIdsWhoScored = new Set(allScores.map((s: any) => s.evaluatorId)) // eslint-disable-line @typescript-eslint/no-explicit-any
+        const evaluatorIdsWhoScored = new Set(allScores.map((s: any) => s.evaluatorId))
         const totalEvaluators = rfp.teams.length
-        const evaluatorsCompleted = rfp.teams.filter((t: any) => evaluatorIdsWhoScored.has(t.userId)).length // eslint-disable-line @typescript-eslint/no-explicit-any
+        const evaluatorsCompleted = rfp.teams.filter((t: any) => evaluatorIdsWhoScored.has(t.userId)).length
 
         // Check if current user is an evaluator on this RFP
         const currentUserId = ctx.userId
-        const isEvaluator = rfp.teams.some((t: any) => t.userId === currentUserId) // eslint-disable-line @typescript-eslint/no-explicit-any
+        const isEvaluator = rfp.teams.some((t: any) => t.userId === currentUserId)
         const hasUserScored = isEvaluator && evaluatorIdsWhoScored.has(currentUserId)
 
         // Derive evaluation status
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
           status: evaluationStatus,
           rfpStatus: rfp.status,
           submissionCount: rfp._count.submissions,
-          vendorCount: new Set(rfp.submissions.map((s: any) => s.vendorId)).size, // eslint-disable-line @typescript-eslint/no-explicit-any
+          vendorCount: new Set(rfp.submissions.map((s: any) => s.vendorId)).size,
           averageScore: Math.round(avgScore * 100) / 100,
           deadline: rfp.timeline?.awardTarget || null,
           submissionDeadline: rfp.timeline?.submissionDeadline || null,
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
           evaluatorsCompleted,
           isEvaluator,
           hasUserScored,
-          evaluators: rfp.teams.map((t: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+          evaluators: rfp.teams.map((t: any) => ({
             id: t.userId,
             name: t.user?.name || "Unknown",
             hasScored: evaluatorIdsWhoScored.has(t.userId),

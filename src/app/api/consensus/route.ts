@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Get all criteria for this submission's RFP
-      const criteria = await db.rubricCriterion.findMany({
+      const criteriaRaw = await db.rubricCriterion.findMany({
         where: {
           OR: [
             { rfpId: submission.rfpId },
@@ -130,6 +130,7 @@ export async function POST(request: NextRequest) {
           ],
         },
       })
+      const criteria = criteriaRaw as any[]
 
       // Recalculate consensus for each criterion
       const results = []

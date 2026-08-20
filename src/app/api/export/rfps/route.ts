@@ -21,14 +21,15 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = { tenantId: ctx.tenantId }
     if (statusFilter) (where as Record<string, unknown>).status = statusFilter
 
-    const rfps = (await db.rFP.findMany({
+    const rfpsRaw = await db.rFP.findMany({
       where,
       include: {
         timeline: { select: { submissionDeadline: true } },
         _count: { select: { submissions: true } },
       },
       orderBy: { createdAt: "desc" },
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const rfps = rfpsRaw as any[]
 
     const headers = [
       "Title",

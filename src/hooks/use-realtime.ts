@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 
-export function useRealtimeNotifications(onNotification: (data: unknown) => void) {
+export function useRealtimeNotifications(onNotification: (_data: unknown) => void) {
   const { data: session } = useSession()
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeout = useRef<NodeJS.Timeout>(undefined)

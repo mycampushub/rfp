@@ -41,7 +41,7 @@ export class AuditLogger {
       // Get IP address and user agent from headers
       const headersList = await headers()
       const ipAddress = this.getClientIP(headersList as unknown as Headers)
-      const userAgent = (headersList as unknown as Headers).get("user-agent") || undefined
+      const _userAgent = (headersList as unknown as Headers).get("user-agent") || undefined
 
       await db.activityLog.create({
         data: {

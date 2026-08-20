@@ -263,7 +263,7 @@ export class FileService {
     const now = new Date()
     
     // Get files that need to be cleaned up
-    const filesToCleanup = await db.file.findMany({
+    const filesToCleanupRaw = await db.file.findMany({
       where: {
         OR: [
           // Standard retention: 7 years
@@ -291,6 +291,7 @@ export class FileService {
         legalHold: false,
       },
     })
+    const filesToCleanup = filesToCleanupRaw as any[]
 
     const cleanupResults = []
     
@@ -333,7 +334,7 @@ export class FileService {
   }
 
   static async checkIntegrity() {
-    const files = await db.file.findMany({
+    const filesRaw = await db.file.findMany({
       select: {
         id: true,
         path: true,
@@ -341,6 +342,7 @@ export class FileService {
         size: true,
       },
     })
+    const files = filesRaw as any[]
 
     const integrityResults = []
 
@@ -380,7 +382,7 @@ export class FileService {
   }
 
   static async getStorageStats(tenantId: string) {
-    const files = (await db.file.findMany({
+    const filesRaw = await db.file.findMany({
       where: { tenantId },
       select: {
         size: true,
@@ -388,9 +390,10 @@ export class FileService {
         legalHold: true,
         createdAt: true,
       },
-    })) as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    })
+    const files = filesRaw as any[]
 
-    const totalSize = files.reduce((sum: number, file: any) => sum + (file.size || 0), 0) // eslint-disable-line @typescript-eslint/no-explicit-any
+    const totalSize = files.reduce((sum: number, file: any) => sum + (file.size || 0), 0)
     const totalFiles = files.length
 
     const byRetention = files.reduce((acc, file) => {

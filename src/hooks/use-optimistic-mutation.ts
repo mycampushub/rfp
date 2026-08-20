@@ -5,9 +5,9 @@ export function useOptimisticMutation<TData, TVariables>({
   queryKey,
   updateFn,
 }: {
-  mutationFn: (vars: TVariables) => Promise<TData>
+  mutationFn: (_vars: TVariables) => Promise<TData>
   queryKey: string[]
-  updateFn: (oldData: TData | undefined, vars: TVariables) => TData
+  updateFn: (_oldData: TData | undefined, _vars: TVariables) => TData
 }) {
   const queryClient = useQueryClient()
   return useMutation({

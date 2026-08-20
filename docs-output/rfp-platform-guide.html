@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFP Platform - Complete User Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+@page {
+    size: 720px 1020px;
+    margin: 0;
+}
+:root {
+    --c-bg: #ffffff;
+    --c-dark: #0f172a;
+    --c-accent: #0d9488;
+    --c-accent-light: #ccfbf1;
+    --c-text: #1e293b;
+    --c-text-secondary: #475569;
+    --c-border: #e2e8f0;
+    --c-card-bg: #f8fafc;
+}
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 720px;
+    background: #0f172a;
+    color: var(--c-text);
+    font-family: 'Inter', 'Liberation Sans', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+@media screen {
+    html {
+        height: auto;
+        display: flex;
+        justify-content: center;
+        background: #0f172a;
+    }
+    body {
+        transform-origin: top center;
+        margin: 20px auto;
+    }
+}
+
+/* ===== COVER ===== */
+.cover {
+    width: 720px;
+    height: 1020px;
+    background: linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 70px;
+    box-sizing: border-box;
+    break-after: page;
+    overflow: hidden;
+    position: relative;
+    text-align: center;
+}
+.cover::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: rgba(13, 148, 136, 0.08);
+}
+.cover::after {
+    content: '';
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: rgba(13, 148, 136, 0.05);
+}
+.cover-badge {
+    display: inline-block;
+    padding: 8px 24px;
+    border: 1px solid rgba(13, 148, 136, 0.4);
+    border-radius: 24px;
+    color: #5eead4;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+    position: relative;
+    z-index: 1;
+}
+.cover-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 52px;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.15;
+    margin: 0 0 44px 0;
+    position: relative;
+    z-index: 1;
+}
+.cover-title span {
+    color: #5eead4;
+}
+.cover-subtitle {
+    font-size: 17px;
+    font-weight: 300;
+    color: #94a3b8;
+    max-width: 480px;
+    line-height: 1.7;
+    margin: 0 0 44px 0;
+    position: relative;
+    z-index: 1;
+}
+.cover-line {
+    width: 60px;
+    height: 3px;
+    background: #0d9488;
+    margin: 0 auto 48px auto;
+    position: relative;
+    z-index: 1;
+}
+.cover-meta {
+    font-size: 12px;
+    color: #64748b;
+    letter-spacing: 1px;
+    position: relative;
+    z-index: 1;
+}
+.cover-stats {
+    display: flex;
+    gap: 40px;
+    margin-top: 32px;
+    position: relative;
+    z-index: 1;
+}
+.cover-stat {
+    text-align: center;
+}
+.cover-stat-num {
+    font-size: 28px;
+    font-weight: 900;
+    color: #5eead4;
+    display: block;
+}
+.cover-stat-label {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+}
+
+/* ===== MAIN CONTENT ===== */
+.main-content {
+    padding: 56px 65px 50px 65px;
+    background: #ffffff;
+}
+
+/* ===== CHAPTER HEADERS ===== */
+.chapter-header {
+    break-after: avoid;
+    break-inside: avoid;
+    margin-top: 28px;
+}
+.chapter-header:first-child {
+    margin-top: 0;
+}
+.section-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #0d9488;
+    margin-bottom: 8px;
+}
+.section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    margin: 0 0 12px 0;
+}
+.divider {
+    width: 48px;
+    height: 3px;
+    background: #0d9488;
+    margin-bottom: 24px;
+}
+
+/* ===== BODY TEXT ===== */
+.body-text {
+    font-size: 14.5px;
+    font-weight: 400;
+    color: #334155;
+    line-height: 1.75;
+    margin: 0 0 16px 0;
+}
+.body-text:last-child {
+    margin-bottom: 0;
+}
+
+/* ===== SUBSECTION ===== */
+.subsection-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 28px 0 12px 0;
+    line-height: 1.3;
+}
+.subsection-title:first-child {
+    margin-top: 0;
+}
+
+/* ===== CARDS ===== */
+.card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 14px;
+    break-inside: avoid;
+}
+.card-accent {
+    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+    border-color: #99f6e4;
+}
+.card-accent .card-icon {
+    color: #0d7d72;
+}
+.card-icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+    display: block;
+}
+.card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+}
+.card-desc {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ===== FEATURE GRID (2-col) ===== */
+.feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0;
+}
+.feature-grid .card {
+    margin-bottom: 0;
+}
+
+/* ===== CALLOUT / HIGHLIGHT BOX ===== */
+.callout {
+    background: #f0fdfa;
+    border-left: 4px solid #0d9488;
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    break-inside: avoid;
+}
+.callout-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0d9488;
+    margin: 0 0 6px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.callout-text {
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ===== LIST ===== */
+.content-list {
+    padding-left: 0;
+    margin: 12px 0;
+    list-style: none;
+}
+.content-list li {
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.7;
+    padding-left: 20px;
+    position: relative;
+    margin-bottom: 8px;
+}
+.content-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #0d9488;
+}
+
+/* ===== NUMBERED LIST ===== */
+.numbered-list {
+    counter-reset: step;
+    padding-left: 0;
+    margin: 12px 0;
+    list-style: none;
+}
+.numbered-list li {
+    counter-increment: step;
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.7;
+    padding-left: 32px;
+    position: relative;
+    margin-bottom: 10px;
+}
+.numbered-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #0d9488;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ===== TABLE ===== */
+.content-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+    break-inside: avoid;
+}
+.content-table th {
+    background: #0f172a;
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.content-table th:first-child {
+    border-radius: 8px 0 0 0;
+}
+.content-table th:last-child {
+    border-radius: 0 8px 0 0;
+}
+.content-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+    vertical-align: top;
+}
+.content-table tr:last-child td {
+    border-bottom: none;
+}
+.content-table tr:nth-child(even) td {
+    background: #f8fafc;
+}
+
+/* ===== FLOW DIAGRAM (horizontal steps) ===== */
+.flow-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 20px 0;
+    align-items: center;
+}
+.flow-step {
+    flex: 1 1 auto;
+    min-width: 80px;
+    max-width: 100%;
+    background: #f0fdfa;
+    border: 1px solid #99f6e4;
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+.flow-step-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+.flow-step-desc {
+    font-size: 10px;
+    color: #475569;
+    line-height: 1.4;
+}
+.flow-arrow {
+    flex-shrink: 0;
+    color: #0d9488;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 0 4px;
+}
+
+/* ===== QUOTE ===== */
+.quote-block {
+    border-left: 3px solid #cbd5e1;
+    padding: 12px 20px;
+    margin: 16px 0;
+    break-inside: avoid;
+}
+.quote-text {
+    font-size: 14.5px;
+    font-style: italic;
+    color: #475569;
+    line-height: 1.7;
+    margin: 0;
+}
+
+/* ===== SMALL TEXT ===== */
+.small-text {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* ===== SPACER ===== */
+.spacer {
+    height: 20px;
+}
+
+/* ===== ENDING PAGE ===== */
+.ending {
+    width: 720px;
+    height: 1020px;
+    background: linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 70px;
+    box-sizing: border-box;
+    break-before: page;
+    overflow: hidden;
+    position: relative;
+    text-align: center;
+}
+.ending-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 40px;
+    font-weight: 900;
+    color: #ffffff;
+    margin: 0 0 16px 0;
+}
+.ending-subtitle {
+    font-size: 16px;
+    font-weight: 300;
+    color: #94a3b8;
+    max-width: 420px;
+    line-height: 1.7;
+    margin: 0 0 36px 0;
+}
+.ending-cta {
+    display: inline-block;
+    padding: 14px 40px;
+    background: #0d9488;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+}
+.ending-meta {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 48px;
+}
+
+/* ===== TOC ===== */
+.toc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+}
+.toc-item-title {
+    color: #0f172a;
+    font-weight: 500;
+}
+.toc-item-page {
+    color: #94a3b8;
+    font-size: 12px;
+}
+.toc-chapter {
+    margin-top: 16px;
+}
+.toc-chapter:first-child {
+    margin-top: 0;
+}
+.toc-chapter-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    padding: 8px 0 4px 0;
+    border-bottom: 2px solid #0d9488;
+    margin-bottom: 4px;
+}
+
+/* ===== BADGE ===== */
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-teal {
+    background: #ccfbf1;
+    color: #0d9488;
+}
+.badge-slate {
+    background: #f1f5f9;
+    color: #475569;
+}
+.badge-dark {
+    background: #0f172a;
+    color: white;
+}
+
+/* ===== TWO COL ===== */
+.two-col {
+    display: flex;
+    gap: 20px;
+    margin: 16px 0;
+}
+.two-col > div {
+    flex: 1;
+}
+</style>
+</head>
+<body>
+
+<!-- ===== COVER PAGE ===== -->
+<div class="cover">
+    <div class="cover-badge">Complete User Guide</div>
+    <div class="cover-title">RFP <span>Platform</span></div>
+    <div class="cover-subtitle">A multi-tenant, enterprise-grade platform for creating, publishing, evaluating, and awarding Requests for Proposal. With weighted scoring, vendor marketplace, contract management, and full automation.</div>
+    <div class="cover-stats">
+        <div class="cover-stat">
+            <span class="cover-stat-num">35+</span>
+            <span class="cover-stat-label">Data Models</span>
+        </div>
+        <div class="cover-stat">
+            <span class="cover-stat-num">80+</span>
+            <span class="cover-stat-label">API Endpoints</span>
+        </div>
+        <div class="cover-stat">
+            <span class="cover-stat-num">50+</span>
+            <span class="cover-stat-label">UI Components</span>
+        </div>
+    </div>
+    <div class="cover-meta">Open Source  |  Self-Hosted  |  Enterprise Ready</div>
+</div>
+
+<!-- ===== TABLE OF CONTENTS ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Overview</div>
+        <div class="section-title">Table of Contents</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 1: Introduction to the RFP Platform</div>
+        <div class="toc-item"><span class="toc-item-title">What Is an RFP and Why Does It Matter?</span></div>
+        <div class="toc-item"><span class="toc-item-title">Platform Overview and Core Philosophy</span></div>
+        <div class="toc-item"><span class="toc-item-title">Key Capabilities at a Glance</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 2: Getting Started</div>
+        <div class="toc-item"><span class="toc-item-title">Account Setup and Onboarding</span></div>
+        <div class="toc-item"><span class="toc-item-title">Navigating the Dashboard</span></div>
+        <div class="toc-item"><span class="toc-item-title">User Roles and Permissions</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 3: Creating and Publishing RFPs</div>
+        <div class="toc-item"><span class="toc-item-title">The 8-Step RFP Creation Wizard</span></div>
+        <div class="toc-item"><span class="toc-item-title">Working with Templates</span></div>
+        <div class="toc-item"><span class="toc-item-title">Timeline, Team, and Vendor Management</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 4: The Vendor Marketplace</div>
+        <div class="toc-item"><span class="toc-item-title">Discovering Opportunities</span></div>
+        <div class="toc-item"><span class="toc-item-title">Vendor Registration and Profiles</span></div>
+        <div class="toc-item"><span class="toc-item-title">The Bidding Process</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 5: Proposal Submissions</div>
+        <div class="toc-item"><span class="toc-item-title">The Submission Portal</span></div>
+        <div class="toc-item"><span class="toc-item-title">E-Signatures and Validation</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 6: Evaluation and Scoring</div>
+        <div class="toc-item"><span class="toc-item-title">Weighted Scoring Rubrics</span></div>
+        <div class="toc-item"><span class="toc-item-title">Blind Evaluation and Consensus</span></div>
+        <div class="toc-item"><span class="toc-item-title">Side-by-Side Comparison</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 7: Approval Workflows and Contracts</div>
+        <div class="toc-item"><span class="toc-item-title">Multi-Stage Approvals</span></div>
+        <div class="toc-item"><span class="toc-item-title">Contract Lifecycle Management</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 8: Communication and Collaboration</div>
+        <div class="toc-item"><span class="toc-item-title">Real-Time Messaging</span></div>
+        <div class="toc-item"><span class="toc-item-title">Q&A, Announcements, and Calendar</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 9: Analytics and Insights</div>
+        <div class="toc-item"><span class="toc-item-title">Dashboard Analytics</span></div>
+        <div class="toc-item"><span class="toc-item-title">Export Capabilities</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 10: Security, Compliance, and Automation</div>
+        <div class="toc-item"><span class="toc-item-title">Enterprise-Grade Security</span></div>
+        <div class="toc-item"><span class="toc-item-title">Webhooks and Automated Workflows</span></div>
+    </div>
+    <div class="toc-chapter">
+        <div class="toc-chapter-title">Chapter 11: Who Should Use This Platform?</div>
+        <div class="toc-item"><span class="toc-item-title">Industry Use Cases</span></div>
+        <div class="toc-item"><span class="toc-item-title">Business Benefits and ROI</span></div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="spacer"></div>
+</div>
+
+<!-- ===== CHAPTER 1: INTRODUCTION ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 1</div>
+        <div class="section-title">Introduction to the RFP Platform</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">What Is an RFP and Why Does It Matter?</div>
+    <p class="body-text">A Request for Proposal (RFP) is a formal document that organizations use to solicit bids from potential vendors or service providers for a specific project, product, or service. It serves as the backbone of professional procurement processes across virtually every industry. When an organization needs to procure software development services, construction work, professional consulting, IT infrastructure, marketing campaigns, or any other significant business need, the RFP is the standard mechanism for ensuring fairness, transparency, and quality in vendor selection.</p>
+    <p class="body-text">The traditional RFP process, however, is notoriously painful. Organizations typically manage RFPs through spreadsheets, email chains, shared documents, and manual tracking. This leads to missed deadlines, lost vendor communications, inconsistent evaluation criteria, difficulty comparing proposals side-by-side, and a general lack of visibility into the procurement pipeline. For vendors, the experience is equally frustrating: tracking multiple RFP opportunities across different organizations, managing submission deadlines, and never knowing where they stand in the evaluation process.</p>
+    <p class="body-text">The RFP Platform was built to solve these exact problems. It is a comprehensive, end-to-end solution that digitizes and automates every stage of the procurement lifecycle, from the initial RFP creation through vendor evaluation, contract awarding, and ongoing contract management. By bringing the entire process into a single, unified platform, organizations can dramatically reduce procurement cycle times, improve decision quality, and maintain a complete audit trail of every action.</p>
+
+    <div class="subsection-title">Platform Overview and Core Philosophy</div>
+    <p class="body-text">This platform is a multi-tenant, enterprise-grade SaaS application designed to serve organizations of all sizes. It supports the complete RFP lifecycle, including creation, publishing, vendor invitation, proposal collection, multi-criteria evaluation, approval workflows, and contract management. At its core, the platform follows a philosophy of transparency, efficiency, and fairness, ensuring that every stakeholder, from the procurement team to the vendors, has a clear and intuitive experience.</p>
+    <p class="body-text">The platform is self-hosted and open source, meaning organizations can deploy it on their own infrastructure, maintain complete control over their data, and customize it to their specific needs. This is a critical advantage for organizations in regulated industries such as healthcare, government, and finance, where data sovereignty and compliance requirements make cloud-only SaaS solutions unsuitable.</p>
+
+    <div class="callout">
+        <div class="callout-title">Design Principle</div>
+        <div class="callout-text">Every feature in this platform was designed with three questions in mind: Does it reduce the time from RFP creation to contract award? Does it improve the quality of vendor selection decisions? Does it provide complete transparency and auditability for compliance requirements?</div>
+    </div>
+
+    <div class="subsection-title">Key Capabilities at a Glance</div>
+    <p class="body-text">The platform delivers eight core capability pillars that together cover every aspect of modern procurement management. These capabilities work seamlessly together, sharing data and providing a unified experience for all users.</p>
+
+    <div class="feature-grid">
+        <div class="card">
+            <div class="card-title">RFP Creation Wizard</div>
+            <div class="card-desc">An 8-step guided wizard with drag-and-drop sections, scoring rubrics, and team assignment that makes creating professional RFPs fast and consistent.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Vendor Marketplace</div>
+            <div class="card-desc">A full vendor portal with profiles, bidding, reviews, categories, and real-time messaging that connects organizations with qualified vendors.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Enterprise Security</div>
+            <div class="card-desc">Role-based access control, CSRF protection, HMAC webhooks, audit logging, and AES-256 encryption utilities for complete data protection.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Weighted Scoring</div>
+            <div class="card-desc">Multi-criteria evaluation with rubrics, consensus scoring, blind evaluation, and side-by-side vendor comparison for objective decisions.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">RFP Templates</div>
+            <div class="card-desc">Six built-in templates for IT, construction, software, marketing, professional services, and general use, plus custom template creation.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Contracts and Awards</div>
+            <div class="card-desc">Formal vendor award workflow, contract lifecycle management with status tracking from draft through completion or termination.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Analytics and Export</div>
+            <div class="card-desc">Interactive dashboard charts, spend analytics, financial metrics, and CSV export for RFPs, vendors, and evaluation data.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Automations</div>
+            <div class="card-desc">Webhook dispatch, background scheduler for auto-closing expired RFPs, deadline reminders, and approval SLA alerts.</div>
+        </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="subsection-title">The Complete RFP Lifecycle</div>
+    <p class="body-text">The platform manages the entire procurement lifecycle in a structured, trackable workflow. Every stage is interconnected, with data flowing seamlessly between phases. The following flow illustrates the typical journey from need identification to contract completion.</p>
+
+    <div class="flow-steps">
+        <div class="flow-step">
+            <div class="flow-step-title">1. Create</div>
+            <div class="flow-step-desc">Define requirements, timeline, and scoring criteria</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">2. Publish</div>
+            <div class="flow-step-desc">Invite vendors or publish to marketplace</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">3. Collect</div>
+            <div class="flow-step-desc">Vendors submit proposals via guided portal</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">4. Evaluate</div>
+            <div class="flow-step-desc">Score proposals against weighted rubrics</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">5. Approve</div>
+            <div class="flow-step-desc">Multi-stage approval workflow</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">6. Award</div>
+            <div class="flow-step-desc">Select vendor, create contract</div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== CHAPTER 2: GETTING STARTED ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 2</div>
+        <div class="section-title">Getting Started</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Account Setup and Onboarding</div>
+    <p class="body-text">Getting started with the RFP Platform is straightforward and designed to get your team productive within minutes. The platform supports individual user registration as well as organization-wide onboarding. New users can sign up through the registration page by providing their name, email address, and a secure password. The platform supports multi-factor authentication (MFA) for enhanced security, and single sign-on (SSO) integration for enterprises that use centralized identity providers.</p>
+    <p class="body-text">Upon first login, users are guided through a brief onboarding flow where they can set up their organization profile, configure notification preferences, and customize their experience. Organization administrators can invite additional team members, assign roles, and configure the organization's branding and marketplace settings from the administration panel.</p>
+    <p class="body-text">The platform uses a multi-tenant architecture, which means each organization's data is completely isolated from other organizations on the same platform. This is critical for maintaining data confidentiality and compliance, especially for organizations that handle sensitive procurement information. Every query, every file upload, and every interaction is scoped to the user's organization, ensuring that users never see data from other tenants.</p>
+
+    <div class="subsection-title">Navigating the Dashboard</div>
+    <p class="body-text">The dashboard is the central hub of the platform, providing a personalized overview of all procurement activity. When users log in, they are greeted with a welcome message and immediately see the information that matters most to their role. The dashboard is designed to give procurement teams instant visibility into their workload, upcoming deadlines, and critical decisions that need attention.</p>
+
+    <div class="feature-grid">
+        <div class="card card-accent">
+            <div class="card-title">5 Key Metric Cards</div>
+            <div class="card-desc">Active RFPs, Pending Evaluations, Vendor Responses, Approvals Pending, and Total Vendors are displayed at the top for instant visibility.</div>
+        </div>
+        <div class="card card-accent">
+            <div class="card-title">4 Interactive Charts</div>
+            <div class="card-desc">RFP Status Distribution, Monthly Activity, Vendor Response Rates, and Evaluation Progress are visualized with interactive charts.</div>
+        </div>
+    </div>
+
+    <p class="body-text">The dashboard includes a list of recent RFPs with color-coded status badges, deadlines, response counts, and budget information. Users can quickly see which RFPs are in draft, published, under evaluation, or have been awarded. For RFPs approaching their submission deadlines, the dashboard displays amber-colored alert banners to ensure that critical timelines are not missed.</p>
+    <p class="body-text">Quick action buttons provide one-click access to the most common tasks: viewing all RFPs, managing vendors, accessing the evaluation dashboard, and reviewing pending approvals. This design ensures that users spend less time navigating and more time making procurement decisions.</p>
+
+    <div class="subsection-title">User Roles and Permissions</div>
+    <p class="body-text">The platform implements a comprehensive Role-Based Access Control (RBAC) system that allows organizations to define precisely who can do what. This is essential for maintaining process integrity, ensuring compliance, and preventing unauthorized actions. The system supports both organization-level roles that apply across all RFPs and per-RFP team assignments that grant specific permissions for individual procurement projects.</p>
+
+    <table class="content-table">
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>Description</th>
+                <th>Key Capabilities</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>System Admin</strong></td>
+                <td>Full platform access</td>
+                <td>All permissions, system configuration, tenant management</td>
+            </tr>
+            <tr>
+                <td><strong>Tenant Admin</strong></td>
+                <td>Organization administrator</td>
+                <td>Manage users, roles, settings, audit logs</td>
+            </tr>
+            <tr>
+                <td><strong>RFP Owner</strong></td>
+                <td>RFP creator and manager</td>
+                <td>Create, edit, publish RFPs, invite vendors, manage scores</td>
+            </tr>
+            <tr>
+                <td><strong>Editor</strong></td>
+                <td>Content contributor</td>
+                <td>Edit RFP content, create and invite vendors</td>
+            </tr>
+            <tr>
+                <td><strong>Evaluator</strong></td>
+                <td>Proposal reviewer</td>
+                <td>View RFPs, create and edit evaluation scores</td>
+            </tr>
+            <tr>
+                <td><strong>Approver</strong></td>
+                <td>Approval chain member</td>
+                <td>View RFPs, approve or reject at assigned stages</td>
+            </tr>
+            <tr>
+                <td><strong>Viewer</strong></td>
+                <td>Read-only access</td>
+                <td>View RFP details without editing capabilities</td>
+            </tr>
+            <tr>
+                <td><strong>Vendor</strong></td>
+                <td>External vendor</td>
+                <td>Submit proposals, manage bids, communicate</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p class="body-text">Beyond these default roles, administrators can create custom roles with granular permission sets. The platform defines 16 distinct permission granules covering RFP management, vendor management, evaluation scoring, approvals, and system administration. This allows organizations to model even the most complex permission structures, such as granting a user the ability to create RFPs but not publish them, or allowing a user to view evaluation scores but not modify them.</p>
+</div>
+
+<!-- ===== CHAPTER 3: CREATING AND PUBLISHING RFPs ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 3</div>
+        <div class="section-title">Creating and Publishing RFPs</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">The 8-Step RFP Creation Wizard</div>
+    <p class="body-text">Creating an RFP on this platform is a structured, guided experience designed to ensure that every critical element of the procurement document is addressed. The wizard walks users through eight distinct steps, each focusing on a specific aspect of the RFP. This eliminates the common problem of incomplete or poorly structured RFPs that lead to ambiguous vendor proposals and difficult evaluation processes.</p>
+
+    <div class="flow-steps">
+        <div class="flow-step">
+            <div class="flow-step-title">1. Basics</div>
+            <div class="flow-step-desc">Title, category, budget, confidentiality, description</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">2. Timeline</div>
+            <div class="flow-step-desc">Q&A, submission deadline, evaluation, award target</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">3. Teams</div>
+            <div class="flow-step-desc">Assign team members with specific roles</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">4. Sections</div>
+            <div class="flow-step-desc">Drag-and-drop sections with questions</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">5. Scoring</div>
+            <div class="flow-step-desc">Weighted criteria with scales and guidance</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">6. Vendors</div>
+            <div class="flow-step-desc">Invite by email or select from existing list</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">7. Terms</div>
+            <div class="flow-step-desc">NDA, payment, delivery, special conditions</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">8. Review</div>
+            <div class="flow-step-desc">Final review before submission</div>
+        </div>
+    </div>
+
+    <p class="body-text">In the first step, users define the fundamental details of the RFP: a descriptive title, the procurement category (IT Services, Construction, Marketing, etc.), the estimated budget, the confidentiality level (internal, confidential, or restricted), and a comprehensive description of the project requirements. The confidentiality levels are particularly important for organizations that handle sensitive information, as they control who can view the RFP details.</p>
+    <p class="body-text">The timeline step allows users to define all critical dates for the procurement process: when the question-and-answer period opens and closes, when vendor proposals are due, when the evaluation period begins and ends, and the target date for making an award decision. These dates are not just informational, they drive the platform's automated reminders and deadline tracking features.</p>
+    <p class="body-text">Team assignment is where the RFP owner designates who will be involved in the procurement process. Each team member is assigned a specific role: owner, editor, evaluator, approver, or viewer. This ensures that the right people have the right access at the right time. Evaluators, for example, will only see the RFP in their evaluation dashboard when it reaches the evaluation phase.</p>
+    <p class="body-text">The sections and questions step is perhaps the most powerful part of the wizard. Users create structured sections (such as "Company Overview," "Technical Approach," "Pricing," "Past Performance") and within each section, add specific questions that vendors must answer. The platform supports seven question types: text, number, multiple choice, checkbox, file upload, date, and long-form textarea. Sections can be reordered using drag-and-drop, and the entire structure is saved automatically.</p>
+    <p class="body-text">The scoring rubric step is where the evaluation criteria are defined. Users create weighted criteria (such as "Technical Approach - 40%", "Price - 30%", "Experience - 20%", "Innovation - 10%"), each with a defined scale range and guidance text that evaluators can reference during scoring. This ensures that all evaluators are using the same framework and that vendor proposals are assessed consistently and fairly.</p>
+
+    <div class="subsection-title">Working with Templates</div>
+    <p class="body-text">The platform includes six professionally designed, industry-specific templates that eliminate the need to start from scratch. Each template comes pre-configured with relevant sections, question types, and scoring criteria that reflect industry best practices for that category.</p>
+
+    <table class="content-table">
+        <thead>
+            <tr>
+                <th>Template</th>
+                <th>Category</th>
+                <th>Scoring Focus</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>IT Services</strong></td>
+                <td>Technology procurement</td>
+                <td>Technical 40%, Price 30%, Experience 20%, Innovation 10%</td>
+            </tr>
+            <tr>
+                <td><strong>Professional Services</strong></td>
+                <td>Consulting and advisory</td>
+                <td>Methodology 35%, Team 30%, Price 20%, Timeline 15%</td>
+            </tr>
+            <tr>
+                <td><strong>Construction</strong></td>
+                <td>Building and infrastructure</td>
+                <td>Technical 35%, Safety 25%, Price 20%, Experience 20%</td>
+            </tr>
+            <tr>
+                <td><strong>Software Development</strong></td>
+                <td>Custom software projects</td>
+                <td>Architecture 30%, Methodology 25%, Price 20%, Team 15%</td>
+            </tr>
+            <tr>
+                <td><strong>Marketing Services</strong></td>
+                <td>Campaigns and creative work</td>
+                <td>Creativity 35%, Strategy 30%, Price 20%, Team 15%</td>
+            </tr>
+            <tr>
+                <td><strong>General Purpose</strong></td>
+                <td>Any procurement type</td>
+                <td>Solution 35%, Price 25%, Team 20%, References 20%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p class="body-text">Templates are fully customizable. Users can select a template as a starting point and then modify every aspect of it: add or remove sections, change questions, adjust scoring weights, and modify terms and conditions. Organizations that frequently issue similar types of RFPs can also create and save their own custom templates, enabling the team to maintain consistency across procurement projects while reducing preparation time.</p>
+
+    <div class="subsection-title">Timeline, Team, and Vendor Management</div>
+    <p class="body-text">The vendor invitation step in the wizard provides two methods for soliciting proposals. Organizations can invite specific vendors by entering their email addresses, which triggers automated invitation emails with secure acceptance tokens. Alternatively, organizations can select vendors from their existing approved vendor list. Each invitation tracks its status (pending, accepted, declined, or expired) and includes an expiry mechanism to ensure the process keeps moving forward.</p>
+    <p class="body-text">The RFP detail page provides a comprehensive tabbed interface for managing every aspect of a live RFP. The Overview tab displays all metadata, timeline, assigned team members, invited vendors, and quick statistics. The Sections tab shows all defined sections with question counts. The Q&A tab manages the question-and-answer process where vendors can ask clarifying questions and receive published answers visible to all vendors. The Addenda tab manages document amendments, and the Submissions tab shows all received proposals with their current status.</p>
+    <p class="body-text">For organizations that want to cast a wider net, the platform supports publishing RFPs to the public marketplace. This makes the RFP visible to all registered vendors on the platform, not just those specifically invited. Marketplace-published RFPs can receive bids from any qualified vendor, dramatically expanding the pool of potential respondents and increasing competitive pricing pressure.</p>
+</div>
+
+<!-- ===== CHAPTER 4: THE VENDOR MARKETPLACE ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 4</div>
+        <div class="section-title">The Vendor Marketplace</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Discovering Opportunities</div>
+    <p class="body-text">The Vendor Marketplace is one of the platform's most powerful features, creating a dynamic ecosystem where organizations and vendors connect. For organizations issuing RFPs, the marketplace provides access to a broader pool of qualified vendors than traditional invitation-only processes. For vendors, it provides a centralized location to discover new business opportunities that match their capabilities, without needing to monitor dozens of different organization websites or procurement portals.</p>
+    <p class="body-text">The marketplace landing page features a hero section with real-time statistics: the number of active RFPs, registered vendors, vendor responses received, and pending approvals. Below the hero, two prominent panels display featured RFPs (showing budget, deadline, category, and bid counts) and top-rated vendors (showing verification badges, star ratings, project counts, and specialty areas). This design enables both buyers and sellers to quickly identify the most relevant opportunities and partners.</p>
+    <p class="body-text">Advanced search capabilities allow vendors to filter RFPs by category, budget range, deadline, and keywords. Organizations can browse the vendor directory to identify potential bidders before publishing their RFPs, reviewing vendor profiles that include company information, certifications, diversity attributes, performance history, and client reviews.</p>
+
+    <div class="subsection-title">Vendor Registration and Profiles</div>
+    <p class="body-text">Vendors register through a dedicated vendor self-service portal, creating comprehensive profiles that showcase their capabilities to potential buyers. The registration process captures essential business information including company name, contact details, industry categories, relevant certifications, and diversity classifications (minority-owned, women-owned, veteran-owned, disability-owned businesses). These diversity attributes are increasingly important for organizations that have supplier diversity mandates or are required to meet government contracting diversity goals.</p>
+    <p class="body-text">Once registered, vendors can enhance their profiles with detailed business descriptions, specialty areas, project portfolios, and performance metrics. The platform tracks vendor performance over time, including on-time delivery rates, quality scores, budget adherence, and total projects completed. This performance data is visible to prospective buyers, helping them make informed decisions about which vendors to invite to their RFPs.</p>
+    <p class="body-text">The vendor dashboard provides a dedicated, vendor-centric view of all activity. It includes six tabs: Overview (profile summary and key metrics), Invitations (incoming RFP invitations with accept/decline actions), My Bids (tracking all active, submitted, won, and lost bids), Marketplace (browsing for new opportunities), Team (managing vendor organization users and roles), and Analytics (vendor-specific performance insights). The dashboard also includes a notification bell with unread count, and a comprehensive notification settings modal where vendors can configure email and push notification preferences, quiet hours, and delivery frequency.</p>
+
+    <div class="subsection-title">The Bidding Process</div>
+    <p class="body-text">When a vendor decides to pursue an RFP opportunity, the bidding process is straightforward and well-guided. From the marketplace RFP detail page, vendors can review the complete RFP requirements, timeline, and evaluation criteria before deciding to bid. If they choose to proceed, they enter their bid amount and submit a bid proposal through the platform's structured submission system.</p>
+    <p class="body-text">The bid management system tracks every bid's status through its lifecycle: from initial submission through review, shortlisting, and final decision. Vendors receive real-time notifications when their bid status changes, and a built-in messaging system allows them to communicate directly with the procurement team for clarifications and negotiations. This eliminates the communication gaps that frequently occur in traditional RFP processes where vendor questions get lost in email threads.</p>
+    <p class="body-text">For organizations, the bid management view shows all received bids with key details at a glance: bid amount, vendor name, submission date, and current status. Procurement teams can sort and filter bids, compare pricing, and begin the evaluation process directly from the bid management interface. The real-time nature of the platform means that as soon as a vendor submits a bid, it appears in the procurement team's view without any delay or manual refresh.</p>
+</div>
+
+<!-- ===== CHAPTER 5: PROPOSAL SUBMISSIONS ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 5</div>
+        <div class="section-title">Proposal Submissions</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">The Submission Portal</div>
+    <p class="body-text">The proposal submission portal is where vendors bring their best work to life. It is a carefully designed, structured interface that guides vendors through responding to every section and question in the RFP. The portal ensures that vendors provide complete, well-organized responses that make the evaluation process smoother and more consistent for the procurement team.</p>
+    <p class="body-text">Upon entering the submission portal, vendors see the RFP header with a progress bar that shows how much of the proposal they have completed. A section navigation sidebar on the left displays all sections with completion indicators, showing at a glance which sections are complete, partially complete, or not yet started. This gives vendors a clear sense of progress and helps them prioritize their time effectively.</p>
+    <p class="body-text">The portal renders each question according to its type with appropriate input controls. Text and number inputs include real-time validation with inline error messages. Textarea fields provide ample space for detailed responses. Multiple choice and checkbox questions use clean, selectable option lists. File upload questions allow vendors to attach supporting documents, case studies, or portfolio samples. Date picker questions ensure consistent date formatting, and the platform even supports data integration buttons that allow vendors to connect to external data sources to pre-fill answers automatically.</p>
+    <p class="body-text">One of the most practical features of the submission portal is the draft auto-save capability. Vendors can work on their proposals over multiple sessions without losing any progress. The platform automatically saves drafts at regular intervals, and vendors can also manually save their work at any point using the "Save Draft" button. When they return to the portal, they can resume exactly where they left off. This is critical for complex RFPs that may take days or weeks to complete, as it eliminates the risk of losing work due to browser crashes, network issues, or simply needing to gather additional information before continuing.</p>
+
+    <div class="callout">
+        <div class="callout-title">Validation System</div>
+        <div class="callout-text">The portal includes a comprehensive validation system that checks responses against defined rules in real-time: business name format validation, numeric range checks, currency formatting, and regex pattern matching. A Validation Alerts panel shows both section-level and field-level errors, ensuring vendors submit complete and correctly formatted proposals before the deadline.</div>
+    </div>
+
+    <div class="subsection-title">E-Signatures and Validation</div>
+    <p class="body-text">Many procurement processes require vendors to formally sign their proposals, either to confirm the accuracy of the information provided or to accept specific terms and conditions. The platform includes a built-in electronic signature system that eliminates the need for external signing tools or physical signatures.</p>
+    <p class="body-text">When an RFP requires a signature, vendors are presented with an e-signature modal that captures their name, email address, job title, and a handwritten signature drawn directly on a signature canvas. The platform generates a SHA-256 cryptographic hash of the signed document content, creating a tamper-evident record that links the signature to the exact document content at the time of signing. Vendors must also explicitly accept the terms before the signature is recorded. This process provides a level of security and verifiability that meets the requirements of most procurement and contract processes.</p>
+    <p class="body-text">The validation system operates on multiple levels. At the field level, individual questions validate inputs as the vendor types, providing immediate feedback on formatting requirements or value constraints. At the section level, the system checks that all required questions within a section have been answered before the vendor can mark the section as complete. At the proposal level, the system performs a comprehensive check before allowing submission, ensuring that every required section and question has been addressed.</p>
+</div>
+
+<!-- ===== CHAPTER 6: EVALUATION AND SCORING ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 6</div>
+        <div class="section-title">Evaluation and Scoring</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Weighted Scoring Rubrics</div>
+    <p class="body-text">The evaluation system is where the RFP Platform truly differentiates itself from simple document collection tools. Rather than relying on subjective impressions or inconsistent evaluation methods, the platform provides a structured, quantitative approach to proposal assessment that leads to more objective and defensible vendor selection decisions.</p>
+    <p class="body-text">Each RFP has its own scoring rubric, defined during the creation process, that specifies the evaluation criteria and their relative weights. For example, a software development RFP might weight Technical Architecture at 30%, Development Methodology at 25%, Pricing at 20%, Team Qualifications at 15%, and Innovation at 10%. These weights directly influence the final composite score, ensuring that the criteria the organization considers most important have the greatest impact on the outcome.</p>
+    <p class="body-text">Evaluators access the Evaluation Dashboard, which shows all RFPs assigned to them for review. The dashboard has three filter tabs: "Needs My Evaluation" (RFPs where the user hasn't scored yet, with unread indicator dots), "All Evaluations" (complete list), and "Completed" (only finished evaluations). Each entry shows the RFP title, status, submission count, evaluator progress with visual progress bars, average scores with color coding, and evaluation deadlines.</p>
+
+    <div class="feature-grid">
+        <div class="card">
+            <div class="card-title">Slider-Based Scoring</div>
+            <div class="card-desc">Evaluators use intuitive slider inputs to score each submission against every rubric criterion, with the scale range and guidance text visible for reference.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Per-Criterion Notes</div>
+            <div class="card-desc">Each score can include detailed notes explaining the evaluator's reasoning, providing transparency and supporting consensus discussions.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Save and Submit</div>
+            <div class="card-desc">Evaluators can save scores in progress and return later, or submit their final evaluation when complete. Submitted scores can still be edited until finalization.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Progress Tracking</div>
+            <div class="card-desc">Real-time progress indicators show how many evaluators have completed their reviews, with visual progress bars on every RFP entry.</div>
+        </div>
+    </div>
+
+    <div class="subsection-title">Blind Evaluation and Consensus</div>
+    <p class="body-text">For organizations that require the highest level of evaluation objectivity, the platform supports blind evaluation mode. When enabled, vendor names and identifying information are hidden from evaluators during the scoring process. Evaluators see only the proposal content, allowing them to assess each submission purely on its merits without any potential bias from brand recognition, prior relationships, or other non-content factors. This is particularly valuable for public sector organizations and highly regulated industries where procurement fairness is subject to external audit.</p>
+    <p class="body-text">The Consensus tab provides a powerful analysis of evaluator agreement. For each submission and each criterion, the platform calculates the mean score, standard deviation, and agreement level across all evaluators. High standard deviations flag criteria where evaluators disagree significantly, indicating areas that may need further discussion. The system also identifies statistical outliers, individual scores that deviate substantially from the group average, which may represent either a genuinely different perspective or a potential error that should be reviewed.</p>
+    <p class="body-text">This consensus analysis serves multiple purposes. For procurement leaders, it identifies where the evaluation team is aligned and where there is disagreement that needs to be resolved before making a final decision. For auditors, it provides evidence that the evaluation was conducted rigorously and that any final decision was based on considered judgment rather than a single evaluator's opinion. For the evaluators themselves, it creates accountability, knowing that their scores will be visible in the context of the full team's assessments.</p>
+
+    <div class="subsection-title">Side-by-Side Comparison</div>
+    <p class="body-text">The Comparison tab provides a comprehensive side-by-side view of all submitted proposals across every evaluation criterion. Each vendor's scores are displayed in columns, with weighted totals calculated automatically. This visualization makes it immediately clear which vendors excel in specific areas and which have the strongest overall proposals according to the defined evaluation framework.</p>
+    <p class="body-text">The comparison view is particularly valuable during the decision-making phase, when procurement leaders need to justify their vendor selection to stakeholders or approval bodies. Rather than relying on summaries or individual evaluator notes, decision-makers can see the complete quantitative picture, understand trade-offs between vendors (for example, Vendor A scores higher on technical approach but Vendor B offers better pricing), and make data-driven award decisions. The CSV export capability allows this comparison data to be extracted for inclusion in procurement reports or presentations to senior leadership.</p>
+</div>
+
+<!-- ===== CHAPTER 7: APPROVALS AND CONTRACTS ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 7</div>
+        <div class="section-title">Approval Workflows and Contracts</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Multi-Stage Approvals</div>
+    <p class="body-text">Many organizations require that significant procurement decisions go through multiple levels of review and approval before a contract can be awarded. The platform's approval workflow system supports this requirement with configurable multi-stage approval chains that mirror an organization's actual governance structure. Rather than forcing a one-size-fits-all approval process, the platform allows each organization to define the stages that reflect their specific policies and regulations.</p>
+    <p class="body-text">The standard approval stages flow from Draft through Legal Review, Budget Review, Publish approval, Evaluation Complete confirmation, Award approval, and finally Contract approval. However, organizations can customize these stages to match their internal processes. Each stage can have one or more assigned approvers, and each approval request tracks its priority level (low, medium, high, urgent, or critical) with color-coded indicators.</p>
+
+    <div class="flow-steps">
+        <div class="flow-step">
+            <div class="flow-step-title">Draft</div>
+            <div class="flow-step-desc">Initial RFP creation review</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">Legal</div>
+            <div class="flow-step-desc">Legal terms and compliance check</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">Budget</div>
+            <div class="flow-step-desc">Budget availability and approval</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">Publish</div>
+            <div class="flow-step-desc">Final approval to release to vendors</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">Award</div>
+            <div class="flow-step-desc">Vendor selection approval</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step">
+            <div class="flow-step-title">Contract</div>
+            <div class="flow-step-desc">Final contract sign-off</div>
+        </div>
+    </div>
+
+    <p class="body-text">The Approvals page provides a centralized view of all pending, approved, and rejected requests. Approvers can filter by status, priority, stage, and search by RFP title. The approval table shows the RFP title, current stage, status, priority with color indicators, the person who requested the approval, the assigned approver, the budget amount, and the request timestamp. Quick action dialogs allow approvers to approve, reject, view details, or add comments without leaving the page.</p>
+    <p class="body-text">SLA tracking is built into the approval system. Each approval request has a default service level agreement (typically 48 hours), and the platform's background scheduler monitors for overdue approvals. When an approval exceeds its SLA, the system automatically generates security alerts and notifications to ensure that bottlenecks are identified and addressed promptly. This automated monitoring prevents the common problem of procurement processes stalling because an approver is unavailable or has overlooked a request.</p>
+
+    <div class="subsection-title">Contract Lifecycle Management</div>
+    <p class="body-text">Once a vendor has been selected through the evaluation and approval process, the platform transitions seamlessly into contract management. The award workflow is a three-step process: first, the RFP owner selects the winning submission; then, they enter contract details including start and end dates, contract value, and any special notes; finally, they confirm the award, which creates a formal contract record in the system.</p>
+    <p class="body-text">The Contracts page displays all contracts in a comprehensive table with columns for RFP title, vendor name, contract status (draft, active, expired, terminated, or completed), start and end dates, contract value, the person who awarded the contract, and the creation date. Status badges are color-coded for instant visual recognition. Users can search contracts by keyword, filter by status, and filter by date range to find specific contracts quickly.</p>
+    <p class="body-text">Contract status is tracked throughout the contract lifecycle. A contract starts in "draft" status when it is first created through the award workflow, moves to "active" when it is formally executed, and can progress through "expired" (when the end date passes without renewal), "terminated" (if either party ends the contract early), or "completed" (when all deliverables have been met and the contract is formally closed). This lifecycle tracking provides organizations with a complete picture of their contractual commitments at any point in time.</p>
+</div>
+
+<!-- ===== CHAPTER 8: COMMUNICATION AND COLLABORATION ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 8</div>
+        <div class="section-title">Communication and Collaboration</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Real-Time Messaging</div>
+    <p class="body-text">Effective communication is the foundation of successful procurement, and the platform provides a comprehensive real-time messaging system that keeps all stakeholders connected. The messaging interface features a thread list panel on the left showing all conversations, and a message view on the right displaying the full conversation history with message bubbles, timestamps, and read receipts.</p>
+    <p class="body-text">Each message thread can be associated with a specific RFP, vendor, or user, providing context for every conversation. The thread list shows the conversation partner's avatar, name, the last message preview, timestamp, and unread count badges. Online status indicators let users know when their contacts are available for immediate communication. The messaging system supports file attachments, allowing users to share documents, specifications, or clarifications directly within the conversation context.</p>
+    <p class="body-text">Read receipts provide visibility into message delivery and engagement. A single check mark indicates the message has been delivered, while double check marks confirm the recipient has read the message. This eliminates the uncertainty that plagues email-based communication where senders never know if their message was received or read. Users can also mark conversations as read or unread, archive them for future reference, or delete them entirely.</p>
+
+    <div class="subsection-title">Q&A, Announcements, and Calendar</div>
+    <p class="body-text">The Q&A management system is a critical collaboration tool during the RFP response period. Vendors can submit questions about the RFP requirements, and the procurement team can respond with answers that can be published to all vendors (ensuring equal access to information) or kept private (for vendor-specific clarifications). The Q&A interface shows the RFP title, question text, answer, status (pending, answered, or published), public/private badge, vendor name, and timestamps. This structured approach to Q&A eliminates the chaos of vendor questions arriving via multiple email threads and ensures that all vendors receive the same information.</p>
+    <p class="body-text">The announcements system allows organizations to broadcast important information to all users or specific groups. Announcements support priority levels (info, warning, error), categories, file attachments, expiry dates, and pinning for persistent visibility. The announcement creation dialog includes fields for title, content, priority, category, attachments, expiry date, and a pin toggle. Users can filter announcements by priority and search by keyword, and the notification bell shows unread announcement counts.</p>
+
+    <div class="callout">
+        <div class="callout-title">Integrated Calendar</div>
+        <div class="callout-text">The platform includes a full calendar interface with monthly navigation and event support for deadlines, meetings, milestones, presentations, and review sessions. Events are color-coded by type and can include location details and video meeting URLs. Users can switch between calendar and list views, and RSVP status (accepted, tentative, declined) is tracked for meeting events.</div>
+    </call>
+
+    <p class="body-text">The notification system is comprehensive and user-configurable. It supports 14 distinct notification types including new RFP alerts, bid acceptance notifications, Q&A answers, approval requests and decisions, RFP published and closed notices, deadline reminders (shown in red for urgency), contract updates, vendor registrations, evaluation completions, announcements, and system messages. Each notification type has a distinctive badge variant for quick visual identification. Users can mark individual notifications as read, mark all as read, delete individual notifications, or clear all at once. Filter tabs allow viewing all notifications or only unread ones.</p>
+</div>
+
+<!-- ===== CHAPTER 9: ANALYTICS AND INSIGHTS ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 9</div>
+        <div class="section-title">Analytics and Insights</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Dashboard Analytics</div>
+    <p class="body-text">Data-driven decision making is at the heart of modern procurement, and the platform provides a rich analytics system that transforms raw procurement data into actionable insights. The Analytics page offers a date range selector (All Time, 7 Days, 30 Days, 90 Days) that applies across all metrics and charts, allowing users to focus on the time period most relevant to their analysis.</p>
+    <p class="body-text">The analytics dashboard is organized into four metric groups. First, the RFP Metrics group shows total RFPs, published count, those in evaluation, awarded count, and average cycle time (measuring the typical duration from RFP creation to contract award). Second, the Vendor Metrics group displays total vendors, active vendors, average response rate, and top performers ranked by win rate and average evaluation score. Third, the Financial Metrics group presents total budget across all RFPs, total awarded value, remaining budget, and average award value. Fourth, the Timeline Metrics group tracks average creation-to-publish time, average publish-to-award time, and average evaluation duration.</p>
+
+    <div class="feature-grid">
+        <div class="card card-accent">
+            <div class="card-title">RFP Volume by Category</div>
+            <div class="card-desc">Bar chart showing procurement distribution across categories, helping identify where the organization spends the most procurement effort.</div>
+        </div>
+        <div class="card card-accent">
+            <div class="card-title">Monthly Trends</div>
+            <div class="card-desc">Line chart tracking RFPs created and awards made over time, revealing seasonal patterns and growth trajectories.</div>
+        </div>
+        <div class="card card-accent">
+            <div class="card-title">Budget Distribution</div>
+            <div class="card-desc">Pie chart visualizing how procurement budget is allocated across categories and RFPs.</div>
+        </div>
+        <div class="card card-accent">
+            <div class="card-title">Vendor Response Rates</div>
+            <div class="card-desc">Bar chart showing vendor engagement levels per RFP, helping identify which RFPs attract the most competitive vendor interest.</div>
+        </div>
+    </div>
+
+    <p class="body-text">These visualizations serve multiple audiences within the organization. Procurement managers use them to identify bottlenecks in the process and optimize cycle times. Finance teams use the budget and award data to forecast spending and track procurement ROI. Executive leadership uses the trend data to understand procurement scale and efficiency over time. And vendor relationship managers use the response rate and vendor performance data to strengthen their supply chain.</p>
+
+    <div class="subsection-title">Export Capabilities</div>
+    <p class="body-text">The platform provides CSV export functionality across all major data areas, enabling users to extract data for external analysis, reporting, or integration with other business systems. Exports are available for RFP data (including all metadata, status, and timeline information), vendor data (including contact information, categories, certifications, and performance scores), evaluation data (including all evaluator scores, consensus calculations, and comments), and analytics data (including all metrics and calculated values).</p>
+    <p class="body-text">Each export file is automatically named with a date stamp (for example, "rfps-export-2025-01-15.csv") for easy organization and version tracking. The CSV format ensures compatibility with virtually any data analysis tool, spreadsheet application, or business intelligence platform. This export capability is particularly valuable for organizations that need to produce procurement reports for board meetings, compliance audits, or regulatory submissions, as it allows them to combine platform data with information from other systems.</p>
+</div>
+
+<!-- ===== CHAPTER 10: SECURITY AND AUTOMATION ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 10</div>
+        <div class="section-title">Security, Compliance, and Automation</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Enterprise-Grade Security</div>
+    <p class="body-text">Security is not an afterthought in this platform; it is woven into every layer of the architecture. The platform implements multiple security mechanisms that work together to protect sensitive procurement data, ensure the integrity of the evaluation process, and maintain compliance with industry regulations. For organizations in healthcare, government, finance, and other regulated sectors, these security features are not just nice-to-have but are essential requirements for adopting any procurement technology.</p>
+
+    <div class="feature-grid">
+        <div class="card">
+            <div class="card-title">Data Protection</div>
+            <div class="card-desc">Multi-tenant data isolation, AES-256 encryption utilities, SHA-256 file hashing for integrity, legal hold support, and configurable retention policies.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Audit and Compliance</div>
+            <div class="card-desc">Complete audit logging of all user actions, HMAC-SHA256 webhook signing, security alert tracking, and compliance framework support (SOC 2, ISO 27001, GDPR, HIPAA).</div>
+        </div>
+    </div>
+
+    <p class="body-text">The multi-tenant architecture ensures that each organization's data is completely isolated at the database query level. Every API request is scoped to the authenticated user's tenant, making it impossible for one organization to access another organization's data, even if they share the same physical infrastructure. This architectural isolation is stronger than application-level access controls because it operates at the data layer, providing defense in depth.</p>
+    <p class="body-text">The platform's audit logging system records every significant action: who performed the action, when it was performed, what changed, and from where. This audit trail is essential for compliance reporting, incident investigation, and demonstrating process integrity to external auditors. The administration panel provides a dedicated Audit Log viewer with powerful filtering capabilities, allowing administrators to search logs by user, action type, date range, and resource.</p>
+
+    <div class="subsection-title">Webhooks and Automated Workflows</div>
+    <p class="body-text">Automation is what transforms a good procurement platform into a great one. The platform includes a sophisticated automation layer that handles routine tasks, enforces deadlines, and keeps all stakeholders informed without manual intervention. This automation reduces the administrative burden on procurement teams and ensures that no critical deadline or action is missed.</p>
+    <p class="body-text">The webhook system allows organizations to integrate the RFP Platform with their existing business systems, such as ERP, CRM, accounting, or project management tools. The platform supports 11 distinct event types that can trigger webhook calls: RFP created, published, closed, awarded, and archived; submission created and awarded; vendor registered and approved; evaluation completed; and contract created and status changed. Each webhook endpoint is configured with an HMAC-SHA256 signing secret, allowing the receiving system to verify that the webhook payload is authentic and has not been tampered with.</p>
+
+    <div class="callout">
+        <div class="callout-title">Background Scheduler</div>
+        <div class="callout-text">A built-in scheduler runs every 60 seconds to handle three critical automated tasks: (1) Auto-closing expired RFPs when their submission deadline passes, (2) Sending deadline reminders at 7 days, 3 days, and 1 day before submission deadlines, and (3) Detecting overdue approval requests and generating SLA breach alerts.</div>
+    </div>
+
+    <p class="body-text">The deadline reminder system is particularly valuable for keeping procurement processes on track. As RFP submission deadlines approach, the system automatically sends reminders to both the procurement team and the invited vendors. The three-tier reminder schedule (7 days, 3 days, and 1 day before deadline) provides ample warning without being overwhelming. These automated reminders eliminate the need for procurement managers to manually track and send deadline notifications, reducing the risk of missed deadlines and ensuring that vendors have every opportunity to submit their proposals on time.</p>
+    <p class="body-text">The auto-close feature ensures data integrity by automatically transitioning published RFPs to "closed" status when their submission deadline passes. This prevents vendors from submitting late proposals and signals to the procurement team that the collection phase is complete and evaluation can begin. Combined with the SLA monitoring for approvals, these automation features create a self-driving procurement process that keeps moving forward even when team members are focused on other priorities.</p>
+</div>
+
+<!-- ===== CHAPTER 11: WHO SHOULD USE THIS PLATFORM ===== -->
+<div class="main-content">
+    <div class="chapter-header">
+        <div class="section-tag">Chapter 11</div>
+        <div class="section-title">Who Should Use This Platform?</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="subsection-title">Industry Use Cases</div>
+    <p class="body-text">The RFP Platform is designed to serve any organization that engages in formal procurement processes, regardless of industry. However, certain sectors derive particularly significant value from the platform's structured approach to vendor selection, evaluation, and contract management. Understanding these industry-specific use cases helps organizations assess how the platform can address their unique procurement challenges.</p>
+
+    <div class="card card-accent" style="margin-bottom:14px;">
+        <div class="card-title">Government and Public Sector</div>
+        <div class="card-desc">Government agencies at all levels (federal, state, local) are often required by law to use formal RFP processes for procurement above certain thresholds. The platform's blind evaluation, complete audit trail, multi-stage approval workflows, and compliance framework support (SOC 2, ISO 27001, GDPR, HIPAA) make it an ideal solution for public sector procurement that must withstand external scrutiny and legal challenges. The self-hosted deployment option addresses data sovereignty requirements that prevent many government agencies from using cloud-only SaaS platforms.</div>
+    </div>
+    <div class="card card-accent" style="margin-bottom:14px;">
+        <div class="card-title">Healthcare and Life Sciences</div>
+        <div class="card-desc">Healthcare organizations procure everything from medical equipment and pharmaceutical supplies to IT systems and facility construction. The platform's confidentiality levels (internal, confidential, restricted) ensure that sensitive procurement information is appropriately protected. HIPAA compliance features, audit logging, and the ability to manage complex approval chains make it suitable for healthcare procurement that involves multiple stakeholders including clinical, financial, and administrative teams.</div>
+    </div>
+    <div class="card card-accent" style="margin-bottom:14px;">
+        <div class="card-title">Financial Services and Banking</div>
+        <div class="card-desc">Banks and financial institutions have rigorous vendor risk management requirements. The platform's vendor performance tracking, prequalification system, and comprehensive evaluation framework support the due diligence processes that financial regulators expect. The multi-tenant architecture and encryption features ensure that procurement data meets the data protection standards required by financial services regulations.</div>
+    </div>
+    <div class="card card-accent" style="margin-bottom:14px;">
+        <div class="card-title">Technology and Software</div>
+        <div class="card-desc">Technology companies frequently procure software development services, cloud infrastructure, professional consulting, and marketing services. The platform's IT Services and Software Development templates provide industry-specific starting points, while the weighted scoring system helps technology teams make objective decisions based on technical merit, methodology, and team qualifications rather than just price.</div>
+    </div>
+    <div class="card card-accent" style="margin-bottom:14px;">
+        <div class="card-title">Construction and Engineering</div>
+        <div class="card-desc">Construction procurement involves complex requirements, multiple evaluation criteria (technical approach, safety record, past performance, pricing), and often regulatory compliance requirements. The Construction template with its emphasis on safety scoring, the vendor prequalification system, and the addenda management features (critical for construction projects where specifications frequently change) address the unique needs of this industry.</div>
+    </div>
+    <div class="card card-accent" style="margin-bottom:14px;">
+        <div class="card-title">Education and Non-Profit</div>
+        <div class="card-desc">Universities, school districts, and non-profit organizations often have procurement processes that must balance thoroughness with limited administrative resources. The platform's templates, automation features (auto-close, deadline reminders), and approval workflows reduce the administrative burden while maintaining the transparency and fairness that stakeholders and donors expect.</div>
+    </div>
+
+    <div class="subsection-title">Business Benefits and ROI</div>
+    <p class="body-text">Organizations that adopt the RFP Platform can expect measurable improvements across multiple dimensions of their procurement operations. The following benefits represent the core value proposition that justifies the investment in a dedicated procurement platform.</p>
+
+    <div class="feature-grid">
+        <div class="card">
+            <div class="card-title">Reduced Cycle Time</div>
+            <div class="card-desc">The guided wizard, templates, and automated reminders can reduce RFP creation-to-award cycle times by 40-60%, freeing procurement teams to focus on strategic activities rather than administrative coordination.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Better Vendor Selection</div>
+            <div class="card-desc">Weighted scoring, blind evaluation, and consensus analysis lead to more objective, data-driven vendor selection decisions that are defensible to stakeholders and auditors.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Increased Competition</div>
+            <div class="card-desc">The vendor marketplace expands the pool of potential respondents, driving more competitive pricing and higher-quality proposals than invitation-only processes.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Complete Audit Trail</div>
+            <div class="card-desc">Every action is logged, every score is recorded, and every decision is tracked, providing the documentation needed for compliance audits and procurement reviews.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Vendor Relationship Insights</div>
+            <div class="card-desc">Performance tracking, response rate analytics, and review systems help organizations build stronger vendor relationships and identify top-performing partners.</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Cost Savings</div>
+            <div class="card-desc">Increased competition, faster processes, and reduced manual effort translate to direct cost savings. Organizations typically see 15-25% reduction in procurement administrative costs.</div>
+        </div>
+    </div>
+
+    <p class="body-text">For organizations currently managing RFPs through spreadsheets and email, the platform eliminates the manual work of tracking vendor responses, consolidating evaluator scores, managing approval chains, and maintaining documentation. The time savings alone often justify the adoption, but the real value lies in the improved quality of procurement decisions. When evaluators use structured rubrics instead of ad-hoc assessments, when consensus analysis identifies disagreements early, and when side-by-side comparisons reveal the true trade-offs between vendors, the organization makes better decisions that lead to more successful project outcomes.</p>
+    <p class="body-text">The platform's open-source, self-hosted nature eliminates ongoing SaaS subscription costs and gives organizations complete control over their procurement data. For organizations that handle sensitive procurement information or are subject to data residency requirements, the ability to deploy on-premises or on a private cloud infrastructure is not just a cost consideration but a compliance requirement. The absence of vendor lock-in means organizations can customize, extend, and integrate the platform to meet their evolving needs without depending on a third-party vendor's roadmap and pricing decisions.</p>
+
+    <div class="callout">
+        <div class="callout-title">The Bottom Line</div>
+        <div class="callout-text">If your organization issues more than a handful of RFPs per year, manages multiple vendor relationships, or operates in a regulated industry where procurement decisions must be documented and defensible, this platform will deliver significant value. It transforms procurement from a manual, error-prone process into an automated, data-driven function that produces better outcomes for the organization and a better experience for vendors.</div>
+    </div>
+</div>
+
+<!-- ===== ENDING PAGE ===== -->
+<div class="ending">
+    <div class="ending-title">Ready to Transform<br>Your Procurement?</div>
+    <div class="ending-subtitle">The RFP Platform is open source, self-hosted, and enterprise-ready. Deploy it on your infrastructure, maintain complete data control, and start streamlining your procurement process today.</div>
+    <div class="ending-cta">Get Started</div>
+    <div class="ending-meta">Open Source  |  Self-Hosted  |  Enterprise Ready</div>
+</div>
+
+</body>
+</html>

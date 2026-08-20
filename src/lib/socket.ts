@@ -30,7 +30,7 @@ export const setupSocket = (io: Server) => {
       }
 
       // Validate the JWT using next-auth's getToken
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const jwtPayload: any = await (getToken as any)({
         secret: process.env.NEXTAUTH_SECRET,
         token,

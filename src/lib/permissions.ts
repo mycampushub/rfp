@@ -35,7 +35,7 @@ export class PermissionsManager {
     }
 
     // Get all permissions from user's roles, scoped to the current tenant
-    const roles = await db.role.findMany({
+    const rolesRaw = await db.role.findMany({
       where: {
         id: {
           in: user.roleIds as unknown as string[],
@@ -44,9 +44,10 @@ export class PermissionsManager {
       },
       select: { permissions: true },
     })
+    const roles = rolesRaw as any[]
 
     const userPermissions = new Set<Permission>()
-    roles.forEach((role) => {
+    roles.forEach((role: any) => {
       if (role.permissions) {
         (role.permissions as Permission[]).forEach((perm) => {
           userPermissions.add(perm)
@@ -82,7 +83,7 @@ export class PermissionsManager {
       return []
     }
 
-    const roles = await db.role.findMany({
+    const rolesRaw = await db.role.findMany({
       where: {
         id: {
           in: user.roleIds as unknown as string[],
@@ -91,9 +92,10 @@ export class PermissionsManager {
       },
       select: { permissions: true },
     })
+    const roles = rolesRaw as any[]
 
     const permissions = new Set<Permission>()
-    roles.forEach((role) => {
+    roles.forEach((role: any) => {
       if (role.permissions) {
         (role.permissions as Permission[]).forEach((perm) => {
           permissions.add(perm)

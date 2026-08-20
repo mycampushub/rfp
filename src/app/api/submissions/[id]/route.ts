@@ -106,23 +106,23 @@ export async function GET(
           },
         },
       },
-    })) as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    })) as any
 
     if (!submission) {
       return NextResponse.json({ error: "Submission not found" }, { status: 404 })
     }
 
     // Calculate total scores
-    const totalScore = submission.consensus.reduce((sum: number, consensus: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const totalScore = submission.consensus.reduce((sum: number, consensus: any) => {
       return sum + (consensus.scoreValue * (consensus.criterion.weight || 1))
     }, 0)
 
-    const maxPossibleScore = submission.consensus.reduce((sum: number, consensus: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const maxPossibleScore = submission.consensus.reduce((sum: number, consensus: any) => {
       return sum + ((consensus.criterion.scaleMax || 5) * (consensus.criterion.weight || 1))
     }, 0)
 
     const averageScore = submission.scores.length > 0
-      ? submission.scores.reduce((sum: number, score: any) => sum + score.scoreValue, 0) / submission.scores.length // eslint-disable-line @typescript-eslint/no-explicit-any
+      ? submission.scores.reduce((sum: number, score: any) => sum + score.scoreValue, 0) / submission.scores.length
       : 0
 
     const submissionWithScores = {

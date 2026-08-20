@@ -1,12 +1,11 @@
 import { db } from "@/lib/db"
-import { Prisma } from "@prisma/client"
 
 interface SendParams {
   userId: string
   type: string
   title: string
   message: string
-  data?: Prisma.InputJsonValue
+  data?: Record<string, unknown> | unknown
 }
 
 export default class NotificationService {
@@ -49,7 +48,7 @@ export interface Notification {
   type: string
   title: string
   message: string
-  data?: Prisma.JsonValue
+  data?: unknown
   isRead: boolean
   isDismissed: boolean
   expiresAt?: Date | null

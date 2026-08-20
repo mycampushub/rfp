@@ -36,15 +36,16 @@ export function dispatchWebhooks(
   ;(async () => {
     try {
       // 1. Query all active webhook endpoints for this tenant
-      const endpoints = await db.webhookEndpoint.findMany({
+      const endpointsRaw = await db.webhookEndpoint.findMany({
         where: {
           tenantId,
           status: 'active',
         },
       })
+      const endpoints = endpointsRaw as any[]
 
       // 2. Filter endpoints whose events array includes the triggered event
-      const matched = endpoints.filter((ep) => {
+      const matched = endpoints.filter((ep: any) => {
         if (!ep.events) return false
         try {
           const events = typeof ep.events === 'string'
@@ -69,7 +70,7 @@ export function dispatchWebhooks(
 
       // 4. Dispatch to each matched endpoint concurrently
       await Promise.allSettled(
-        matched.map(async (endpoint) => {
+        matched.map(async (endpoint: any) => {
           const deliveryId = crypto.randomUUID()
           const secret = endpoint.secret ?? ''
           const signature = generateSignature(body, secret)
@@ -90,7 +91,6 @@ export function dispatchWebhooks(
               signal: controller.signal,
             })
 
-            // eslint-disable-next-line no-console
             console.log(
               `[Webhook] Delivered ${event} to ${endpoint.url} — delivery=${deliveryId} status=${response.status}`,
             )

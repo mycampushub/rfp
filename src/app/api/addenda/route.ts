@@ -132,11 +132,12 @@ export async function POST(request: NextRequest) {
     })
 
     // Send notification to invited vendors
-    const invitations = await db.invitation.findMany({
+    const invitationsRaw = await db.invitation.findMany({
       where: { rfpId: validatedData.rfpId },
       select: { vendorId: true },
       take: 500,
     })
+    const invitations = invitationsRaw as any[]
     for (const inv of invitations) {
       await NotificationService.send({
         userId: inv.vendorId || '',

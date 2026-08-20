@@ -5,7 +5,6 @@ import { db } from "@/lib/db"
 import { getTenantContext, AuthError, PermissionError } from "@/lib/tenant-context"
 import { requirePermission } from "@/lib/rbac"
 import { z } from "zod"
-import { Prisma } from "@prisma/client"
 
 const createVendorSchema = z.object({
   name: z.string().min(1),
@@ -154,7 +153,7 @@ export async function POST(request: NextRequest) {
         phone: validatedData.phone,
         website: validatedData.website,
         location: validatedData.location,
-        contactInfo: enrichedContactInfo as Prisma.InputJsonValue,
+        contactInfo: enrichedContactInfo as unknown as object,
         categories: validatedData.categories,
         certifications: validatedData.certifications,
         diversityAttrs: validatedData.diversityAttrs,

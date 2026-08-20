@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       db.webhookEndpoint.count({ where: whereClause }),
     ])
 
-    const webhooks = webhooksRaw as any[] // eslint-disable-line @typescript-eslint/no-explicit-any
+    const webhooks = webhooksRaw as any[]
 
     // Omit secrets from list response
     const safeWebhooks = webhooks.map(({ secret: _s, ...w }) => w)

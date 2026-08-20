@@ -125,7 +125,7 @@ export default function ContractsPage() {
 
   useEffect(() => {
     fetchContracts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [statusFilter, page])
 
   const filteredContracts = contracts.filter((c) => {
